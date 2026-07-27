@@ -9,6 +9,7 @@ import { Profile } from '../pages/Profile';
 import { Marketplace } from '../pages/Marketplace';
 import { Portfolio } from '../pages/Portfolio';
 import { AdminPanel } from '../pages/AdminPanel';
+import { CreateAsset } from '../pages/CreateAsset';
 import { NotFound } from '../pages/NotFound';
 import { ProtectedRoute } from './ProtectedRoute';
 
@@ -36,6 +37,22 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <Profile />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'assets/create',
+        element: (
+          <ProtectedRoute requiredRoles={['asset_owner']}>
+            <CreateAsset />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'my-assets',
+        element: (
+          <ProtectedRoute requiredRoles={['asset_owner']}>
+            <Dashboard />
           </ProtectedRoute>
         ),
       },

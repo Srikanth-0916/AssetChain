@@ -36,9 +36,11 @@ contract AssetToken is ERC20, ERC20Burnable, AccessControl, Pausable {
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(ADMIN_ROLE, admin);
+        _grantRole(ADMIN_ROLE, msg.sender);
+        _grantRole(MINTER_ROLE, admin);
         _grantRole(MINTER_ROLE, msg.sender);
 
-        _mint(msg.sender, totalSupply);
+        _mint(admin, totalSupply);
     }
 
     function setWhitelist(address account, bool status) external onlyRole(ADMIN_ROLE) {
@@ -61,7 +63,10 @@ contract AssetToken is ERC20, ERC20Burnable, AccessControl, Pausable {
 
     function _update(address from, address to, uint256 value) internal override whenNotPaused {
         if (transfersRestricted && from != address(0) && to != address(0)) {
-            require(whitelist[from] || whitelist[to] || hasRole(ADMIN_ROLE, from), "KYC Whitelist restriction");
+            require(
+                whitelist[from] || whitelist[to] || hasRole(ADMIN_ROLE, from) || hasRole(ADMIN_ROLE, to),
+                "KYC Whitelist restriction"
+            );
         }
         super._update(from, to, value);
     }

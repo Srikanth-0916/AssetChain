@@ -23,6 +23,7 @@ contract AssetTokenFactory is AccessControl {
     );
 
     constructor(address admin) {
+        require(admin != address(0), "Invalid admin address");
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(DEPLOYER_ROLE, admin);
     }
@@ -32,7 +33,8 @@ contract AssetTokenFactory is AccessControl {
         string calldata name,
         string calldata symbol,
         uint256 totalSupply,
-        address assetOwner
+        address assetOwner,
+        address adminUser
     ) external onlyRole(DEPLOYER_ROLE) returns (address) {
         require(assetTokens[assetId] == address(0), "Token already deployed for asset");
 
@@ -42,7 +44,7 @@ contract AssetTokenFactory is AccessControl {
             totalSupply,
             assetId,
             assetOwner,
-            msg.sender
+            adminUser
         );
 
         address tokenAddress = address(token);

@@ -30,14 +30,18 @@ contract Treasury is AccessControl, ReentrancyGuard {
     event ProfitDeposited(uint256 indexed assetId, address indexed depositor, uint256 amount);
     event DistributionCreated(uint256 indexed distributionId, uint256 indexed assetId, uint256 totalAmount);
     event ProfitClaimed(uint256 indexed distributionId, address indexed holder, uint256 amount);
+    event EmergencyWithdraw(address indexed to, uint256 amount);
 
     constructor(address _paymentToken, address admin) {
+        require(_paymentToken != address(0), "Invalid payment token");
+        require(admin != address(0), "Invalid admin address");
         paymentToken = IERC20(_paymentToken);
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(ADMIN_ROLE, admin);
     }
 
     function depositProfit(uint256 assetId, address tokenContract, uint256 amount) external nonReentrant {
+        require(tokenContract != address(0), "Invalid token contract");
         require(amount > 0, "Amount must be > 0");
         require(paymentToken.transferFrom(msg.sender, address(this), amount), "Deposit failed");
 
@@ -56,9 +60,12 @@ contract Treasury is AccessControl, ReentrancyGuard {
 
     function claimProfit(uint256 distributionId) external nonReentrant {
         Distribution storage dist = distributions[distributionId];
+        require(dist.id > 0, "Distribution does not exist");
         require(!hasClaimed[distributionId][msg.sender], "Already claimed");
 
         uint256 totalSupply = IERC20(dist.tokenContract).totalSupply();
+        require(totalSupply > 0, "Total token supply is 0");
+
         uint256 holderBalance = IERC20(dist.tokenContract).balanceOf(msg.sender);
         require(holderBalance > 0, "No token balance");
 
@@ -69,5 +76,11 @@ contract Treasury is AccessControl, ReentrancyGuard {
         require(paymentToken.transfer(msg.sender, claimable), "Claim transfer failed");
 
         emit ProfitClaimed(distributionId, msg.sender, claimable);
+    }
+
+    function emergencyWithdraw(address to, uint256 amount) external onlyRole(ADMIN_ROLE) nonReentrant {
+        require(to != address(0), "Invalid target recipient");
+        require(paymentToken.transfer(to, amount), "Withdrawal failed");
+        emit EmergencyWithdraw(to, amount);
     }
 }

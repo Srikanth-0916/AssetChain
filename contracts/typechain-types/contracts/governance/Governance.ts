@@ -23,13 +23,61 @@ import type {
   TypedContractMethod,
 } from "../../common";
 
+export declare namespace Governance {
+  export type ProposalStruct = {
+    id: BigNumberish;
+    assetId: BigNumberish;
+    tokenContract: AddressLike;
+    title: string;
+    descriptionCID: string;
+    proposer: AddressLike;
+    startTime: BigNumberish;
+    endTime: BigNumberish;
+    votesFor: BigNumberish;
+    votesAgainst: BigNumberish;
+    quorumThreshold: BigNumberish;
+    status: BigNumberish;
+  };
+
+  export type ProposalStructOutput = [
+    id: bigint,
+    assetId: bigint,
+    tokenContract: string,
+    title: string,
+    descriptionCID: string,
+    proposer: string,
+    startTime: bigint,
+    endTime: bigint,
+    votesFor: bigint,
+    votesAgainst: bigint,
+    quorumThreshold: bigint,
+    status: bigint
+  ] & {
+    id: bigint;
+    assetId: bigint;
+    tokenContract: string;
+    title: string;
+    descriptionCID: string;
+    proposer: string;
+    startTime: bigint;
+    endTime: bigint;
+    votesFor: bigint;
+    votesAgainst: bigint;
+    quorumThreshold: bigint;
+    status: bigint;
+  };
+}
+
 export interface GovernanceInterface extends Interface {
   getFunction(
     nameOrSignature:
       | "ADMIN_ROLE"
       | "DEFAULT_ADMIN_ROLE"
+      | "cancelProposal"
       | "castVote"
       | "createProposal"
+      | "executeProposal"
+      | "getProposal"
       | "getRoleAdmin"
       | "grantRole"
       | "hasRole"
@@ -43,6 +91,7 @@ export interface GovernanceInterface extends Interface {
 
   getEvent(
     nameOrSignatureOrTopic:
+      | "ProposalCancelled"
       | "ProposalCreated"
       | "ProposalExecuted"
       | "RoleAdminChanged"
@@ -60,6 +109,10 @@ export interface GovernanceInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
+    functionFragment: "cancelProposal",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "castVote",
     values: [BigNumberish, boolean]
   ): string;
@@ -73,6 +126,14 @@ export interface GovernanceInterface extends Interface {
       BigNumberish,
       BigNumberish
     ]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "executeProposal",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getProposal",
+    values: [BigNumberish]
   ): string;
   encodeFunctionData(
     functionFragment: "getRoleAdmin",
@@ -116,9 +177,21 @@ export interface GovernanceInterface extends Interface {
     functionFragment: "DEFAULT_ADMIN_ROLE",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(
+    functionFragment: "cancelProposal",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "castVote", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "createProposal",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "executeProposal",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getProposal",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -142,6 +215,18 @@ export interface GovernanceInterface extends Interface {
     functionFragment: "supportsInterface",
     data: BytesLike
   ): Result;
+}
+
+export namespace ProposalCancelledEvent {
+  export type InputTuple = [proposalId: BigNumberish];
+  export type OutputTuple = [proposalId: bigint];
+  export interface OutputObject {
+    proposalId: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
 }
 
 export namespace ProposalCreatedEvent {
@@ -308,6 +393,12 @@ export interface Governance extends BaseContract {
 
   DEFAULT_ADMIN_ROLE: TypedContractMethod<[], [string], "view">;
 
+  cancelProposal: TypedContractMethod<
+    [proposalId: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
   castVote: TypedContractMethod<
     [proposalId: BigNumberish, support: boolean],
     [void],
@@ -325,6 +416,18 @@ export interface Governance extends BaseContract {
     ],
     [bigint],
     "nonpayable"
+  >;
+
+  executeProposal: TypedContractMethod<
+    [proposalId: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
+  getProposal: TypedContractMethod<
+    [proposalId: BigNumberish],
+    [Governance.ProposalStructOutput],
+    "view"
   >;
 
   getRoleAdmin: TypedContractMethod<[role: BytesLike], [string], "view">;
@@ -412,6 +515,9 @@ export interface Governance extends BaseContract {
     nameOrSignature: "DEFAULT_ADMIN_ROLE"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
+    nameOrSignature: "cancelProposal"
+  ): TypedContractMethod<[proposalId: BigNumberish], [void], "nonpayable">;
+  getFunction(
     nameOrSignature: "castVote"
   ): TypedContractMethod<
     [proposalId: BigNumberish, support: boolean],
@@ -431,6 +537,16 @@ export interface Governance extends BaseContract {
     ],
     [bigint],
     "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "executeProposal"
+  ): TypedContractMethod<[proposalId: BigNumberish], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "getProposal"
+  ): TypedContractMethod<
+    [proposalId: BigNumberish],
+    [Governance.ProposalStructOutput],
+    "view"
   >;
   getFunction(
     nameOrSignature: "getRoleAdmin"
@@ -513,6 +629,13 @@ export interface Governance extends BaseContract {
   ): TypedContractMethod<[interfaceId: BytesLike], [boolean], "view">;
 
   getEvent(
+    key: "ProposalCancelled"
+  ): TypedContractEvent<
+    ProposalCancelledEvent.InputTuple,
+    ProposalCancelledEvent.OutputTuple,
+    ProposalCancelledEvent.OutputObject
+  >;
+  getEvent(
     key: "ProposalCreated"
   ): TypedContractEvent<
     ProposalCreatedEvent.InputTuple,
@@ -556,6 +679,17 @@ export interface Governance extends BaseContract {
   >;
 
   filters: {
+    "ProposalCancelled(uint256)": TypedContractEvent<
+      ProposalCancelledEvent.InputTuple,
+      ProposalCancelledEvent.OutputTuple,
+      ProposalCancelledEvent.OutputObject
+    >;
+    ProposalCancelled: TypedContractEvent<
+      ProposalCancelledEvent.InputTuple,
+      ProposalCancelledEvent.OutputTuple,
+      ProposalCancelledEvent.OutputObject
+    >;
+
     "ProposalCreated(uint256,uint256,string)": TypedContractEvent<
       ProposalCreatedEvent.InputTuple,
       ProposalCreatedEvent.OutputTuple,

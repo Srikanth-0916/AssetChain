@@ -66,7 +66,14 @@ export interface AssetTokenFactoryInterface extends Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "deployToken",
-    values: [BigNumberish, string, string, BigNumberish, AddressLike]
+    values: [
+      BigNumberish,
+      string,
+      string,
+      BigNumberish,
+      AddressLike,
+      AddressLike
+    ]
   ): string;
   encodeFunctionData(
     functionFragment: "getRoleAdmin",
@@ -278,7 +285,8 @@ export interface AssetTokenFactory extends BaseContract {
       name: string,
       symbol: string,
       totalSupply: BigNumberish,
-      assetOwner: AddressLike
+      assetOwner: AddressLike,
+      adminUser: AddressLike
     ],
     [string],
     "nonpayable"
@@ -346,7 +354,8 @@ export interface AssetTokenFactory extends BaseContract {
       name: string,
       symbol: string,
       totalSupply: BigNumberish,
-      assetOwner: AddressLike
+      assetOwner: AddressLike,
+      adminUser: AddressLike
     ],
     [string],
     "nonpayable"

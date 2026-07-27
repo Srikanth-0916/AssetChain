@@ -32,6 +32,7 @@ export interface TreasuryInterface extends Interface {
       | "depositProfit"
       | "distributionCount"
       | "distributions"
+      | "emergencyWithdraw"
       | "getRoleAdmin"
       | "grantRole"
       | "hasClaimed"
@@ -45,6 +46,7 @@ export interface TreasuryInterface extends Interface {
   getEvent(
     nameOrSignatureOrTopic:
       | "DistributionCreated"
+      | "EmergencyWithdraw"
       | "ProfitClaimed"
       | "ProfitDeposited"
       | "RoleAdminChanged"
@@ -75,6 +77,10 @@ export interface TreasuryInterface extends Interface {
   encodeFunctionData(
     functionFragment: "distributions",
     values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "emergencyWithdraw",
+    values: [AddressLike, BigNumberish]
   ): string;
   encodeFunctionData(
     functionFragment: "getRoleAdmin",
@@ -131,6 +137,10 @@ export interface TreasuryInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "emergencyWithdraw",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "getRoleAdmin",
     data: BytesLike
   ): Result;
@@ -167,6 +177,19 @@ export namespace DistributionCreatedEvent {
     distributionId: bigint;
     assetId: bigint;
     totalAmount: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace EmergencyWithdrawEvent {
+  export type InputTuple = [to: AddressLike, amount: BigNumberish];
+  export type OutputTuple = [to: string, amount: bigint];
+  export interface OutputObject {
+    to: string;
+    amount: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -351,6 +374,12 @@ export interface Treasury extends BaseContract {
     "view"
   >;
 
+  emergencyWithdraw: TypedContractMethod<
+    [to: AddressLike, amount: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
   getRoleAdmin: TypedContractMethod<[role: BytesLike], [string], "view">;
 
   grantRole: TypedContractMethod<
@@ -430,6 +459,13 @@ export interface Treasury extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "emergencyWithdraw"
+  ): TypedContractMethod<
+    [to: AddressLike, amount: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
     nameOrSignature: "getRoleAdmin"
   ): TypedContractMethod<[role: BytesLike], [string], "view">;
   getFunction(
@@ -482,6 +518,13 @@ export interface Treasury extends BaseContract {
     DistributionCreatedEvent.OutputObject
   >;
   getEvent(
+    key: "EmergencyWithdraw"
+  ): TypedContractEvent<
+    EmergencyWithdrawEvent.InputTuple,
+    EmergencyWithdrawEvent.OutputTuple,
+    EmergencyWithdrawEvent.OutputObject
+  >;
+  getEvent(
     key: "ProfitClaimed"
   ): TypedContractEvent<
     ProfitClaimedEvent.InputTuple,
@@ -527,6 +570,17 @@ export interface Treasury extends BaseContract {
       DistributionCreatedEvent.InputTuple,
       DistributionCreatedEvent.OutputTuple,
       DistributionCreatedEvent.OutputObject
+    >;
+
+    "EmergencyWithdraw(address,uint256)": TypedContractEvent<
+      EmergencyWithdrawEvent.InputTuple,
+      EmergencyWithdrawEvent.OutputTuple,
+      EmergencyWithdrawEvent.OutputObject
+    >;
+    EmergencyWithdraw: TypedContractEvent<
+      EmergencyWithdrawEvent.InputTuple,
+      EmergencyWithdrawEvent.OutputTuple,
+      EmergencyWithdrawEvent.OutputObject
     >;
 
     "ProfitClaimed(uint256,address,uint256)": TypedContractEvent<

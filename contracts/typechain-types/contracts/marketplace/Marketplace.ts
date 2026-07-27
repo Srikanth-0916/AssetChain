@@ -30,6 +30,7 @@ export interface MarketplaceInterface extends Interface {
       | "DEFAULT_ADMIN_ROLE"
       | "buyListing"
       | "buyPrimaryTokens"
+      | "cancelListing"
       | "createListing"
       | "createPrimarySale"
       | "getRoleAdmin"
@@ -37,6 +38,7 @@ export interface MarketplaceInterface extends Interface {
       | "hasRole"
       | "listingCount"
       | "listings"
+      | "pause"
       | "paused"
       | "paymentToken"
       | "platformFeeBps"
@@ -45,12 +47,16 @@ export interface MarketplaceInterface extends Interface {
       | "primarySaleToken"
       | "renounceRole"
       | "revokeRole"
+      | "setPlatformFeeBps"
+      | "setTreasury"
       | "supportsInterface"
       | "treasury"
+      | "unpause"
   ): FunctionFragment;
 
   getEvent(
     nameOrSignatureOrTopic:
+      | "ListingCancelled"
       | "ListingCreated"
       | "ListingFulfilled"
       | "Paused"
@@ -77,6 +83,10 @@ export interface MarketplaceInterface extends Interface {
   encodeFunctionData(
     functionFragment: "buyPrimaryTokens",
     values: [BigNumberish, BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "cancelListing",
+    values: [BigNumberish]
   ): string;
   encodeFunctionData(
     functionFragment: "createListing",
@@ -106,6 +116,7 @@ export interface MarketplaceInterface extends Interface {
     functionFragment: "listings",
     values: [BigNumberish]
   ): string;
+  encodeFunctionData(functionFragment: "pause", values?: undefined): string;
   encodeFunctionData(functionFragment: "paused", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "paymentToken",
@@ -136,10 +147,19 @@ export interface MarketplaceInterface extends Interface {
     values: [BytesLike, AddressLike]
   ): string;
   encodeFunctionData(
+    functionFragment: "setPlatformFeeBps",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "setTreasury",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "supportsInterface",
     values: [BytesLike]
   ): string;
   encodeFunctionData(functionFragment: "treasury", values?: undefined): string;
+  encodeFunctionData(functionFragment: "unpause", values?: undefined): string;
 
   decodeFunctionResult(functionFragment: "ADMIN_ROLE", data: BytesLike): Result;
   decodeFunctionResult(
@@ -149,6 +169,10 @@ export interface MarketplaceInterface extends Interface {
   decodeFunctionResult(functionFragment: "buyListing", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "buyPrimaryTokens",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "cancelListing",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -170,6 +194,7 @@ export interface MarketplaceInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "listings", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "pause", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "paused", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "paymentToken",
@@ -197,10 +222,32 @@ export interface MarketplaceInterface extends Interface {
   ): Result;
   decodeFunctionResult(functionFragment: "revokeRole", data: BytesLike): Result;
   decodeFunctionResult(
+    functionFragment: "setPlatformFeeBps",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "setTreasury",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "supportsInterface",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "treasury", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "unpause", data: BytesLike): Result;
+}
+
+export namespace ListingCancelledEvent {
+  export type InputTuple = [listingId: BigNumberish, seller: AddressLike];
+  export type OutputTuple = [listingId: bigint, seller: string];
+  export interface OutputObject {
+    listingId: bigint;
+    seller: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
 }
 
 export namespace ListingCreatedEvent {
@@ -440,6 +487,12 @@ export interface Marketplace extends BaseContract {
     "nonpayable"
   >;
 
+  cancelListing: TypedContractMethod<
+    [listingId: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
   createListing: TypedContractMethod<
     [
       tokenContract: AddressLike,
@@ -492,6 +545,8 @@ export interface Marketplace extends BaseContract {
     "view"
   >;
 
+  pause: TypedContractMethod<[], [void], "nonpayable">;
+
   paused: TypedContractMethod<[], [boolean], "view">;
 
   paymentToken: TypedContractMethod<[], [string], "view">;
@@ -520,6 +575,18 @@ export interface Marketplace extends BaseContract {
     "nonpayable"
   >;
 
+  setPlatformFeeBps: TypedContractMethod<
+    [_feeBps: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
+  setTreasury: TypedContractMethod<
+    [_treasury: AddressLike],
+    [void],
+    "nonpayable"
+  >;
+
   supportsInterface: TypedContractMethod<
     [interfaceId: BytesLike],
     [boolean],
@@ -527,6 +594,8 @@ export interface Marketplace extends BaseContract {
   >;
 
   treasury: TypedContractMethod<[], [string], "view">;
+
+  unpause: TypedContractMethod<[], [void], "nonpayable">;
 
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
@@ -552,6 +621,9 @@ export interface Marketplace extends BaseContract {
     [void],
     "nonpayable"
   >;
+  getFunction(
+    nameOrSignature: "cancelListing"
+  ): TypedContractMethod<[listingId: BigNumberish], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "createListing"
   ): TypedContractMethod<
@@ -612,6 +684,9 @@ export interface Marketplace extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "pause"
+  ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
     nameOrSignature: "paused"
   ): TypedContractMethod<[], [boolean], "view">;
   getFunction(
@@ -644,12 +719,28 @@ export interface Marketplace extends BaseContract {
     "nonpayable"
   >;
   getFunction(
+    nameOrSignature: "setPlatformFeeBps"
+  ): TypedContractMethod<[_feeBps: BigNumberish], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "setTreasury"
+  ): TypedContractMethod<[_treasury: AddressLike], [void], "nonpayable">;
+  getFunction(
     nameOrSignature: "supportsInterface"
   ): TypedContractMethod<[interfaceId: BytesLike], [boolean], "view">;
   getFunction(
     nameOrSignature: "treasury"
   ): TypedContractMethod<[], [string], "view">;
+  getFunction(
+    nameOrSignature: "unpause"
+  ): TypedContractMethod<[], [void], "nonpayable">;
 
+  getEvent(
+    key: "ListingCancelled"
+  ): TypedContractEvent<
+    ListingCancelledEvent.InputTuple,
+    ListingCancelledEvent.OutputTuple,
+    ListingCancelledEvent.OutputObject
+  >;
   getEvent(
     key: "ListingCreated"
   ): TypedContractEvent<
@@ -715,6 +806,17 @@ export interface Marketplace extends BaseContract {
   >;
 
   filters: {
+    "ListingCancelled(uint256,address)": TypedContractEvent<
+      ListingCancelledEvent.InputTuple,
+      ListingCancelledEvent.OutputTuple,
+      ListingCancelledEvent.OutputObject
+    >;
+    ListingCancelled: TypedContractEvent<
+      ListingCancelledEvent.InputTuple,
+      ListingCancelledEvent.OutputTuple,
+      ListingCancelledEvent.OutputObject
+    >;
+
     "ListingCreated(uint256,address,address,uint256,uint256)": TypedContractEvent<
       ListingCreatedEvent.InputTuple,
       ListingCreatedEvent.OutputTuple,

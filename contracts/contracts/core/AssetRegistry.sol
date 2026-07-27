@@ -38,6 +38,8 @@ contract AssetRegistry is AccessControl, Pausable {
     event AssetTokenized(uint256 indexed assetId, address tokenContract);
 
     constructor(address admin, address factoryAddress) {
+        require(admin != address(0), "Invalid admin");
+        require(factoryAddress != address(0), "Invalid factory");
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(ADMIN_ROLE, admin);
         factory = AssetTokenFactory(factoryAddress);
@@ -99,7 +101,8 @@ contract AssetRegistry is AccessControl, Pausable {
             name,
             symbol,
             asset.tokenSupply,
-            asset.owner
+            asset.owner,
+            msg.sender
         );
 
         asset.tokenContract = tokenAddress;
