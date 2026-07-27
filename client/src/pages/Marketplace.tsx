@@ -3,10 +3,11 @@ import { assetService } from '../services/assetService';
 import { marketplaceService } from '../services/marketplaceService';
 import type { Asset } from '../types/asset';
 import { ASSET_TYPE_LABELS } from '../types/asset';
-import { Coins, Search, Filter, AlertCircle, CheckCircle2, ShoppingBag, X } from 'lucide-react';
+import { Coins, Search, Filter, AlertCircle, CheckCircle2, ShoppingBag, X, Zap } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 import { useWallet } from '../contexts/WalletContext';
+import { PaymentModal } from '../components/payment/PaymentModal';
 
 export function Marketplace() {
   const { isAuthenticated } = useAuth();
@@ -23,6 +24,9 @@ export function Marketplace() {
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [purchaseSuccess, setPurchaseSuccess] = useState<string | null>(null);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
+  // Payment modal state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadAssets() {
@@ -158,86 +162,49 @@ export function Marketplace() {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => setSelectedAsset(item)}
-                  className="btn-primary w-full text-xs"
-                >
-                  <Coins className="w-3.5 h-3.5" /> Purchase Tokens
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setSelectedAsset(item);
+                      setShowPaymentModal(true);
+                    }}
+                    className="btn-primary flex-1 text-xs"
+                  >
+                    <Zap className="w-3.5 h-3.5" /> Buy via UPI/Card
+                  </button>
+                </div>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Purchase Modal */}
-      {selectedAsset && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="glass-card w-full max-w-md p-6 border border-indigo-500/30 space-y-4 relative animate-fade-in">
-            <button
-              onClick={() => setSelectedAsset(null)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="space-y-1">
-              <h3 className="text-lg font-bold text-white">Purchase Ownership Tokens</h3>
-              <p className="text-xs text-slate-400">{selectedAsset.title}</p>
-            </div>
-
-            {purchaseSuccess && (
-              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                {purchaseSuccess}
-              </div>
-            )}
-
-            {purchaseError && (
-              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                {purchaseError}
-              </div>
-            )}
-
-            <form onSubmit={handleBuySubmit} className="space-y-4">
-              <div className="space-y-1">
-                <label className="label">Quantity of Tokens</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={selectedAsset.token_supply}
-                  value={quantity}
-                  onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
-                  className="input-field"
-                />
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1 text-xs">
-                <div className="flex items-center justify-between text-slate-400">
-                  <span>Price Per Token:</span>
-                  <span>${selectedAsset.token_price}</span>
-                </div>
-                <div className="flex items-center justify-between text-slate-400">
-                  <span>Platform Fee (2.5%):</span>
-                  <span>${((selectedAsset.token_price * quantity) * 0.025).toFixed(2)}</span>
-                </div>
-                <div className="flex items-center justify-between text-white font-bold pt-1 border-t border-slate-800">
-                  <span>Total Amount (USDC):</span>
-                  <span className="text-emerald-400">${((selectedAsset.token_price * quantity) * 1.025).toFixed(2)}</span>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isPurchasing}
-                className="btn-primary w-full py-2.5 text-xs font-semibold"
-              >
-                {isPurchasing ? 'Confirming Transaction...' : 'Confirm Token Purchase'}
-              </button>
-            </form>
-          </div>
+      {/* Payment Success Toast */}
+      {paymentSuccess && (
+        <div className="fixed bottom-6 right-6 z-50 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2 shadow-xl animate-fade-in">
+          <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+          {paymentSuccess}
         </div>
+      )}
+
+      {/* Razorpay Payment Modal */}
+      {showPaymentModal && selectedAsset && (
+        <PaymentModal
+          assetId={selectedAsset.id}
+          assetTitle={selectedAsset.title}
+          tokenPrice={Number(selectedAsset.token_price)}
+          quantity={quantity}
+          onSuccess={(txHash) => {
+            setShowPaymentModal(false);
+            setSelectedAsset(null);
+            setPaymentSuccess(`✅ ${quantity} tokens of ${selectedAsset?.title} minted! Tx: ${txHash?.slice(0, 12)}...`);
+            setTimeout(() => setPaymentSuccess(null), 5000);
+          }}
+          onClose={() => {
+            setShowPaymentModal(false);
+            setSelectedAsset(null);
+          }}
+        />
       )}
     </div>
   );

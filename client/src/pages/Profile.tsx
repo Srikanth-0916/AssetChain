@@ -4,6 +4,7 @@ import { useWallet } from '../contexts/WalletContext';
 import { User, Wallet, ShieldCheck, Upload, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { truncateAddress } from '../lib/utils';
 import { authService } from '../services/authService';
+import { SmartWalletPanel } from '../components/wallet/SmartWalletPanel';
 
 export function Profile() {
   const { user, updateUser } = useAuth();
@@ -205,6 +206,8 @@ export function Profile() {
           </form>
         )}
       </div>
+      {/* ERC-4337 Smart Wallet — Module 11 */}
+      <SmartWalletPanel />
     </div>
   );
 }

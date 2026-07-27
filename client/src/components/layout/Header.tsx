@@ -2,11 +2,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWallet } from '../../contexts/WalletContext';
 import { truncateAddress } from '../../lib/utils';
+import { NotificationBell } from './NotificationBell';
 import {
   Coins,
   Wallet,
   LogOut,
   User as UserIcon,
+  Sparkles,
+  BarChart3,
 } from 'lucide-react';
 
 export function Header() {
@@ -36,6 +39,15 @@ export function Header() {
           {isAuthenticated && (
             <>
               <Link to="/dashboard" className="hover:text-indigo-400 transition-colors">Dashboard</Link>
+              {/* AI Copilot — available to all authenticated users */}
+              <Link
+                to="/ai-copilot"
+                id="nav-ai-copilot"
+                className="flex items-center gap-1.5 hover:text-indigo-400 transition-colors text-indigo-300"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                AI Copilot
+              </Link>
               {user?.role === 'investor' && (
                 <Link to="/portfolio" className="hover:text-indigo-400 transition-colors">Portfolio</Link>
               )}
@@ -43,7 +55,17 @@ export function Header() {
                 <Link to="/my-assets" className="hover:text-indigo-400 transition-colors">My Assets</Link>
               )}
               {user?.role === 'admin' && (
-                <Link to="/admin" className="hover:text-indigo-400 transition-colors">Admin Panel</Link>
+                <>
+                  <Link to="/admin" className="hover:text-indigo-400 transition-colors">Admin Panel</Link>
+                  <Link
+                    to="/analytics"
+                    id="nav-analytics"
+                    className="flex items-center gap-1.5 hover:text-indigo-400 transition-colors"
+                  >
+                    <BarChart3 className="w-3.5 h-3.5" />
+                    Analytics
+                  </Link>
+                </>
               )}
             </>
           )}
@@ -74,6 +96,9 @@ export function Header() {
               Connect Wallet
             </button>
           )}
+
+          {/* Notification Bell */}
+          <NotificationBell />
 
           {isAuthenticated ? (
             <div className="flex items-center gap-2 pl-2 border-l border-slate-800">

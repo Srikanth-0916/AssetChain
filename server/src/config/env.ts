@@ -28,6 +28,20 @@ const envSchema = z.object({
   // Blockchain
   POLYGON_AMOY_RPC_URL: z.string().url().default('https://rpc-amoy.polygon.technology'),
   DEPLOYER_PRIVATE_KEY: z.string().min(1).default('0x0000000000000000000000000000000000000000000000000000000000000001'),
+
+  // AI Copilot
+  GEMINI_API_KEY: z.string().optional().default(''),
+
+  // Payment Gateway
+  RAZORPAY_KEY_ID: z.string().optional().default(''),
+  RAZORPAY_KEY_SECRET: z.string().optional().default(''),
+
+  // Infrastructure (optional)
+  REDIS_URL: z.string().optional().default(''),
+  CHROMA_URL: z.string().optional().default(''),
+
+  // Versioning
+  APP_VERSION: z.string().default('2.0.0'),
 });
 
 function validateEnv() {

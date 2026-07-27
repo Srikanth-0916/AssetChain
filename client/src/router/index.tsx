@@ -10,6 +10,8 @@ import { Marketplace } from '../pages/Marketplace';
 import { Portfolio } from '../pages/Portfolio';
 import { AdminPanel } from '../pages/AdminPanel';
 import { CreateAsset } from '../pages/CreateAsset';
+import { AICopilot } from '../pages/AICopilot';
+import { Analytics } from '../pages/Analytics';
 import { NotFound } from '../pages/NotFound';
 import { ProtectedRoute } from './ProtectedRoute';
 
@@ -24,6 +26,8 @@ export const router = createBrowserRouter([
       { path: 'register', element: <Register /> },
       { path: 'forgot-password', element: <ForgotPassword /> },
       { path: 'marketplace', element: <Marketplace /> },
+
+      // ─── Protected: All authenticated users ───
       {
         path: 'dashboard',
         element: (
@@ -41,6 +45,16 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'ai-copilot',
+        element: (
+          <ProtectedRoute>
+            <AICopilot />
+          </ProtectedRoute>
+        ),
+      },
+
+      // ─── Protected: Asset Owner ───
+      {
         path: 'assets/create',
         element: (
           <ProtectedRoute requiredRoles={['asset_owner']}>
@@ -56,6 +70,8 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
+
+      // ─── Protected: Investor & Asset Owner ───
       {
         path: 'portfolio',
         element: (
@@ -64,6 +80,8 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
+
+      // ─── Protected: Admin only ───
       {
         path: 'admin',
         element: (
@@ -72,6 +90,15 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
+      {
+        path: 'analytics',
+        element: (
+          <ProtectedRoute requiredRoles={['admin']}>
+            <Analytics />
+          </ProtectedRoute>
+        ),
+      },
+
       { path: '*', element: <NotFound /> },
     ],
   },
