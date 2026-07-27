@@ -1,0 +1,35 @@
+{
+  "name": "assetchain",
+  "version": "1.0.0",
+  "description": "Blockchain-Based Tokenized Asset Investment Platform",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server",
+    "contracts"
+  ],
+  "scripts": {
+    "dev:client": "cd client && npm run dev",
+    "dev:server": "cd server && npm run dev",
+    "dev:contracts": "cd contracts && npx hardhat compile",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "build:client": "cd client && npm run build",
+    "build:server": "cd server && npm run build",
+    "build": "npm run build:server && npm run build:client",
+    "test:contracts": "cd contracts && npx hardhat test",
+    "test:server": "cd server && npm test",
+    "lint": "concurrently \"cd client && npm run lint\" \"cd server && npm run lint\""
+  },
+  "keywords": [
+    "blockchain",
+    "tokenization",
+    "real-world-assets",
+    "dao",
+    "defi"
+  ],
+  "author": "AssetChain Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^10.0.4"
+  }
+}
