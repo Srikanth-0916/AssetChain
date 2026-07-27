@@ -67,7 +67,7 @@ AssetChain/
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/assetchain.git
+git clone https://github.com/Srikanth-0916/AssetChain.git
 cd assetchain
 
 # Install root dependencies
