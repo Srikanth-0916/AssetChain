@@ -36,15 +36,18 @@ export interface AssetTokenInterface extends Interface {
       | "balanceOf"
       | "burn"
       | "burnFrom"
+      | "complianceProfiles"
       | "decimals"
       | "getRoleAdmin"
       | "grantRole"
       | "hasRole"
+      | "isCompliant"
       | "name"
       | "pause"
       | "paused"
       | "renounceRole"
       | "revokeRole"
+      | "setComplianceProfile"
       | "setTransferRestriction"
       | "setWhitelist"
       | "supportsInterface"
@@ -60,6 +63,7 @@ export interface AssetTokenInterface extends Interface {
   getEvent(
     nameOrSignatureOrTopic:
       | "Approval"
+      | "ComplianceProfileUpdated"
       | "Paused"
       | "RoleAdminChanged"
       | "RoleGranted"
@@ -104,6 +108,10 @@ export interface AssetTokenInterface extends Interface {
     functionFragment: "burnFrom",
     values: [AddressLike, BigNumberish]
   ): string;
+  encodeFunctionData(
+    functionFragment: "complianceProfiles",
+    values: [AddressLike]
+  ): string;
   encodeFunctionData(functionFragment: "decimals", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "getRoleAdmin",
@@ -117,6 +125,10 @@ export interface AssetTokenInterface extends Interface {
     functionFragment: "hasRole",
     values: [BytesLike, AddressLike]
   ): string;
+  encodeFunctionData(
+    functionFragment: "isCompliant",
+    values: [AddressLike]
+  ): string;
   encodeFunctionData(functionFragment: "name", values?: undefined): string;
   encodeFunctionData(functionFragment: "pause", values?: undefined): string;
   encodeFunctionData(functionFragment: "paused", values?: undefined): string;
@@ -127,6 +139,10 @@ export interface AssetTokenInterface extends Interface {
   encodeFunctionData(
     functionFragment: "revokeRole",
     values: [BytesLike, AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "setComplianceProfile",
+    values: [AddressLike, BigNumberish, BigNumberish, BigNumberish, boolean]
   ): string;
   encodeFunctionData(
     functionFragment: "setTransferRestriction",
@@ -179,6 +195,10 @@ export interface AssetTokenInterface extends Interface {
   decodeFunctionResult(functionFragment: "balanceOf", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "burn", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "burnFrom", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "complianceProfiles",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "decimals", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "getRoleAdmin",
@@ -186,6 +206,10 @@ export interface AssetTokenInterface extends Interface {
   ): Result;
   decodeFunctionResult(functionFragment: "grantRole", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "hasRole", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "isCompliant",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "name", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "pause", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "paused", data: BytesLike): Result;
@@ -194,6 +218,10 @@ export interface AssetTokenInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "revokeRole", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "setComplianceProfile",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "setTransferRestriction",
     data: BytesLike
@@ -235,6 +263,34 @@ export namespace ApprovalEvent {
     owner: string;
     spender: string;
     value: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace ComplianceProfileUpdatedEvent {
+  export type InputTuple = [
+    account: AddressLike,
+    kycStatus: BigNumberish,
+    jurisdictionCode: BigNumberish,
+    riskTier: BigNumberish,
+    transferPermission: boolean
+  ];
+  export type OutputTuple = [
+    account: string,
+    kycStatus: bigint,
+    jurisdictionCode: bigint,
+    riskTier: bigint,
+    transferPermission: boolean
+  ];
+  export interface OutputObject {
+    account: string;
+    kycStatus: bigint;
+    jurisdictionCode: bigint;
+    riskTier: bigint;
+    transferPermission: boolean;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -442,6 +498,19 @@ export interface AssetToken extends BaseContract {
     "nonpayable"
   >;
 
+  complianceProfiles: TypedContractMethod<
+    [arg0: AddressLike],
+    [
+      [bigint, bigint, bigint, boolean] & {
+        kycStatus: bigint;
+        jurisdictionCode: bigint;
+        riskTier: bigint;
+        transferPermission: boolean;
+      }
+    ],
+    "view"
+  >;
+
   decimals: TypedContractMethod<[], [bigint], "view">;
 
   getRoleAdmin: TypedContractMethod<[role: BytesLike], [string], "view">;
@@ -458,6 +527,8 @@ export interface AssetToken extends BaseContract {
     "view"
   >;
 
+  isCompliant: TypedContractMethod<[account: AddressLike], [boolean], "view">;
+
   name: TypedContractMethod<[], [string], "view">;
 
   pause: TypedContractMethod<[], [void], "nonpayable">;
@@ -472,6 +543,18 @@ export interface AssetToken extends BaseContract {
 
   revokeRole: TypedContractMethod<
     [role: BytesLike, account: AddressLike],
+    [void],
+    "nonpayable"
+  >;
+
+  setComplianceProfile: TypedContractMethod<
+    [
+      account: AddressLike,
+      kycStatus: BigNumberish,
+      jurisdictionCode: BigNumberish,
+      riskTier: BigNumberish,
+      transferPermission: boolean
+    ],
     [void],
     "nonpayable"
   >;
@@ -563,6 +646,20 @@ export interface AssetToken extends BaseContract {
     "nonpayable"
   >;
   getFunction(
+    nameOrSignature: "complianceProfiles"
+  ): TypedContractMethod<
+    [arg0: AddressLike],
+    [
+      [bigint, bigint, bigint, boolean] & {
+        kycStatus: bigint;
+        jurisdictionCode: bigint;
+        riskTier: bigint;
+        transferPermission: boolean;
+      }
+    ],
+    "view"
+  >;
+  getFunction(
     nameOrSignature: "decimals"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
@@ -583,6 +680,9 @@ export interface AssetToken extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "isCompliant"
+  ): TypedContractMethod<[account: AddressLike], [boolean], "view">;
+  getFunction(
     nameOrSignature: "name"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
@@ -602,6 +702,19 @@ export interface AssetToken extends BaseContract {
     nameOrSignature: "revokeRole"
   ): TypedContractMethod<
     [role: BytesLike, account: AddressLike],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "setComplianceProfile"
+  ): TypedContractMethod<
+    [
+      account: AddressLike,
+      kycStatus: BigNumberish,
+      jurisdictionCode: BigNumberish,
+      riskTier: BigNumberish,
+      transferPermission: boolean
+    ],
     [void],
     "nonpayable"
   >;
@@ -654,6 +767,13 @@ export interface AssetToken extends BaseContract {
     ApprovalEvent.InputTuple,
     ApprovalEvent.OutputTuple,
     ApprovalEvent.OutputObject
+  >;
+  getEvent(
+    key: "ComplianceProfileUpdated"
+  ): TypedContractEvent<
+    ComplianceProfileUpdatedEvent.InputTuple,
+    ComplianceProfileUpdatedEvent.OutputTuple,
+    ComplianceProfileUpdatedEvent.OutputObject
   >;
   getEvent(
     key: "Paused"
@@ -722,6 +842,17 @@ export interface AssetToken extends BaseContract {
       ApprovalEvent.InputTuple,
       ApprovalEvent.OutputTuple,
       ApprovalEvent.OutputObject
+    >;
+
+    "ComplianceProfileUpdated(address,uint8,uint16,uint8,bool)": TypedContractEvent<
+      ComplianceProfileUpdatedEvent.InputTuple,
+      ComplianceProfileUpdatedEvent.OutputTuple,
+      ComplianceProfileUpdatedEvent.OutputObject
+    >;
+    ComplianceProfileUpdated: TypedContractEvent<
+      ComplianceProfileUpdatedEvent.InputTuple,
+      ComplianceProfileUpdatedEvent.OutputTuple,
+      ComplianceProfileUpdatedEvent.OutputObject
     >;
 
     "Paused(address)": TypedContractEvent<

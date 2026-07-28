@@ -30,6 +30,7 @@ export interface TreasuryInterface extends Interface {
       | "DEFAULT_ADMIN_ROLE"
       | "claimProfit"
       | "depositProfit"
+      | "depositProfitWithSnapshot"
       | "distributionCount"
       | "distributions"
       | "emergencyWithdraw"
@@ -38,8 +39,10 @@ export interface TreasuryInterface extends Interface {
       | "hasClaimed"
       | "hasRole"
       | "paymentToken"
+      | "recordSnapshotBatch"
       | "renounceRole"
       | "revokeRole"
+      | "snapshotBalances"
       | "supportsInterface"
   ): FunctionFragment;
 
@@ -52,6 +55,7 @@ export interface TreasuryInterface extends Interface {
       | "RoleAdminChanged"
       | "RoleGranted"
       | "RoleRevoked"
+      | "SnapshotRecorded"
   ): EventFragment;
 
   encodeFunctionData(
@@ -69,6 +73,16 @@ export interface TreasuryInterface extends Interface {
   encodeFunctionData(
     functionFragment: "depositProfit",
     values: [BigNumberish, AddressLike, BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "depositProfitWithSnapshot",
+    values: [
+      BigNumberish,
+      AddressLike,
+      BigNumberish,
+      AddressLike[],
+      BigNumberish[]
+    ]
   ): string;
   encodeFunctionData(
     functionFragment: "distributionCount",
@@ -103,12 +117,20 @@ export interface TreasuryInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
+    functionFragment: "recordSnapshotBatch",
+    values: [BigNumberish, AddressLike[], BigNumberish[]]
+  ): string;
+  encodeFunctionData(
     functionFragment: "renounceRole",
     values: [BytesLike, AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "revokeRole",
     values: [BytesLike, AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "snapshotBalances",
+    values: [BigNumberish, AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "supportsInterface",
@@ -126,6 +148,10 @@ export interface TreasuryInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "depositProfit",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "depositProfitWithSnapshot",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -152,10 +178,18 @@ export interface TreasuryInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "recordSnapshotBatch",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "renounceRole",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "revokeRole", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "snapshotBalances",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "supportsInterface",
     data: BytesLike
@@ -223,17 +257,20 @@ export namespace ProfitDepositedEvent {
   export type InputTuple = [
     assetId: BigNumberish,
     depositor: AddressLike,
-    amount: BigNumberish
+    amount: BigNumberish,
+    snapshotTotalSupply: BigNumberish
   ];
   export type OutputTuple = [
     assetId: bigint,
     depositor: string,
-    amount: bigint
+    amount: bigint,
+    snapshotTotalSupply: bigint
   ];
   export interface OutputObject {
     assetId: bigint;
     depositor: string;
     amount: bigint;
+    snapshotTotalSupply: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -292,6 +329,28 @@ export namespace RoleRevokedEvent {
     role: string;
     account: string;
     sender: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace SnapshotRecordedEvent {
+  export type InputTuple = [
+    distributionId: BigNumberish,
+    holder: AddressLike,
+    balance: BigNumberish
+  ];
+  export type OutputTuple = [
+    distributionId: bigint,
+    holder: string,
+    balance: bigint
+  ];
+  export interface OutputObject {
+    distributionId: bigint;
+    holder: string;
+    balance: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -358,16 +417,29 @@ export interface Treasury extends BaseContract {
     "nonpayable"
   >;
 
+  depositProfitWithSnapshot: TypedContractMethod<
+    [
+      assetId: BigNumberish,
+      tokenContract: AddressLike,
+      amount: BigNumberish,
+      holders: AddressLike[],
+      balances: BigNumberish[]
+    ],
+    [void],
+    "nonpayable"
+  >;
+
   distributionCount: TypedContractMethod<[], [bigint], "view">;
 
   distributions: TypedContractMethod<
     [arg0: BigNumberish],
     [
-      [bigint, bigint, string, bigint, bigint] & {
+      [bigint, bigint, string, bigint, bigint, bigint] & {
         id: bigint;
         assetId: bigint;
         tokenContract: string;
         totalAmount: bigint;
+        snapshotTotalSupply: bigint;
         createdAt: bigint;
       }
     ],
@@ -402,6 +474,16 @@ export interface Treasury extends BaseContract {
 
   paymentToken: TypedContractMethod<[], [string], "view">;
 
+  recordSnapshotBatch: TypedContractMethod<
+    [
+      distributionId: BigNumberish,
+      holders: AddressLike[],
+      balances: BigNumberish[]
+    ],
+    [void],
+    "nonpayable"
+  >;
+
   renounceRole: TypedContractMethod<
     [role: BytesLike, callerConfirmation: AddressLike],
     [void],
@@ -412,6 +494,12 @@ export interface Treasury extends BaseContract {
     [role: BytesLike, account: AddressLike],
     [void],
     "nonpayable"
+  >;
+
+  snapshotBalances: TypedContractMethod<
+    [arg0: BigNumberish, arg1: AddressLike],
+    [bigint],
+    "view"
   >;
 
   supportsInterface: TypedContractMethod<
@@ -441,6 +529,19 @@ export interface Treasury extends BaseContract {
     "nonpayable"
   >;
   getFunction(
+    nameOrSignature: "depositProfitWithSnapshot"
+  ): TypedContractMethod<
+    [
+      assetId: BigNumberish,
+      tokenContract: AddressLike,
+      amount: BigNumberish,
+      holders: AddressLike[],
+      balances: BigNumberish[]
+    ],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
     nameOrSignature: "distributionCount"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
@@ -448,11 +549,12 @@ export interface Treasury extends BaseContract {
   ): TypedContractMethod<
     [arg0: BigNumberish],
     [
-      [bigint, bigint, string, bigint, bigint] & {
+      [bigint, bigint, string, bigint, bigint, bigint] & {
         id: bigint;
         assetId: bigint;
         tokenContract: string;
         totalAmount: bigint;
+        snapshotTotalSupply: bigint;
         createdAt: bigint;
       }
     ],
@@ -493,6 +595,17 @@ export interface Treasury extends BaseContract {
     nameOrSignature: "paymentToken"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
+    nameOrSignature: "recordSnapshotBatch"
+  ): TypedContractMethod<
+    [
+      distributionId: BigNumberish,
+      holders: AddressLike[],
+      balances: BigNumberish[]
+    ],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
     nameOrSignature: "renounceRole"
   ): TypedContractMethod<
     [role: BytesLike, callerConfirmation: AddressLike],
@@ -505,6 +618,13 @@ export interface Treasury extends BaseContract {
     [role: BytesLike, account: AddressLike],
     [void],
     "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "snapshotBalances"
+  ): TypedContractMethod<
+    [arg0: BigNumberish, arg1: AddressLike],
+    [bigint],
+    "view"
   >;
   getFunction(
     nameOrSignature: "supportsInterface"
@@ -559,6 +679,13 @@ export interface Treasury extends BaseContract {
     RoleRevokedEvent.OutputTuple,
     RoleRevokedEvent.OutputObject
   >;
+  getEvent(
+    key: "SnapshotRecorded"
+  ): TypedContractEvent<
+    SnapshotRecordedEvent.InputTuple,
+    SnapshotRecordedEvent.OutputTuple,
+    SnapshotRecordedEvent.OutputObject
+  >;
 
   filters: {
     "DistributionCreated(uint256,uint256,uint256)": TypedContractEvent<
@@ -594,7 +721,7 @@ export interface Treasury extends BaseContract {
       ProfitClaimedEvent.OutputObject
     >;
 
-    "ProfitDeposited(uint256,address,uint256)": TypedContractEvent<
+    "ProfitDeposited(uint256,address,uint256,uint256)": TypedContractEvent<
       ProfitDepositedEvent.InputTuple,
       ProfitDepositedEvent.OutputTuple,
       ProfitDepositedEvent.OutputObject
@@ -636,6 +763,17 @@ export interface Treasury extends BaseContract {
       RoleRevokedEvent.InputTuple,
       RoleRevokedEvent.OutputTuple,
       RoleRevokedEvent.OutputObject
+    >;
+
+    "SnapshotRecorded(uint256,address,uint256)": TypedContractEvent<
+      SnapshotRecordedEvent.InputTuple,
+      SnapshotRecordedEvent.OutputTuple,
+      SnapshotRecordedEvent.OutputObject
+    >;
+    SnapshotRecorded: TypedContractEvent<
+      SnapshotRecordedEvent.InputTuple,
+      SnapshotRecordedEvent.OutputTuple,
+      SnapshotRecordedEvent.OutputObject
     >;
   };
 }

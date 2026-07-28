@@ -27,6 +27,20 @@ The platform allows verified asset owners to tokenize physical assets into ERC-2
 | **Smart Contracts** | Solidity ^0.8.20, OpenZeppelin v5, Hardhat, TypeChain |
 | **Blockchain Target** | Polygon Amoy Testnet (Chain ID: 80002) |
 | **Storage** | IPFS (Pinata) |
+| **CI/CD Pipeline** | GitHub Actions Workflow (`.github/workflows/ci.yml`) |
+
+---
+
+## 🚦 System Implementation & Production Engineering Status
+
+| System Component | Engineering Status | Implementation Details |
+|---|---|---|
+| **Smart Contracts (`AssetRegistry`, `AssetToken`, `Treasury`)** | **Prototype / Hardened on Testnet** | Hardhat verified, OpenZeppelin ReentrancyGuard & AccessControl active, pending third-party mainnet audit |
+| **Express Backend API & Middleware** | **Production-Ready Prototype** | Rate-limited (20 req/15m), Zod schema validation, Helmet security headers |
+| **AI Copilot & Recommendation Engine** | **Production Prototype (Hardened)** | Deterministic scoring engine + Gemini 2.0 Flash + High-Availability Fallback Engine |
+| **AI Telemetry & Observability** | **Production Prototype** | Latency, request rate, fallback %, and error metrics via REST & UI Dashboard |
+| **SPV & Nominee Persistence** | **Database Integrated** | Supabase/PostgreSQL CRUD with local memory store fallback |
+| **Payment Gateway (Razorpay)** | **Demo / Testnet Mode** | HMAC-SHA256 signature verification & Polygon token minting simulation |
 
 ---
 

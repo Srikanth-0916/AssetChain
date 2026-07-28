@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import { aiController } from './ai.controller';
 import { authenticate } from '../../middleware/auth';
+import { aiRateLimiter } from '../../middleware/rateLimiter';
 
 const router = Router();
 router.use(authenticate);
+router.use(aiRateLimiter);
 
 // ─── Core AI Endpoints ─────────────────────────────────────────────────────
 router.post('/investment-advice', (req, res, next) => aiController.investmentAdvice(req, res, next));
@@ -20,5 +22,9 @@ router.post('/preferences', (req, res, next) => aiController.savePreferences(req
 router.get('/preferences', (req, res, next) => aiController.getPreferences(req, res, next));
 router.get('/history', (req, res, next) => aiController.getHistory(req, res, next));
 router.delete('/history', (req, res, next) => aiController.clearHistory(req, res, next));
+
+// ─── AI Observability & Telemetry Endpoints ───────────────────────────────
+router.get('/observability/stats', (req, res, next) => aiController.getObservabilityStats(req, res, next));
+router.get('/observability/logs', (req, res, next) => aiController.getObservabilityLogs(req, res, next));
 
 export default router;

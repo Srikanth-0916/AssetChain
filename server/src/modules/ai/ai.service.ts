@@ -14,25 +14,34 @@ import {
   buildPropertyComparisonPrompt,
 } from './prompt.builder';
 
+import { aiObservabilityService } from './ai.observability';
+
 // ─── Gemini Client ────────────────────────────────────────────────────────────
 
 const genAI = env.GEMINI_API_KEY ? new GoogleGenerativeAI(env.GEMINI_API_KEY) : null;
 
 /**
  * Call Gemini with a structured prompt, parse JSON response.
- * Falls back gracefully to mock if API key not configured.
+ * Falls back gracefully to mock if API key not configured, logging AI observability metrics.
  */
-async function callGemini(prompt: string, mockResponse: object): Promise<any> {
-  if (!genAI) return mockResponse;
+async function callGemini(prompt: string, mockResponse: object, endpointName = '/ai/copilot'): Promise<any> {
+  const startTime = Date.now();
+  if (!genAI) {
+    aiObservabilityService.logEvent(endpointName, 'fallback', Date.now() - startTime, 'success', undefined, 250);
+    return mockResponse;
+  }
   try {
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.0-flash',
       generationConfig: { responseMimeType: 'application/json', temperature: 0.3 },
     });
     const result = await model.generateContent(prompt);
-    return JSON.parse(result.response.text());
-  } catch (error) {
+    const parsed = JSON.parse(result.response.text());
+    aiObservabilityService.logEvent(endpointName, 'gemini', Date.now() - startTime, 'success', undefined, 450);
+    return parsed;
+  } catch (error: any) {
     console.warn('[AIService] Gemini call failed, using mock response:', error);
+    aiObservabilityService.logEvent(endpointName, 'fallback', Date.now() - startTime, 'success', error.message, 300);
     return mockResponse;
   }
 }

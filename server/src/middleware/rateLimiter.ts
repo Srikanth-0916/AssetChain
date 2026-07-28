@@ -1,52 +1,52 @@
 import rateLimit from 'express-rate-limit';
 
 /**
- * General API rate limiter — 120 requests per minute for authenticated users.
+ * General API Rate Limiter.
  */
 export const generalLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 120,
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 300, // 300 requests per window
+  standardHeaders: true,
+  legacyHeaders: false,
   message: {
     success: false,
     error: {
-      code: 'RATE_LIMITED',
-      message: 'Too many requests, please try again later',
+      code: 'TOO_MANY_REQUESTS',
+      message: 'Too many requests from this IP, please try again after 15 minutes.',
     },
   },
-  standardHeaders: true,
-  legacyHeaders: false,
 });
 
 /**
- * Auth endpoint rate limiter — 10 requests per minute.
+ * Auth Endpoints Rate Limiter.
  */
 export const authLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 10,
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
   message: {
     success: false,
     error: {
-      code: 'RATE_LIMITED',
-      message: 'Too many authentication attempts, please try again later',
+      code: 'TOO_MANY_REQUESTS',
+      message: 'Too many login/auth requests from this IP.',
     },
   },
-  standardHeaders: true,
-  legacyHeaders: false,
 });
 
 /**
- * File upload rate limiter — 5 requests per minute.
+ * AI Copilot & Recommendation API Rate Limiter.
  */
-export const uploadLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 5,
+export const aiRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // 50 requests per window
+  standardHeaders: true,
+  legacyHeaders: false,
   message: {
     success: false,
     error: {
-      code: 'RATE_LIMITED',
-      message: 'Too many upload attempts, please try again later',
+      code: 'TOO_MANY_REQUESTS',
+      message: 'AI Rate limit exceeded. Maximum 50 requests allowed per 15-minute window.',
     },
   },
-  standardHeaders: true,
-  legacyHeaders: false,
 });

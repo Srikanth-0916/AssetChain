@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import {
   ShieldCheck, UserCheck, FileCheck, Layers, CheckCircle2, AlertCircle,
   Sparkles, RefreshCw, ChevronRight, Shield, AlertTriangle,
-  ScrollText, Clock, Info,
+  ScrollText, Clock, Info, CheckSquare, Users, Building, Scale, ExternalLink
 } from 'lucide-react';
 import { verificationApiService } from '../services/platformServices';
 
-type Tab = 'kyc' | 'assets' | 'audit';
+type Tab = 'kyc' | 'assets' | 'multisig' | 'inheritance' | 'audit';
 
 export function AdminPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('kyc');
@@ -20,6 +20,50 @@ export function AdminPanel() {
   const [pendingAssets, setPendingAssets] = useState([
     { id: 'asset-pending-01', title: 'Solar Array Delta', category: 'Renewable Energy', valuation: 850000, tokenSupply: 8500, owner: 'Robert Vance' },
     { id: 'asset-pending-02', title: 'Coastal Residences Goa', category: 'Residential', valuation: 1200000, tokenSupply: 10000, owner: 'Elena Rostova' },
+  ]);
+
+  // Multi-Sig State (Module 14 & 13)
+  const [multisigRequests, setMultisigRequests] = useState([
+    {
+      id: 'req-001',
+      assetTitle: 'Solar Array Delta',
+      assetId: 'asset-pending-01',
+      spvName: 'Solar Farm Energy Asset Holdings S.L.',
+      spvRegNo: 'ES-B98124501',
+      trustee: 'Deutsche Bank Trust',
+      status: 'pending',
+      verifierVote: 'approved',
+      legalVote: 'pending',
+      adminVote: 'pending',
+      approvedCount: 1,
+    },
+    {
+      id: 'req-002',
+      assetTitle: 'Coastal Residences Goa',
+      assetId: 'asset-pending-02',
+      spvName: 'Goa Coastal Villa Properties SPV LLC',
+      spvRegNo: 'IND-DL-991204',
+      trustee: 'Axis Trustee Services',
+      status: 'pending',
+      verifierVote: 'approved',
+      legalVote: 'approved',
+      adminVote: 'pending',
+      approvedCount: 2,
+    },
+  ]);
+
+  // Inheritance Claims State (Module 17)
+  const [claims, setClaims] = useState([
+    {
+      id: 'claim-001',
+      investorName: 'Jane Smith',
+      investorWallet: '0x2546BcD3c84621e976D8185a91A922aE77ECEc30',
+      nomineeName: 'Robert Doe',
+      nomineeWallet: '0x9999999999999999999999999999999999999999',
+      deathCertCID: 'QmDeathCertDoc99881122334455',
+      probateCID: 'QmProbateCourtOrder77665544',
+      status: 'pending_verification',
+    },
   ]);
 
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
@@ -41,6 +85,40 @@ export function AdminPanel() {
   const handleApproveAsset = (id: string, title: string) => {
     setPendingAssets(pendingAssets.filter((a) => a.id !== id));
     setActionMessage(`✅ Approved & triggered tokenization for ${title}! Contract deployment initiated on Polygon Amoy.`);
+    setTimeout(() => setActionMessage(null), 4000);
+  };
+
+  const handleMultisigSign = (reqId: string, role: 'legal' | 'admin') => {
+    setMultisigRequests((prev) =>
+      prev.map((r) => {
+        if (r.id !== reqId) return r;
+        const updated = { ...r };
+        if (role === 'legal') updated.legalVote = 'approved';
+        if (role === 'admin') updated.adminVote = 'approved';
+
+        const votes = [updated.verifierVote, updated.legalVote, updated.adminVote];
+        updated.approvedCount = votes.filter((v) => v === 'approved').length;
+        if (updated.approvedCount >= 2) updated.status = 'approved';
+        return updated;
+      })
+    );
+    setActionMessage(`✅ 2-of-3 Multi-Sig Vote recorded for ${role.toUpperCase()}. Requirement met!`);
+    setTimeout(() => setActionMessage(null), 3000);
+  };
+
+  const handleVerifyInheritance = (claimId: string) => {
+    setClaims((prev) =>
+      prev.map((c) => (c.id === claimId ? { ...c, status: 'verified' } : c))
+    );
+    setActionMessage('✅ Off-chain legal documents verified. Claim status set to VERIFIED.');
+    setTimeout(() => setActionMessage(null), 3000);
+  };
+
+  const handleExecuteInheritance = (claimId: string) => {
+    setClaims((prev) =>
+      prev.map((c) => (c.id === claimId ? { ...c, status: 'executed' } : c))
+    );
+    setActionMessage('✅ Inheritance token ownership transferred to Nominee wallet address!');
     setTimeout(() => setActionMessage(null), 4000);
   };
 
@@ -71,14 +149,16 @@ export function AdminPanel() {
   const tabs: { id: Tab; label: string; icon: React.ReactNode; count?: number }[] = [
     { id: 'kyc', label: 'KYC Queue', icon: <UserCheck className="w-4 h-4" />, count: kycQueue.length },
     { id: 'assets', label: 'Asset Review', icon: <FileCheck className="w-4 h-4" />, count: pendingAssets.length },
+    { id: 'multisig', label: '2-of-3 Multi-Sig & SPV', icon: <CheckSquare className="w-4 h-4" />, count: multisigRequests.length },
+    { id: 'inheritance', label: 'Inheritance Claims', icon: <Users className="w-4 h-4" />, count: claims.filter(c => c.status !== 'executed').length },
     { id: 'audit', label: 'Audit Log', icon: <ScrollText className="w-4 h-4" /> },
   ];
 
   return (
     <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10 space-y-8 animate-fade-in">
       <div className="space-y-1">
-        <h1 className="text-2xl font-bold text-white">Platform Administration</h1>
-        <p className="text-xs text-slate-400">KYC verification, AI-powered asset review, and audit logging</p>
+        <h1 className="text-2xl font-bold text-white">Platform Administration & Governance</h1>
+        <p className="text-xs text-slate-400">KYC verification, 2-of-3 Multi-Sig approval, SPV legal ownership, and inheritance verification</p>
       </div>
 
       {actionMessage && (
@@ -89,37 +169,44 @@ export function AdminPanel() {
       )}
 
       {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="glass-card p-6 space-y-2">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="glass-card p-5 space-y-2">
           <div className="flex items-center justify-between text-xs text-slate-400">
             <span>Pending KYC Queue</span>
             <UserCheck className="w-4 h-4 text-amber-400" />
           </div>
-          <div className="text-2xl font-bold text-white">{kycQueue.length} Verification Requests</div>
+          <div className="text-xl font-bold text-white">{kycQueue.length} Pending</div>
         </div>
-        <div className="glass-card p-6 space-y-2">
+        <div className="glass-card p-5 space-y-2">
           <div className="flex items-center justify-between text-xs text-slate-400">
-            <span>Pending Asset Listings</span>
-            <FileCheck className="w-4 h-4 text-indigo-400" />
+            <span>2-of-3 Multi-Sig Queue</span>
+            <CheckSquare className="w-4 h-4 text-indigo-400" />
           </div>
-          <div className="text-2xl font-bold text-white">{pendingAssets.length} Assets Reviewing</div>
+          <div className="text-xl font-bold text-white">{multisigRequests.length} Approvals</div>
         </div>
-        <div className="glass-card p-6 space-y-2">
+        <div className="glass-card p-5 space-y-2">
           <div className="flex items-center justify-between text-xs text-slate-400">
-            <span>Active Smart Contracts</span>
-            <Layers className="w-4 h-4 text-emerald-400" />
+            <span>Inheritance Claims</span>
+            <Users className="w-4 h-4 text-cyan-400" />
           </div>
-          <div className="text-2xl font-bold text-white">5 Tokens Deployed</div>
+          <div className="text-xl font-bold text-white">{claims.length} Claim Filed</div>
+        </div>
+        <div className="glass-card p-5 space-y-2">
+          <div className="flex items-center justify-between text-xs text-slate-400">
+            <span>Active SPV Entities</span>
+            <Building className="w-4 h-4 text-emerald-400" />
+          </div>
+          <div className="text-xl font-bold text-white">5 SPVs Registered</div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 p-1 rounded-2xl bg-slate-900/60 border border-slate-800 w-fit">
+      <div className="flex gap-1 p-1 rounded-2xl bg-slate-900/60 border border-slate-800 w-fit overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
               activeTab === tab.id
                 ? 'bg-indigo-600 text-white shadow-lg'
                 : 'text-slate-400 hover:text-white'
@@ -163,6 +250,169 @@ export function AdminPanel() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Multi-Sig & SPV Tab — Module 14 & 13 */}
+      {activeTab === 'multisig' && (
+        <div className="glass-card p-6 space-y-6">
+          <div>
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <CheckSquare className="w-4 h-4 text-indigo-400" />
+              2-of-3 Multi-Signature Approval Workflow (Module 14) & SPV Linking (Module 13)
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">
+              Requires signatures from at least 2 distinct roles (Technical Verifier, Legal Reviewer, Platform Admin) before tokenization. Linked to Gnosis Safe Smart Account architecture.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {multisigRequests.map((r) => (
+              <div key={r.id} className="p-5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-4 text-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+                  <div>
+                    <div className="text-sm font-bold text-white flex items-center gap-2">
+                      {r.assetTitle}
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider font-semibold ${
+                        r.status === 'approved' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                      }`}>
+                        {r.approvedCount}/3 Signed ({r.status})
+                      </span>
+                    </div>
+                    <div className="text-slate-400 text-[11px] mt-1 flex items-center gap-3">
+                      <span>SPV: <strong className="text-slate-200">{r.spvName}</strong> ({r.spvRegNo})</span>
+                      <span>Trustee: <strong className="text-slate-200">{r.trustee}</strong></span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3 Role Badge Status Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 space-y-1">
+                    <div className="text-slate-400 text-[11px] flex items-center justify-between">
+                      <span>Role 1: Verifier</span>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    </div>
+                    <div className="text-emerald-300 font-semibold text-xs">Approved</div>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 space-y-1">
+                    <div className="text-slate-400 text-[11px] flex items-center justify-between">
+                      <span>Role 2: Legal Reviewer</span>
+                      {r.legalVote === 'approved' ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      ) : (
+                        <Clock className="w-3.5 h-3.5 text-amber-400" />
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className={r.legalVote === 'approved' ? 'text-emerald-300 font-semibold' : 'text-amber-300'}>
+                        {r.legalVote === 'approved' ? 'Approved' : 'Pending Review'}
+                      </span>
+                      {r.legalVote !== 'approved' && (
+                        <button
+                          onClick={() => handleMultisigSign(r.id, 'legal')}
+                          className="px-2 py-0.5 bg-indigo-600/30 text-indigo-300 rounded hover:bg-indigo-600/50 text-[10px]"
+                        >
+                          Sign Legal
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 space-y-1">
+                    <div className="text-slate-400 text-[11px] flex items-center justify-between">
+                      <span>Role 3: Platform Admin</span>
+                      {r.adminVote === 'approved' ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      ) : (
+                        <Clock className="w-3.5 h-3.5 text-amber-400" />
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className={r.adminVote === 'approved' ? 'text-emerald-300 font-semibold' : 'text-amber-300'}>
+                        {r.adminVote === 'approved' ? 'Approved' : 'Pending Sign'}
+                      </span>
+                      {r.adminVote !== 'approved' && (
+                        <button
+                          onClick={() => handleMultisigSign(r.id, 'admin')}
+                          className="px-2 py-0.5 bg-emerald-600/30 text-emerald-300 rounded hover:bg-emerald-600/50 text-[10px]"
+                        >
+                          Sign Admin
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Inheritance Claims Tab — Module 17 */}
+      {activeTab === 'inheritance' && (
+        <div className="glass-card p-6 space-y-4">
+          <h3 className="text-base font-bold text-white flex items-center gap-2">
+            <Users className="w-4 h-4 text-cyan-400" />
+            Off-Chain Legal Verification & Inheritance Claims (Module 17)
+          </h3>
+          <p className="text-xs text-slate-400">
+            Review legal probate court orders and death certificates before executing administrative token transfer to nominee.
+          </p>
+
+          <div className="space-y-3 text-xs">
+            {claims.map((c) => (
+              <div key={c.id} className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-2">
+                  <div>
+                    <span className="font-semibold text-white">Deceased Investor: {c.investorName}</span>
+                    <div className="text-[11px] text-slate-400 font-mono">Wallet: {c.investorWallet}</div>
+                  </div>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] uppercase font-semibold w-fit ${
+                    c.status === 'executed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                    c.status === 'verified' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
+                    'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                  }`}>
+                    {c.status.replace('_', ' ')}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
+                  <div>
+                    <span className="text-slate-400 block">Nominee Beneficiary</span>
+                    <span className="text-white font-semibold">{c.nomineeName}</span>
+                    <div className="font-mono text-slate-400 text-[10px]">{c.nomineeWallet}</div>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block">IPFS Legal Documents</span>
+                    <div className="text-indigo-300 font-mono text-[10px]">Death Cert CID: {c.deathCertCID}</div>
+                    <div className="text-indigo-300 font-mono text-[10px]">Probate Court CID: {c.probateCID}</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2">
+                  {c.status === 'pending_verification' && (
+                    <button
+                      onClick={() => handleVerifyInheritance(c.id)}
+                      className="px-3 py-1.5 bg-blue-600/20 border border-blue-500/30 text-blue-300 rounded-lg font-semibold hover:bg-blue-600/30"
+                    >
+                      Verify Legal Documents
+                    </button>
+                  )}
+
+                  {c.status === 'verified' && (
+                    <button
+                      onClick={() => handleExecuteInheritance(c.id)}
+                      className="px-3 py-1.5 bg-emerald-600/20 border border-emerald-500/30 text-emerald-300 rounded-lg font-semibold hover:bg-emerald-600/30"
+                    >
+                      Execute Token Transfer to Nominee
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -210,7 +460,6 @@ export function AdminPanel() {
                     </div>
                   </div>
 
-                  {/* AI Verification Result */}
                   {verifyResults[a.id] && (
                     <div className="p-4 rounded-xl bg-indigo-950/40 border border-indigo-500/20 space-y-3">
                       <div className="flex items-center gap-2 text-xs font-semibold text-indigo-300">

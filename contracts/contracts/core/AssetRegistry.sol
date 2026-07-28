@@ -25,6 +25,8 @@ contract AssetRegistry is AccessControl, Pausable {
         AssetStatus status;
         uint256 createdAt;
         uint256 verifiedAt;
+        string spvReference;
+        uint256 legalEntityId;
     }
 
     mapping(uint256 => Asset) public assets;
@@ -36,6 +38,7 @@ contract AssetRegistry is AccessControl, Pausable {
     event AssetRegistered(uint256 indexed assetId, address indexed owner, string metadataCID);
     event AssetStatusChanged(uint256 indexed assetId, AssetStatus oldStatus, AssetStatus newStatus);
     event AssetTokenized(uint256 indexed assetId, address tokenContract);
+    event SPVDetailsUpdated(uint256 indexed assetId, string spvReference, uint256 legalEntityId);
 
     constructor(address admin, address factoryAddress) {
         require(admin != address(0), "Invalid admin");
@@ -67,12 +70,25 @@ contract AssetRegistry is AccessControl, Pausable {
             tokenContract: address(0),
             status: AssetStatus.Pending,
             createdAt: block.timestamp,
-            verifiedAt: 0
+            verifiedAt: 0,
+            spvReference: "",
+            legalEntityId: 0
         });
 
         ownerAssets[msg.sender].push(newId);
         emit AssetRegistered(newId, msg.sender, metadataCID);
         return newId;
+    }
+
+    function setSPVDetails(
+        uint256 assetId,
+        string calldata spvReference,
+        uint256 legalEntityId
+    ) external onlyRole(ADMIN_ROLE) {
+        require(assetId > 0 && assetId <= assetCount, "Asset does not exist");
+        assets[assetId].spvReference = spvReference;
+        assets[assetId].legalEntityId = legalEntityId;
+        emit SPVDetailsUpdated(assetId, spvReference, legalEntityId);
     }
 
     function updateAssetStatus(uint256 assetId, AssetStatus newStatus) external onlyRole(ADMIN_ROLE) {

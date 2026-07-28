@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "D:\\Desktop\\Hackathon\\Intern-Project\\AssetChain\\contracts\\contracts\\core\\AssetRegistry.sol": {
-      "lastModificationDate": 1785163560752,
-      "contentHash": "9b118804e9509f47694db22061a48c7e",
+      "lastModificationDate": 1785255730635,
+      "contentHash": "b95945b1f5c51a3ea7e49e30664e7ebd",
       "sourceName": "contracts/core/AssetRegistry.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -159,8 +159,8 @@
       ]
     },
     "D:\\Desktop\\Hackathon\\Intern-Project\\AssetChain\\contracts\\contracts\\core\\AssetToken.sol": {
-      "lastModificationDate": 1785163560752,
-      "contentHash": "cb5e207fc266306ffc63c9deff8068d4",
+      "lastModificationDate": 1785255737657,
+      "contentHash": "39b142e237865e4bf0dd46440265947d",
       "sourceName": "contracts/core/AssetToken.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -538,8 +538,8 @@
       ]
     },
     "D:\\Desktop\\Hackathon\\Intern-Project\\AssetChain\\contracts\\contracts\\treasury\\Treasury.sol": {
-      "lastModificationDate": 1785163560753,
-      "contentHash": "b335d264cf5594270e30dc45aa99c52a",
+      "lastModificationDate": 1785255746832,
+      "contentHash": "ca5397239f6822408e2e043957fdadae",
       "sourceName": "contracts/treasury/Treasury.sol",
       "solcConfig": {
         "version": "0.8.20",

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { aiService } from './ai.service';
 import { memoryService } from './memory.service';
+import { aiObservabilityService } from './ai.observability';
 import { sendSuccess } from '../../utils/response';
 
 // ─── Validation Schemas ───────────────────────────────────────────────────────
@@ -125,6 +126,22 @@ export class AIController {
     try {
       await memoryService.clearHistory(req.user!.userId);
       sendSuccess(res, { message: 'Conversation history cleared.' });
+    } catch (error) { next(error); }
+  }
+
+  /** GET /ai/observability/stats — AI Observability Telemetry Metrics */
+  async getObservabilityStats(req: Request, res: Response, next: NextFunction) {
+    try {
+      const stats = aiObservabilityService.getStats();
+      sendSuccess(res, stats);
+    } catch (error) { next(error); }
+  }
+
+  /** GET /ai/observability/logs — Recent AI Observability Request Telemetry Logs */
+  async getObservabilityLogs(req: Request, res: Response, next: NextFunction) {
+    try {
+      const logs = aiObservabilityService.getLogs();
+      sendSuccess(res, logs);
     } catch (error) { next(error); }
   }
 }

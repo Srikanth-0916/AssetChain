@@ -13,6 +13,10 @@ import paymentRoutes from '../modules/payment/payment.routes';
 import notificationRoutes from '../modules/notifications/notification.routes';
 import approvalRoutes from '../modules/approval/approval.routes';
 import indexerRoutes from '../modules/indexer/indexer.routes';
+import spvRoutes from '../modules/spv/spv.routes';
+import complianceRoutes from '../modules/compliance/compliance.routes';
+import nomineeRoutes from '../modules/nominee/nominee.routes';
+import recommendationRoutes from '../modules/recommendation/recommendation.routes';
 
 const router = Router();
 
@@ -32,6 +36,10 @@ router.use('/payments', paymentRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/approval', approvalRoutes);
 router.use('/indexer', indexerRoutes);
+router.use('/spv', spvRoutes);
+router.use('/compliance', complianceRoutes);
+router.use('/nominee', nomineeRoutes);
+router.use('/recommendation', recommendationRoutes);
 
 // ─── Enhanced Health Check (Module 12) ────────────────────────────────────────
 router.get('/health', (req: Request, res) => {
@@ -56,6 +64,10 @@ router.get('/health', (req: Request, res) => {
         analytics: true,
         payments: true,
         notifications: true,
+        spv: true,
+        approval: true,
+        compliance: true,
+        nominee: true,
       },
       integrations: {
         gemini: !!env.GEMINI_API_KEY,

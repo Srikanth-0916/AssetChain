@@ -35,6 +35,8 @@ export declare namespace AssetRegistry {
     status: BigNumberish;
     createdAt: BigNumberish;
     verifiedAt: BigNumberish;
+    spvReference: string;
+    legalEntityId: BigNumberish;
   };
 
   export type AssetStructOutput = [
@@ -47,7 +49,9 @@ export declare namespace AssetRegistry {
     tokenContract: string,
     status: bigint,
     createdAt: bigint,
-    verifiedAt: bigint
+    verifiedAt: bigint,
+    spvReference: string,
+    legalEntityId: bigint
   ] & {
     id: bigint;
     owner: string;
@@ -59,6 +63,8 @@ export declare namespace AssetRegistry {
     status: bigint;
     createdAt: bigint;
     verifiedAt: bigint;
+    spvReference: string;
+    legalEntityId: bigint;
   };
 }
 
@@ -79,6 +85,7 @@ export interface AssetRegistryInterface extends Interface {
       | "registerAsset"
       | "renounceRole"
       | "revokeRole"
+      | "setSPVDetails"
       | "supportsInterface"
       | "tokenizeAsset"
       | "updateAssetStatus"
@@ -93,6 +100,7 @@ export interface AssetRegistryInterface extends Interface {
       | "RoleAdminChanged"
       | "RoleGranted"
       | "RoleRevoked"
+      | "SPVDetailsUpdated"
       | "Unpaused"
   ): EventFragment;
 
@@ -147,6 +155,10 @@ export interface AssetRegistryInterface extends Interface {
     values: [BytesLike, AddressLike]
   ): string;
   encodeFunctionData(
+    functionFragment: "setSPVDetails",
+    values: [BigNumberish, string, BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "supportsInterface",
     values: [BytesLike]
   ): string;
@@ -188,6 +200,10 @@ export interface AssetRegistryInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "revokeRole", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "setSPVDetails",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "supportsInterface",
     data: BytesLike
@@ -329,6 +345,28 @@ export namespace RoleRevokedEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
+export namespace SPVDetailsUpdatedEvent {
+  export type InputTuple = [
+    assetId: BigNumberish,
+    spvReference: string,
+    legalEntityId: BigNumberish
+  ];
+  export type OutputTuple = [
+    assetId: bigint,
+    spvReference: string,
+    legalEntityId: bigint
+  ];
+  export interface OutputObject {
+    assetId: bigint;
+    spvReference: string;
+    legalEntityId: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
 export namespace UnpausedEvent {
   export type InputTuple = [account: AddressLike];
   export type OutputTuple = [account: string];
@@ -403,6 +441,8 @@ export interface AssetRegistry extends BaseContract {
         string,
         bigint,
         bigint,
+        bigint,
+        string,
         bigint
       ] & {
         id: bigint;
@@ -415,6 +455,8 @@ export interface AssetRegistry extends BaseContract {
         status: bigint;
         createdAt: bigint;
         verifiedAt: bigint;
+        spvReference: string;
+        legalEntityId: bigint;
       }
     ],
     "view"
@@ -473,6 +515,12 @@ export interface AssetRegistry extends BaseContract {
     "nonpayable"
   >;
 
+  setSPVDetails: TypedContractMethod<
+    [assetId: BigNumberish, spvReference: string, legalEntityId: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
   supportsInterface: TypedContractMethod<
     [interfaceId: BytesLike],
     [boolean],
@@ -519,6 +567,8 @@ export interface AssetRegistry extends BaseContract {
         string,
         bigint,
         bigint,
+        bigint,
+        string,
         bigint
       ] & {
         id: bigint;
@@ -531,6 +581,8 @@ export interface AssetRegistry extends BaseContract {
         status: bigint;
         createdAt: bigint;
         verifiedAt: bigint;
+        spvReference: string;
+        legalEntityId: bigint;
       }
     ],
     "view"
@@ -595,6 +647,13 @@ export interface AssetRegistry extends BaseContract {
     nameOrSignature: "revokeRole"
   ): TypedContractMethod<
     [role: BytesLike, account: AddressLike],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "setSPVDetails"
+  ): TypedContractMethod<
+    [assetId: BigNumberish, spvReference: string, legalEntityId: BigNumberish],
     [void],
     "nonpayable"
   >;
@@ -664,6 +723,13 @@ export interface AssetRegistry extends BaseContract {
     RoleRevokedEvent.InputTuple,
     RoleRevokedEvent.OutputTuple,
     RoleRevokedEvent.OutputObject
+  >;
+  getEvent(
+    key: "SPVDetailsUpdated"
+  ): TypedContractEvent<
+    SPVDetailsUpdatedEvent.InputTuple,
+    SPVDetailsUpdatedEvent.OutputTuple,
+    SPVDetailsUpdatedEvent.OutputObject
   >;
   getEvent(
     key: "Unpaused"
@@ -749,6 +815,17 @@ export interface AssetRegistry extends BaseContract {
       RoleRevokedEvent.InputTuple,
       RoleRevokedEvent.OutputTuple,
       RoleRevokedEvent.OutputObject
+    >;
+
+    "SPVDetailsUpdated(uint256,string,uint256)": TypedContractEvent<
+      SPVDetailsUpdatedEvent.InputTuple,
+      SPVDetailsUpdatedEvent.OutputTuple,
+      SPVDetailsUpdatedEvent.OutputObject
+    >;
+    SPVDetailsUpdated: TypedContractEvent<
+      SPVDetailsUpdatedEvent.InputTuple,
+      SPVDetailsUpdatedEvent.OutputTuple,
+      SPVDetailsUpdatedEvent.OutputObject
     >;
 
     "Unpaused(address)": TypedContractEvent<
