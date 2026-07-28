@@ -52,7 +52,7 @@ export class NomineeController {
 
   async verifyClaim(req: Request, res: Response): Promise<void> {
     try {
-      const { claimId } = req.params;
+      const claimId = req.params.claimId as string;
       const { verified, notes } = req.body;
       const claim = await nomineeService.verifyClaim(claimId, verified, notes, (req as any).user?.id);
       res.json({ success: true, data: claim });
@@ -63,7 +63,7 @@ export class NomineeController {
 
   async executeTransfer(req: Request, res: Response): Promise<void> {
     try {
-      const { claimId } = req.params;
+      const claimId = req.params.claimId as string;
       const claim = await nomineeService.executeInheritanceTransfer(claimId, (req as any).user?.id);
       res.json({ success: true, data: claim });
     } catch (error: any) {

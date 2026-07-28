@@ -4,7 +4,7 @@ import { complianceService } from './compliance.service';
 export class ComplianceController {
   async getProfile(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
       const profile = await complianceService.getProfile(id);
       res.json({ success: true, data: profile });
     } catch (error: any) {
@@ -14,7 +14,7 @@ export class ComplianceController {
 
   async updateProfile(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
       const profile = await complianceService.updateComplianceProfile(id, req.body, (req as any).user?.id);
       res.json({ success: true, data: profile });
     } catch (error: any) {
