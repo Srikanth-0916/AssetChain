@@ -19,7 +19,7 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: '**/package-lock.json'
+          cache-dependency-path: 'package-lock.json'
 
       - name: Install Dependencies
         run: npm ci
@@ -42,7 +42,7 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: '**/package-lock.json'
+          cache-dependency-path: 'package-lock.json'
 
       - name: Install Dependencies
         run: npm ci
@@ -54,7 +54,7 @@ jobs:
           JWT_SECRET: test_jwt_secret_min_32_characters_long
         run: |
           cd server
-          npm test
+          npx vitest run
 
   frontend-client-build:
     name: Build & Verify Frontend Client
@@ -68,7 +68,7 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: '**/package-lock.json'
+          cache-dependency-path: 'package-lock.json'
 
       - name: Install Dependencies
         run: npm ci
@@ -76,4 +76,6 @@ jobs:
       - name: Build React Client App
         run: |
           cd client
-          npm run build
+          npx tsc
+          npx vite build
+

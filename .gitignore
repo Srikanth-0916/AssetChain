@@ -5,6 +5,8 @@
 .env.test.local
 .env.production.local
 *.env
+!.env.example
+!.env*.example
 
 # Node.js / Workspaces
 node_modules/
@@ -14,11 +16,13 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Build outputs
+# Build & Temp outputs
 dist/
 **/dist/
 build/
 **/build/
+.vite-temp/
+coverage/
 
 # Hardhat / Blockchain
 contracts/artifacts/
