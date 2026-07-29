@@ -8,6 +8,9 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { auditService } from '../audit/audit.service';
+import { supabaseAdmin } from '../../config/database';
+import { env } from '../../config/env';
+import { ServiceUnavailableError } from '../../utils/errors';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -117,6 +120,39 @@ export class ApprovalService {
     this.store.set(demoReq.id, demoReq);
   }
 
+  /** Helper to persist approval request to Supabase with environment-based behavior */
+  private async persistToSupabase(request: ApprovalRequest): Promise<void> {
+    try {
+      const { error } = await supabaseAdmin.from('approval_requests').upsert({
+        id: request.id,
+        asset_id: request.assetId,
+        asset_title: request.assetTitle,
+        status: request.status,
+        created_at: request.createdAt,
+        updated_at: request.updatedAt,
+        required_votes: request.requiredVotes,
+        total_roles: request.totalRoles,
+        approved_count: request.approvedCount,
+        rejected_count: request.rejectedCount,
+        gnosis_safe_tx_hash: request.gnosisSafeTxHash,
+        verification_summary: request.verificationSummary,
+      });
+
+      if (error) {
+        if (env.NODE_ENV === 'production') {
+          console.error(`[ApprovalService] 🚨 CRITICAL PROD FAILURE: Approval persistence failed for ${request.id}:`, error.message);
+          throw new ServiceUnavailableError(`Approval persistence failure: ${error.message}`);
+        } else {
+          console.warn(`[ApprovalService] ⚠️ Dev Mode Warning: Supabase approval write failed:`, error.message);
+        }
+      }
+    } catch (err: any) {
+      if (env.NODE_ENV === 'production') {
+        throw err instanceof ServiceUnavailableError ? err : new ServiceUnavailableError(`Approval persistence failure: ${err.message}`);
+      }
+    }
+  }
+
   /** Create a new multi-sig approval request after AI verification. */
   async createRequest(
     assetId: string,
@@ -146,6 +182,7 @@ export class ApprovalService {
     }
 
     this.store.set(request.id, request);
+    await this.persistToSupabase(request);
 
     auditService.log(
       'admin_action',
@@ -167,6 +204,11 @@ export class ApprovalService {
     decision: ApprovalDecision,
     comments?: string
   ): Promise<ApprovalRequest> {
+    const VALID_ROLES: ApprovalRole[] = ['verifier', 'legal_reviewer', 'admin'];
+    if (!VALID_ROLES.includes(role)) {
+      throw new Error(`Invalid approval role '${role}'. Allowed roles: ${VALID_ROLES.join(', ')}`);
+    }
+
     const request = this.store.get(requestId);
     if (!request) throw new Error(`Approval request ${requestId} not found`);
     if (request.status !== 'pending') throw new Error(`Request is already ${request.status}`);
@@ -194,6 +236,7 @@ export class ApprovalService {
     }
 
     this.store.set(requestId, request);
+    await this.persistToSupabase(request);
 
     // Record every approval in audit log (Module 14 requirement)
     auditService.log(

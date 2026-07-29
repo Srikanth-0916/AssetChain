@@ -6,6 +6,11 @@ export interface AIResponse {
 }
 
 export const aiService = {
+  async chat(prompt: string, budget?: number, riskPreference?: 'low' | 'medium' | 'high') {
+    const { data } = await api.post('/ai/chat', { prompt, budget, risk_preference: riskPreference });
+    return data.data;
+  },
+
   async getInvestmentAdvice(budget: number, riskPreference: 'low' | 'medium' | 'high') {
     const { data } = await api.post('/ai/investment-advice', { budget, risk_preference: riskPreference });
     return data.data;

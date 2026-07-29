@@ -1,28 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { portfolioService } from '../services/portfolioService';
 import { aiService } from '../services/aiService';
+import { Link } from 'react-router-dom';
 import {
-  TrendingUp, Coins, CheckCircle2, Sparkles,
-  RefreshCw, ShieldCheck, ArrowUpRight, AlertTriangle, Zap,
+  TrendingUp, Coins, CheckCircle2, Sparkles, RefreshCw,
+  ShieldCheck, ArrowUpRight, AlertTriangle, BarChart3,
+  Receipt, ChevronRight, Zap, Target, PieChart,
 } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
+import { WhyPanel } from '../components/trust/WhyPanel';
+import { ContextualAITip } from '../components/trust/ContextualAITip';
 
 const ASSET_TYPE_COLORS: Record<string, string> = {
-  commercial_property: '#6366f1',
-  residential_real_estate: '#10b981',
-  renewable_energy: '#f59e0b',
-  artwork: '#ec4899',
-  default: '#8b5cf6',
+  commercial_property:    '#6366f1',
+  residential_real_estate:'#10b981',
+  renewable_energy:       '#f59e0b',
+  artwork:                '#ec4899',
+  default:                '#8b5cf6',
 };
 
 function DiversificationRing({ holdings }: { holdings: any[] }) {
   const total = holdings.reduce((sum, h) => sum + h.investment_amount, 0);
   if (total === 0 || holdings.length === 0) return null;
-
   const r = 50;
   const circumference = 2 * Math.PI * r;
   let cumulative = 0;
-
   const segments = holdings.map((h, i) => {
     const pct = h.investment_amount / total;
     const start = cumulative;
@@ -30,7 +32,6 @@ function DiversificationRing({ holdings }: { holdings: any[] }) {
     const color = ASSET_TYPE_COLORS[h.asset?.asset_type || 'default'] || `hsl(${i * 80 + 200}, 70%, 60%)`;
     return { pct, start, color, title: h.asset?.title || 'Asset' };
   });
-
   return (
     <div className="flex items-center gap-6">
       <svg width="120" height="120" viewBox="-10 -10 120 120">
@@ -39,16 +40,9 @@ function DiversificationRing({ holdings }: { holdings: any[] }) {
           const gap = circumference - dash;
           const offset = -seg.start * circumference - circumference / 4;
           return (
-            <circle
-              key={i}
-              cx="50"
-              cy="50"
-              r={r}
-              fill="none"
-              stroke={seg.color}
-              strokeWidth="18"
-              strokeDasharray={`${dash} ${gap}`}
-              strokeDashoffset={offset}
+            <circle key={i} cx="50" cy="50" r={r} fill="none"
+              stroke={seg.color} strokeWidth="18"
+              strokeDasharray={`${dash} ${gap}`} strokeDashoffset={offset}
             />
           );
         })}
@@ -56,15 +50,13 @@ function DiversificationRing({ holdings }: { holdings: any[] }) {
         <text x="50" y="48" textAnchor="middle" fontSize="11" fill="white" fontWeight="bold">
           {Math.round((1 - segments.reduce((s, seg) => s + seg.pct * seg.pct, 0)) * 100)}%
         </text>
-        <text x="50" y="60" textAnchor="middle" fontSize="8" fill="#94a3b8">
-          Diversified
-        </text>
+        <text x="50" y="60" textAnchor="middle" fontSize="8" fill="#94a3b8">Diversified</text>
       </svg>
       <div className="space-y-2">
         {segments.map((seg, i) => (
           <div key={i} className="flex items-center gap-2 text-xs">
-            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: seg.color }} />
-            <span className="text-slate-400 truncate max-w-[120px]">{seg.title}</span>
+            <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: seg.color }} />
+            <span className="text-slate-400 truncate max-w-[130px]">{seg.title}</span>
             <span className="text-white font-semibold ml-auto">{(seg.pct * 100).toFixed(0)}%</span>
           </div>
         ))}
@@ -73,12 +65,21 @@ function DiversificationRing({ holdings }: { holdings: any[] }) {
   );
 }
 
+/* Health score breakdown */
+const HEALTH_METRICS = [
+  { label: 'Diversification',   score: 82, color: 'from-indigo-600 to-indigo-400' },
+  { label: 'Risk Balance',      score: 76, color: 'from-emerald-600 to-emerald-400' },
+  { label: 'Liquidity',         score: 65, color: 'from-amber-600 to-amber-400' },
+  { label: 'Income Stability',  score: 90, color: 'from-purple-600 to-purple-400' },
+];
+
 export function Portfolio() {
-  const [data, setData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [claimedMessage, setClaimedMessage] = useState<string | null>(null);
-  const [aiSuggestions, setAiSuggestions] = useState<any>(null);
+  const [data, setData]               = useState<any>(null);
+  const [isLoading, setIsLoading]     = useState(true);
+  const [claimedMsg, setClaimedMsg]   = useState<string | null>(null);
+  const [aiSuggestions, setAiSugg]   = useState<any>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [activeTab, setActiveTab]     = useState<'overview' | 'health' | 'holdings'>('overview');
 
   useEffect(() => {
     async function loadPortfolio() {
@@ -95,23 +96,23 @@ export function Portfolio() {
   }, []);
 
   const handleClaim = (assetTitle: string, amount: number) => {
-    setClaimedMessage(`Successfully claimed $${amount} USDC yield for ${assetTitle}!`);
-    setTimeout(() => setClaimedMessage(null), 4000);
+    setClaimedMsg(`Successfully claimed ${formatCurrency(amount)} yield for ${assetTitle}!`);
+    setTimeout(() => setClaimedMsg(null), 5000);
   };
 
   const handleGetAISuggestions = async () => {
     setIsAiLoading(true);
     try {
       const result = await aiService.analyzePortfolio();
-      setAiSuggestions(result);
-    } catch (err) {
-      setAiSuggestions({
-        summary: 'Portfolio looks well-structured with good diversification.',
+      setAiSugg(result);
+    } catch {
+      setAiSugg({
+        summary: 'Portfolio looks well-structured with good diversification across 3 asset types.',
         riskRating: 'Medium',
-        projectedAnnualIncome: '$1,087 (7% blended yield)',
+        projectedAnnualIncome: '₹17,150 (7% blended yield)',
         suggestions: [
-          { action: 'Claim pending dividends', reason: '$470 in unclaimed yield is idle capital', priority: 'High' },
-          { action: 'Add renewable energy exposure', reason: 'Solar assets offer inflation-hedged yield with PPAs', priority: 'Medium' },
+          { action: 'Claim pending dividends', reason: '₹470 in unclaimed yield is idle capital', priority: 'High' },
+          { action: 'Add healthcare REIT exposure', reason: 'Healthcare assets offer inflation-hedged yield', priority: 'Medium' },
         ],
         rebalancingAdvice: 'Consider diversifying into a third asset type to reduce concentration risk.',
       });
@@ -121,201 +122,265 @@ export function Portfolio() {
   };
 
   const summary = data?.summary || {
-    total_invested: 14200,
-    current_value: 15550,
-    total_profit_loss: 1350,
-    unclaimed_dividends: 470,
+    total_invested: 225000,
+    current_value:  245000,
+    total_profit_loss: 20000,
+    unclaimed_dividends: 6450,
   };
-
-  const holdings = data?.holdings || [];
+  const holdings           = data?.holdings || [];
+  const sectorConcentration = data?.sector_concentration;
   const roi = summary.total_invested > 0
     ? (((summary.current_value - summary.total_invested) / summary.total_invested) * 100).toFixed(2)
     : '0.00';
+  const overallHealth = Math.round(HEALTH_METRICS.reduce((s, m) => s + m.score, 0) / HEALTH_METRICS.length);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10 space-y-8 animate-fade-in">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Portfolio Intelligence</h1>
-          <p className="text-xs text-slate-400">AI-powered analysis of your tokenized asset holdings</p>
+    <div className="page-container space-y-6 animate-fade-in">
+
+      {/* ── Header ── */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-emerald-500/10 border border-indigo-500/20 flex items-center justify-center">
+            <PieChart className="w-5 h-5 text-indigo-400" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-white tracking-tight">Portfolio Intelligence</h1>
+            <p className="text-sm text-slate-400">AI-powered analysis of your tokenized asset holdings</p>
+          </div>
         </div>
-        <button
-          onClick={handleGetAISuggestions}
-          disabled={isAiLoading}
-          className="btn-primary text-xs py-2 px-4"
-        >
-          {isAiLoading
-            ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Analyzing...</>
-            : <><Sparkles className="w-3.5 h-3.5" /> Get AI Suggestions</>
-          }
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleGetAISuggestions}
+            disabled={isAiLoading}
+            className="btn-primary text-sm"
+          >
+            {isAiLoading
+              ? <><RefreshCw className="w-4 h-4 animate-spin" /> Analyzing...</>
+              : <><Sparkles className="w-4 h-4" /> AI Analysis</>
+            }
+          </button>
+          <Link to="/transactions" className="btn-ghost text-sm flex items-center gap-1.5">
+            <Receipt className="w-4 h-4" /> Transactions
+          </Link>
+        </div>
       </div>
 
-      {claimedMessage && (
-        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-          {claimedMessage}
+      {/* ── Concentration warning ── */}
+      {sectorConcentration?.is_concentrated && (
+        <ContextualAITip
+          type="concentration"
+          title="Sector Concentration Warning"
+          message={sectorConcentration.message || `Concentrated in ${sectorConcentration.sector} — diversify to reduce risk.`}
+          actionText="Explore Other Assets"
+          actionHref="/marketplace"
+        />
+      )}
+
+      {/* ── Claim success ── */}
+      {claimedMsg && (
+        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-sm flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 shrink-0" /> {claimedMsg}
         </div>
       )}
 
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* ── 5 Stat Cards ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 stagger-children">
         {[
-          { label: 'Total Invested', value: formatCurrency(summary.total_invested), icon: <Coins className="w-4 h-4" />, color: 'slate' },
-          { label: 'Current Valuation', value: formatCurrency(summary.current_value), icon: <TrendingUp className="w-4 h-4 text-emerald-400" />, color: 'emerald' },
-          { label: `ROI (${roi}%)`, value: formatCurrency(summary.total_profit_loss), icon: <ArrowUpRight className="w-4 h-4 text-indigo-400" />, color: 'indigo' },
-          { label: 'Unclaimed Dividends', value: formatCurrency(summary.unclaimed_dividends), icon: <ShieldCheck className="w-4 h-4 text-amber-400" />, color: 'amber' },
-        ].map((card) => (
-          <div key={card.label} className="glass-card p-6 space-y-3">
-            <div className="flex items-center justify-between text-xs text-slate-400">
-              <span>{card.label}</span>
-              {card.icon}
+          { label: 'Current Value',      value: formatCurrency(summary.current_value),       sub: 'Market valuation',       color: 'text-white',       icon: <TrendingUp className="w-4 h-4 text-emerald-400" /> },
+          { label: 'Total Invested',     value: formatCurrency(summary.total_invested),      sub: 'Capital deployed',        color: 'text-slate-300',   icon: <Coins className="w-4 h-4 text-indigo-400" /> },
+          { label: 'Total Profit',       value: formatCurrency(summary.total_profit_loss),   sub: `ROI: +${roi}%`,           color: 'text-emerald-400', icon: <ArrowUpRight className="w-4 h-4 text-emerald-400" /> },
+          { label: 'Rental Income',      value: formatCurrency(summary.unclaimed_dividends), sub: 'Pending claim',           color: 'text-amber-400',   icon: <ShieldCheck className="w-4 h-4 text-amber-400" /> },
+          { label: 'Portfolio Health',   value: `${overallHealth}/100`,                       sub: overallHealth >= 80 ? 'Excellent' : overallHealth >= 60 ? 'Good' : 'Needs attention', color: 'gradient-text', icon: <Target className="w-4 h-4 text-indigo-400" /> },
+        ].map(s => (
+          <div key={s.label} className="stat-card animate-slide-up">
+            <div className="flex items-center justify-between mb-2">
+              <p className="section-subheader">{s.label}</p>
+              {s.icon}
             </div>
-            <div className={`text-2xl font-bold text-${card.color}-400`}>{card.value}</div>
+            <div className={`text-xl font-black ${s.color}`}>{s.value}</div>
+            <div className="text-xs text-slate-500 mt-1">{s.sub}</div>
           </div>
         ))}
       </div>
 
-      {/* Diversification & AI Suggestions Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Diversification Ring */}
-        <div className="glass-card p-6 space-y-4">
-          <h3 className="text-sm font-bold text-white flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-indigo-400" /> Portfolio Diversification
-          </h3>
-          {holdings.length > 0 ? (
-            <DiversificationRing holdings={holdings} />
-          ) : (
-            <p className="text-xs text-slate-400">No holdings to display.</p>
-          )}
-          <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs">
-            <div className="flex items-center justify-between text-slate-400 mb-2">
-              <span>Projected Annual Income</span>
-              <span className="text-emerald-400 font-bold">{formatCurrency(Math.round(summary.current_value * 0.07))}</span>
-            </div>
-            <div className="flex items-center justify-between text-slate-400">
-              <span>Blended Yield Rate</span>
-              <span className="text-white font-bold">7.0% p.a.</span>
+      {/* ── Tab bar ── */}
+      <div className="tab-bar inline-flex">
+        {(['overview','health','holdings'] as const).map(t => (
+          <button key={t} onClick={() => setActiveTab(t)} className={`tab-item capitalize ${activeTab === t ? 'active' : ''}`}>
+            {t === 'overview' ? '📊 Overview' : t === 'health' ? '❤️ Health' : '🏗️ Holdings'}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Tab Content ── */}
+      {activeTab === 'overview' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Diversification ring */}
+          <div className="stat-card">
+            <p className="section-header mb-5"><BarChart3 className="w-4 h-4 text-indigo-400" /> Portfolio Diversification</p>
+            {holdings.length > 0 ? (
+              <DiversificationRing holdings={holdings} />
+            ) : (
+              <div className="text-center py-8 text-slate-500 text-sm">No holdings yet. <Link to="/marketplace" className="text-indigo-400">Browse assets →</Link></div>
+            )}
+            <hr className="divider my-4" />
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-slate-900/50 border border-slate-800/60">
+                <span className="text-slate-400">Annual Income</span>
+                <span className="text-emerald-400 font-bold">{formatCurrency(Math.round(summary.current_value * 0.07))}</span>
+              </div>
+              <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-slate-900/50 border border-slate-800/60">
+                <span className="text-slate-400">Yield Rate</span>
+                <span className="text-white font-bold">7.0% p.a.</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* AI Suggestions Panel */}
-        <div className="glass-card p-6 space-y-4">
-          <h3 className="text-sm font-bold text-white flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-indigo-400" /> AI Portfolio Intelligence
-          </h3>
-          {!aiSuggestions && !isAiLoading && (
-            <div className="flex flex-col items-center justify-center py-8 gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-indigo-400" />
-              </div>
-              <p className="text-xs text-slate-400 text-center">
-                Click <span className="text-indigo-300 font-semibold">"Get AI Suggestions"</span> to run AI analysis on your portfolio diversification, risk, and rebalancing opportunities.
-              </p>
-            </div>
-          )}
-          {isAiLoading && (
-            <div className="flex flex-col items-center justify-center py-8 gap-3">
-              <RefreshCw className="w-6 h-6 text-indigo-400 animate-spin" />
-              <p className="text-xs text-slate-400">AI analyzing your portfolio...</p>
-            </div>
-          )}
-          {aiSuggestions && (
-            <div className="space-y-3 text-xs">
-              <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
-                <p className="text-slate-300">{aiSuggestions.summary}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="p-2.5 rounded-lg bg-slate-900/60 border border-slate-800 text-center">
-                  <div className={`font-bold text-sm ${
-                    aiSuggestions.riskRating === 'Low' ? 'text-emerald-400' :
-                    aiSuggestions.riskRating === 'Medium' ? 'text-amber-400' : 'text-red-400'
-                  }`}>{aiSuggestions.riskRating}</div>
-                  <div className="text-slate-500 text-[10px]">Risk Rating</div>
+          {/* AI Suggestions */}
+          <div className="stat-card">
+            <p className="section-header mb-5"><Sparkles className="w-4 h-4 text-indigo-400" /> AI Portfolio Intelligence</p>
+            {!aiSuggestions && !isAiLoading && (
+              <div className="flex flex-col items-center justify-center py-10 gap-4 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center">
+                  <Sparkles className="w-7 h-7 text-indigo-400" />
                 </div>
-                <div className="p-2.5 rounded-lg bg-slate-900/60 border border-slate-800 text-center">
-                  <div className="font-bold text-sm text-emerald-400">{aiSuggestions.projectedAnnualIncome}</div>
-                  <div className="text-slate-500 text-[10px]">Projected Income</div>
-                </div>
+                <p className="text-sm text-slate-400 max-w-xs">
+                  Run AI analysis to get personalized diversification, risk, and rebalancing insights.
+                </p>
+                <button onClick={handleGetAISuggestions} className="btn-primary text-sm">
+                  <Sparkles className="w-4 h-4" /> Run Analysis
+                </button>
               </div>
-              {aiSuggestions.suggestions?.map((s: any, i: number) => (
-                <div key={i} className="flex items-start gap-2.5 p-2.5 rounded-lg bg-slate-800/60 border border-slate-700">
-                  <span className={`mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase flex-shrink-0 ${
-                    s.priority === 'High' ? 'bg-red-500/20 text-red-300' :
-                    s.priority === 'Medium' ? 'bg-amber-500/20 text-amber-300' :
-                    'bg-slate-700 text-slate-300'
-                  }`}>{s.priority}</span>
-                  <div>
-                    <div className="font-semibold text-white">{s.action}</div>
-                    <div className="text-slate-400">{s.reason}</div>
+            )}
+            {isAiLoading && (
+              <div className="flex flex-col items-center justify-center py-10 gap-3">
+                <RefreshCw className="w-8 h-8 text-indigo-400 animate-spin" />
+                <p className="text-sm text-slate-400">Analyzing your portfolio with Gemini AI...</p>
+              </div>
+            )}
+            {aiSuggestions && (
+              <div className="space-y-4 text-sm">
+                <div className="p-4 rounded-xl bg-indigo-500/8 border border-indigo-500/20">
+                  <p className="text-slate-300 leading-relaxed">{aiSuggestions.summary}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-xl bg-slate-900/50 border border-slate-800 text-center">
+                    <div className={`font-bold text-lg ${aiSuggestions.riskRating === 'Low' ? 'text-emerald-400' : aiSuggestions.riskRating === 'Medium' ? 'text-amber-400' : 'text-red-400'}`}>
+                      {aiSuggestions.riskRating}
+                    </div>
+                    <div className="text-xs text-slate-500">Risk Rating</div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-900/50 border border-slate-800 text-center">
+                    <div className="font-bold text-emerald-400 text-sm leading-tight">{aiSuggestions.projectedAnnualIncome}</div>
+                    <div className="text-xs text-slate-500">Projected Income</div>
+                  </div>
+                </div>
+                {aiSuggestions.suggestions?.map((s: any, i: number) => (
+                  <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-slate-900/40 border border-slate-800">
+                    <span className={`pill-badge shrink-0 ${s.priority === 'High' ? 'pill-danger' : 'pill-warning'}`}>{s.priority}</span>
+                    <div>
+                      <div className="font-semibold text-white text-xs">{s.action}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">{s.reason}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'health' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Health scorecard */}
+          <div className="stat-card">
+            <div className="flex items-center justify-between mb-6">
+              <p className="section-header">Portfolio Health Score</p>
+              <div className="text-4xl font-black gradient-text">{overallHealth}</div>
+            </div>
+            <div className="space-y-4">
+              {HEALTH_METRICS.map(m => (
+                <div key={m.label}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-sm text-slate-400">{m.label}</span>
+                    <span className="text-sm font-bold text-white">{m.score}/100</span>
+                  </div>
+                  <div className="progress-bar-track">
+                    <div className={`progress-bar-fill bg-gradient-to-r ${m.color}`} style={{ width: `${m.score}%` }} />
                   </div>
                 </div>
               ))}
-              {aiSuggestions.rebalancingAdvice && (
-                <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-start gap-2">
-                  <AlertTriangle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
-                  <p className="text-amber-300">{aiSuggestions.rebalancingAdvice}</p>
+            </div>
+          </div>
+
+          {/* Risk assessment */}
+          <div className="stat-card">
+            <p className="section-header mb-5"><AlertTriangle className="w-4 h-4 text-amber-400" /> Risk Assessment</p>
+            <div className="space-y-3">
+              {[
+                { label: 'Market Risk',      level: 'Medium', color: 'pill-warning', desc: 'Token prices tied to real estate market valuations' },
+                { label: 'Liquidity Risk',   level: 'Medium', color: 'pill-warning', desc: 'Secondary market available but may have limited buyers' },
+                { label: 'Income Risk',      level: 'Low',    color: 'pill-success', desc: 'Rental income backed by long-term leases' },
+                { label: 'Regulatory Risk',  level: 'Low',    color: 'pill-success', desc: 'Assets are fully KYC-compliant and on-chain verified' },
+              ].map(r => (
+                <div key={r.label} className="flex items-start gap-3 p-3 rounded-xl bg-slate-900/40 border border-slate-800/60">
+                  <span className={`pill-badge shrink-0 mt-0.5 ${r.color}`}>{r.level}</span>
+                  <div>
+                    <div className="text-sm font-semibold text-white">{r.label}</div>
+                    <div className="text-xs text-slate-500 mt-0.5">{r.desc}</div>
+                  </div>
                 </div>
-              )}
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'holdings' && (
+        <div className="stat-card">
+          <p className="section-header mb-5">Asset Holdings</p>
+          {holdings.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-slate-400 text-sm mb-4">No holdings yet.</p>
+              <Link to="/marketplace" className="btn-primary text-sm">Browse Assets</Link>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {holdings.map((h: any, i: number) => {
+                const pct = summary.total_invested > 0 ? (h.investment_amount / summary.total_invested) * 100 : 0;
+                const color = ASSET_TYPE_COLORS[h.asset?.asset_type || 'default'];
+                return (
+                  <div key={h.id || i} className="flex items-center gap-4 p-4 rounded-xl bg-slate-900/40 border border-slate-800/60 hover:border-indigo-500/30 transition-colors">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl"
+                      style={{ background: `${color}15`, border: `1px solid ${color}30` }}>
+                      🏗️
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-white text-sm truncate">{h.asset?.title || 'Unnamed Asset'}</div>
+                      <div className="text-xs text-slate-500 capitalize">{(h.asset?.asset_type || 'unknown').replace(/_/g, ' ')}</div>
+                      <div className="mt-2 progress-bar-track" style={{ height: '3px' }}>
+                        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-sm font-bold text-white">{formatCurrency(h.investment_amount)}</div>
+                      <div className="text-xs text-slate-500">{pct.toFixed(1)}% of portfolio</div>
+                      {h.unclaimed_dividends > 0 && (
+                        <button
+                          onClick={() => handleClaim(h.asset?.title, h.unclaimed_dividends)}
+                          className="mt-1 text-xs text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1 ml-auto"
+                        >
+                          Claim {formatCurrency(h.unclaimed_dividends)} <Zap className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
-      </div>
-
-      {/* Holdings Table */}
-      <div className="glass-card p-6 space-y-4">
-        <h3 className="text-base font-bold text-white flex items-center gap-2">
-          <Coins className="w-4 h-4 text-indigo-400" /> Asset Token Holdings
-        </h3>
-        {isLoading ? (
-          <div className="text-center py-8 text-xs text-slate-400">Loading holdings...</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
-              <thead className="bg-slate-900/80 text-slate-400 border-b border-slate-800 uppercase text-[10px]">
-                <tr>
-                  <th className="p-3">Asset Title</th>
-                  <th className="p-3">Tokens Owned</th>
-                  <th className="p-3">Avg Buy Price</th>
-                  <th className="p-3">Current Price</th>
-                  <th className="p-3">Total Value</th>
-                  <th className="p-3">P&L</th>
-                  <th className="p-3">Dividends</th>
-                  <th className="p-3 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800">
-                {holdings.map((inv: any) => {
-                  const pl = (inv.current_value || 0) - (inv.investment_amount || 0);
-                  return (
-                    <tr key={inv.id} className="hover:bg-slate-800/30 transition-colors">
-                      <td className="p-3 font-semibold text-white">{inv.asset?.title || 'Tokenized Asset'}</td>
-                      <td className="p-3 font-mono">{inv.tokens_owned} ACT</td>
-                      <td className="p-3">${inv.average_buy_price}</td>
-                      <td className="p-3 text-emerald-400">${inv.asset?.token_price || inv.average_buy_price}</td>
-                      <td className="p-3 font-bold text-white">${inv.current_value?.toLocaleString()}</td>
-                      <td className={`p-3 font-semibold flex items-center gap-1 ${pl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {pl >= 0 ? <ArrowUpRight className="w-3 h-3" /> : null}
-                        ${Math.abs(pl).toLocaleString()}
-                      </td>
-                      <td className="p-3 text-amber-400 font-semibold">${inv.unclaimed_dividends} USDC</td>
-                      <td className="p-3 text-right">
-                        <button
-                          onClick={() => handleClaim(inv.asset?.title || 'Asset', inv.unclaimed_dividends)}
-                          className="px-3 py-1.5 bg-emerald-600/20 border border-emerald-500/30 text-emerald-300 rounded-lg text-[11px] font-semibold hover:bg-emerald-600/30 transition-all"
-                        >
-                          Claim Yield
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

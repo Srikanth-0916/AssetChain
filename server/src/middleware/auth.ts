@@ -48,7 +48,7 @@ export function authenticate(req: Request, _res: Response, next: NextFunction): 
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, env.JWT_SECRET) as JWTPayload;
+    const decoded = jwt.verify(token, env.JWT_SECRET, { algorithms: ['HS256'] }) as JWTPayload;
     req.user = decoded;
     next();
   } catch (error) {
@@ -91,7 +91,7 @@ export function optionalAuth(req: Request, _res: Response, next: NextFunction): 
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, env.JWT_SECRET) as JWTPayload;
+    const decoded = jwt.verify(token, env.JWT_SECRET, { algorithms: ['HS256'] }) as JWTPayload;
     req.user = decoded;
   } catch {
     // Token invalid but optional - continue without user

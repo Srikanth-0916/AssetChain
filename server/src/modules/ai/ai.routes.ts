@@ -8,6 +8,7 @@ router.use(authenticate);
 router.use(aiRateLimiter);
 
 // ─── Core AI Endpoints ─────────────────────────────────────────────────────
+router.post('/chat', (req, res, next) => aiController.chat(req, res, next));
 router.post('/investment-advice', (req, res, next) => aiController.investmentAdvice(req, res, next));
 router.post('/portfolio-analysis', (req, res, next) => aiController.portfolioAnalysis(req, res, next));
 router.post('/property-comparison', (req, res, next) => aiController.propertyComparison(req, res, next));

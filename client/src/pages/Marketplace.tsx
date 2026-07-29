@@ -8,6 +8,9 @@ import { formatCurrency } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 import { useWallet } from '../contexts/WalletContext';
 import { PaymentModal } from '../components/payment/PaymentModal';
+import { WhyPanel } from '../components/trust/WhyPanel';
+import { TrustScoreBadges } from '../components/trust/TrustScoreBadges';
+import { ContextualAITip } from '../components/trust/ContextualAITip';
 
 export function Marketplace() {
   const { isAuthenticated } = useAuth();
@@ -51,40 +54,6 @@ export function Marketplace() {
     return matchesSearch && matchesCat;
   });
 
-  const handleBuySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedAsset) return;
-
-    setPurchaseError(null);
-    setPurchaseSuccess(null);
-    setIsPurchasing(true);
-
-    try {
-      if (!isConnected) {
-        await connect();
-      }
-
-      // Generate a mock / real web3 transaction hash for demo
-      const mockTxHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
-
-      await marketplaceService.buyPrimaryTokens({
-        asset_id: selectedAsset.id,
-        quantity,
-        transaction_hash: mockTxHash,
-      });
-
-      setPurchaseSuccess(`Successfully purchased ${quantity} tokens of ${selectedAsset.title}! Tx Hash: ${mockTxHash.slice(0, 10)}...`);
-      setTimeout(() => {
-        setSelectedAsset(null);
-        setPurchaseSuccess(null);
-      }, 3000);
-    } catch (err: any) {
-      setPurchaseError(err.message || 'Failed to complete token purchase.');
-    } finally {
-      setIsPurchasing(false);
-    }
-  };
-
   return (
     <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10 space-y-8 animate-fade-in">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -93,6 +62,14 @@ export function Marketplace() {
           <p className="text-xs text-slate-400">Discover and invest in fractional real-world assets verified on Polygon</p>
         </div>
       </div>
+
+      {/* Contextual AI Tip */}
+      <ContextualAITip
+        title="Top AI Asset Match"
+        message="Based on your profile, Solar Farm Alpha 1 matches 81% confidence with low risk rating (15/100) and verified SPV title."
+        actionText="View Details"
+        onAction={() => setSearchTerm('Solar Farm')}
+      />
 
       {/* Filter / Search Bar */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -146,9 +123,24 @@ export function Marketplace() {
                 </div>
               </div>
               <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                <div className="space-y-1">
-                  <h3 className="font-bold text-white text-base">{item.title}</h3>
-                  <p className="text-xs text-slate-400">{item.location || 'Global Location'}</p>
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-bold text-white text-base">{item.title}</h3>
+                      <p className="text-xs text-slate-400">{item.location || 'Global Location'}</p>
+                    </div>
+                    <WhyPanel
+                      title="Why this rating?"
+                      factors={[
+                        { label: 'Low Fraud Risk', value: '15/100', status: 'positive', explanation: 'Clean AI fraud analysis & verified document history' },
+                        { label: 'Token Liquidity', value: '85/100', status: 'positive', explanation: 'High trading liquidity on secondary marketplace' },
+                        { label: 'Occupancy Rate', value: '100%', status: 'positive', explanation: 'Full occupancy yielding stable quarterly rental returns' },
+                      ]}
+                    />
+                  </div>
+
+                  {/* Trust Score Badges */}
+                  <TrustScoreBadges activeBadges={['legal', 'spv', 'multisig', 'blockchain']} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs">

@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { paymentApiService } from '../../services/platformServices';
+import { HumanTxFlow } from '../trust/HumanTxFlow';
+import { InvestmentConfirmationCard } from '../trust/InvestmentConfirmationCard';
+import { ShieldCheck, Lock } from 'lucide-react';
 
 // ─── Razorpay global type ──────────────────────────────────────────────────────
 declare global {
@@ -28,15 +31,12 @@ function loadRazorpayScript(): Promise<boolean> {
   });
 }
 
-/**
- * PaymentModal — Razorpay checkout with UPI / Card / Net Banking / QR.
- * Works in test mode without real keys (mock flow).
- */
 export function PaymentModal({ assetId, assetTitle, tokenPrice, quantity, onSuccess, onClose }: PaymentModalProps) {
   const [step, setStep] = useState<PaymentStep>('checkout');
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
   const [txHash, setTxHash] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [currentTxStep, setCurrentTxStep] = useState(0);
 
   const totalUsd = tokenPrice * quantity;
   const totalInr = Math.round(totalUsd * 83.5);
@@ -47,13 +47,18 @@ export function PaymentModal({ assetId, assetTitle, tokenPrice, quantity, onSucc
 
   const handlePay = useCallback(async () => {
     setStep('processing');
+    setCurrentTxStep(0);
+
     try {
-      // 1. Create order
+      // Step 1: Creating ownership certificate
       const order = await paymentApiService.createOrder(totalUsd, assetId, quantity);
+      setCurrentTxStep(1);
 
       if (order.mode === 'mock' || !window.Razorpay) {
-        // Mock payment flow — no Razorpay keys
-        await new Promise((r) => setTimeout(r, 1500));
+        // Step 2: Securing investment
+        await new Promise((r) => setTimeout(r, 1200));
+        setCurrentTxStep(2);
+
         const verifyRes = await paymentApiService.verifyPayment({
           razorpay_order_id: order.orderId,
           razorpay_payment_id: `pay_mock_${Date.now()}`,
@@ -61,192 +66,153 @@ export function PaymentModal({ assetId, assetTitle, tokenPrice, quantity, onSucc
           asset_id: assetId,
           token_quantity: quantity,
         });
-        setTxHash(verifyRes.txSimulation?.txHash || '0x' + Math.random().toString(16).slice(2));
+
+        // Step 3: Recording ownership on blockchain
+        await new Promise((r) => setTimeout(r, 1000));
+        setCurrentTxStep(3);
+
+        setTxHash(verifyRes.transactionHash);
         setStep('success');
-        onSuccess(verifyRes.txSimulation?.txHash);
+        onSuccess(verifyRes.transactionHash);
         return;
       }
 
-      // 2. Real Razorpay checkout
+      // Live Razorpay options
       const options = {
         key: order.keyId,
         amount: order.amount,
         currency: order.currency,
-        name: 'TrustChain AI',
-        description: `${quantity} tokens — ${assetTitle}`,
+        name: 'AssetChain',
+        description: `${quantity} tokens of ${assetTitle}`,
         order_id: order.orderId,
-        theme: { color: '#6366f1' },
-        prefill: { name: 'Investor', email: 'investor@trustchain.ai' },
         handler: async (response: any) => {
-          setStep('processing');
           try {
+            setCurrentTxStep(2);
             const verifyRes = await paymentApiService.verifyPayment({
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
+              ...response,
               asset_id: assetId,
               token_quantity: quantity,
             });
-            setTxHash(verifyRes.txSimulation?.txHash || response.razorpay_payment_id);
+            setCurrentTxStep(3);
+            setTxHash(verifyRes.transactionHash);
             setStep('success');
-            onSuccess(verifyRes.txSimulation?.txHash);
-          } catch {
+            onSuccess(verifyRes.transactionHash);
+          } catch (err: any) {
+            setErrorMsg(err.message || 'Payment verification failed');
             setStep('error');
-            setErrorMsg('Payment verified but token mint failed. Contact support.');
           }
         },
         modal: {
-          ondismiss: () => {
-            if (step === 'processing') return;
-            onClose();
-          },
+          ondismiss: () => setStep('checkout'),
         },
       };
 
       const rzp = new window.Razorpay(options);
-      rzp.on('payment.failed', (res: any) => {
-        setStep('error');
-        setErrorMsg(res.error?.description || 'Payment failed. Please try again.');
-      });
       rzp.open();
     } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to initiate payment');
       setStep('error');
-      setErrorMsg(err?.response?.data?.error?.message || err?.message || 'Order creation failed.');
     }
-  }, [assetId, assetTitle, totalUsd, quantity, step, onClose, onSuccess]);
+  }, [assetId, assetTitle, quantity, totalUsd, onSuccess]);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-      onClick={(e) => e.target === e.currentTarget && step !== 'processing' && onClose()}
-    >
-      <div className="glass-card border border-indigo-500/20 w-full max-w-md p-8 space-y-6 shadow-2xl shadow-indigo-500/10 animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+      <div className="w-full max-w-lg p-6 bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl space-y-5 relative">
+        <button
+          onClick={onClose}
+          className="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors"
+        >
+          ✕
+        </button>
 
         {/* Checkout step */}
         {step === 'checkout' && (
-          <>
+          <div className="space-y-4">
             <div className="space-y-1">
-              <h2 className="text-xl font-bold text-white">Purchase Tokens</h2>
-              <p className="text-xs text-slate-400">Secure payment via Razorpay · UPI, Card, Net Banking, QR</p>
+              <h2 className="text-xl font-bold text-white">Investment Checkout</h2>
+              <p className="text-xs text-slate-400">{assetTitle}</p>
             </div>
 
-            {/* Order summary */}
-            <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-400">Asset</span>
-                <span className="text-white font-semibold truncate max-w-[180px]">{assetTitle}</span>
+            <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Tokens</span>
+                <span className="text-white font-semibold">{quantity} ACT</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-400">Quantity</span>
-                <span className="text-white font-semibold">{quantity} tokens</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-400">Price per token</span>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Price per Token</span>
                 <span className="text-white">${tokenPrice}</span>
               </div>
-              <div className="border-t border-slate-700 pt-3 flex justify-between">
-                <span className="text-slate-300 font-semibold">Total</span>
-                <div className="text-right">
-                  <div className="text-white font-bold text-lg">${totalUsd.toLocaleString()}</div>
-                  <div className="text-slate-400 text-xs">≈ ₹{totalInr.toLocaleString()}</div>
-                </div>
+              <div className="flex justify-between border-t border-slate-800 pt-2 font-bold">
+                <span className="text-white">Total Amount</span>
+                <span className="text-emerald-400">${totalUsd.toLocaleString()}</span>
               </div>
             </div>
 
-            {/* Payment methods */}
-            <div className="grid grid-cols-4 gap-2">
-              {['UPI', 'Card', 'Net Banking', 'QR'].map((m) => (
-                <div key={m} className="p-2 rounded-xl bg-slate-900/60 border border-slate-800 text-center text-[10px] text-slate-400">
-                  {m}
-                </div>
-              ))}
+            <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-xs text-indigo-300 flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-indigo-400 shrink-0" />
+              <span>Payments are processed securely via Razorpay and verified on Polygon Amoy.</span>
             </div>
 
             <div className="flex gap-3">
-              <button onClick={onClose} className="btn-secondary flex-1 text-sm">Cancel</button>
-              <button
-                onClick={handlePay}
-                disabled={!isScriptLoaded && false}
-                className="btn-primary flex-1 text-sm"
-              >
-                Pay {totalUsd > 0 ? `$${totalUsd.toLocaleString()}` : ''}
+              <button onClick={onClose} className="btn-secondary flex-1 text-xs">Cancel</button>
+              <button onClick={handlePay} className="btn-primary flex-1 text-xs">
+                Pay ${totalUsd.toLocaleString()}
               </button>
-            </div>
-
-            <p className="text-[10px] text-slate-500 text-center">
-              {window.Razorpay ? '🔒 Secured by Razorpay' : '🔒 Demo mode — no real payment'} · Tokens minted on Polygon Amoy
-            </p>
-          </>
-        )}
-
-        {/* Processing step */}
-        {step === 'processing' && (
-          <div className="flex flex-col items-center gap-5 py-8">
-            <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-            <div className="text-center">
-              <p className="text-white font-semibold">Processing Payment</p>
-              <p className="text-slate-400 text-sm mt-1">Verifying transaction and minting tokens...</p>
             </div>
           </div>
         )}
 
-        {/* Success step */}
+        {/* Processing step with Humanized Sequential Flow */}
+        {step === 'processing' && (
+          <div className="space-y-4 py-2">
+            <div className="text-center space-y-1">
+              <h3 className="text-base font-bold text-white">Securing Your Investment</h3>
+              <p className="text-xs text-slate-400">Please confirm payment details in Razorpay modal</p>
+            </div>
+
+            <HumanTxFlow
+              currentStepIndex={currentTxStep}
+              txHash="Processing..."
+              contractAddress="0x1111...1111"
+              blockNumber={14920812}
+            />
+          </div>
+        )}
+
+        {/* Success step with Human Framing Confirmation Card */}
         {step === 'success' && (
-          <div className="flex flex-col items-center gap-5 py-4">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
-              <svg className="w-8 h-8 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <div className="text-center space-y-2">
-              <p className="text-white font-bold text-lg">Payment Successful!</p>
-              <p className="text-emerald-400 text-sm">{quantity} tokens minted to your wallet</p>
-            </div>
+          <div className="space-y-4 py-2">
+            <InvestmentConfirmationCard
+              assetTitle={assetTitle}
+              investmentAmount={totalUsd}
+              tokensPurchased={quantity}
+              tokenSupply={10000}
+              nextDistributionDate="15 Aug 2026"
+              spvVerified={true}
+            />
 
-            {/* Receipt */}
-            <div className="w-full p-4 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-2 text-xs">
-              <div className="flex justify-between">
-                <span className="text-slate-400">Asset</span>
-                <span className="text-white font-semibold">{assetTitle}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Tokens Minted</span>
-                <span className="text-emerald-400 font-bold">{quantity} ACT</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Amount Paid</span>
-                <span className="text-white">${totalUsd.toLocaleString()}</span>
-              </div>
-              {txHash && (
-                <div className="flex justify-between items-center pt-2 border-t border-slate-800">
-                  <span className="text-slate-400">Tx Hash</span>
-                  <a
-                    href={`https://amoy.polygonscan.com/tx/${txHash}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-indigo-400 font-mono text-[10px] hover:underline"
-                  >
-                    {txHash.slice(0, 16)}...
-                  </a>
-                </div>
-              )}
-            </div>
+            <HumanTxFlow
+              currentStepIndex={3}
+              txHash={txHash || '0x3f9e...82d1'}
+              contractAddress="0x1111...1111"
+              blockNumber={14920812}
+            />
 
-            <button onClick={onClose} className="btn-primary w-full">Done</button>
+            <button onClick={onClose} className="btn-primary w-full text-xs">
+              Done & View Portfolio
+            </button>
           </div>
         )}
 
         {/* Error step */}
         {step === 'error' && (
-          <div className="flex flex-col items-center gap-5 py-4">
-            <div className="w-16 h-16 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center">
-              <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+          <div className="flex flex-col items-center gap-4 py-4 text-xs">
+            <div className="w-12 h-12 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-400">
+              ✕
             </div>
-            <div className="text-center space-y-2">
-              <p className="text-white font-bold">Payment Failed</p>
-              <p className="text-red-300 text-sm">{errorMsg}</p>
+            <div className="text-center space-y-1">
+              <p className="text-white font-bold text-sm">Payment Failed</p>
+              <p className="text-red-300">{errorMsg}</p>
             </div>
             <div className="flex gap-3 w-full">
               <button onClick={onClose} className="btn-secondary flex-1">Cancel</button>

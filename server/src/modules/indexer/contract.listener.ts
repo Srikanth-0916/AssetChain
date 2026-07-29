@@ -23,6 +23,10 @@ const EVENT_SIGNATURES = {
 
 const INTERFACE = new ethers.Interface(Object.values(EVENT_SIGNATURES));
 
+const EVENT_TOPIC_HASHES = Object.keys(EVENT_SIGNATURES)
+  .map((name) => INTERFACE.getEvent(name)?.topicHash)
+  .filter((hash): hash is string => Boolean(hash));
+
 export class ContractListener {
   private provider: ethers.JsonRpcProvider | null = null;
   private intervalHandle: ReturnType<typeof setInterval> | null = null;
@@ -31,7 +35,9 @@ export class ContractListener {
   start(intervalMs = 30_000): void {
     if (this.isRunning) return;
     try {
-      this.provider = new ethers.JsonRpcProvider(env.POLYGON_AMOY_RPC_URL);
+      if (!this.provider) {
+        this.provider = new ethers.JsonRpcProvider(env.POLYGON_AMOY_RPC_URL);
+      }
       this.isRunning = true;
       // Initial poll
       this.poll().catch(() => {});
@@ -59,14 +65,7 @@ export class ContractListener {
       const logs = await this.provider.getLogs({
         fromBlock,
         toBlock,
-        topics: [[
-          INTERFACE.getEvent('AssetRegistered')!.topicHash,
-          INTERFACE.getEvent('AssetTokenized')!.topicHash,
-          INTERFACE.getEvent('TokensPurchased')!.topicHash,
-          INTERFACE.getEvent('ProposalCreated')!.topicHash,
-          INTERFACE.getEvent('VoteCast')!.topicHash,
-          INTERFACE.getEvent('DividendClaimed')!.topicHash,
-        ]],
+        topics: [EVENT_TOPIC_HASHES],
       });
 
       for (const log of logs) {

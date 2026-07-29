@@ -1,53 +1,54 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useWallet } from '../contexts/WalletContext';
-import { User, Wallet, ShieldCheck, Upload, AlertCircle, CheckCircle2, Users, FileCheck, Globe, Scale } from 'lucide-react';
+import {
+  User, Wallet, ShieldCheck, Upload, AlertCircle, CheckCircle2,
+  Users, FileCheck, Globe, Scale, Star, Trophy, Activity,
+  TrendingUp, BarChart3, Vote, Shield, Settings, Lock, Bell,
+  ChevronRight, Edit3
+} from 'lucide-react';
 import { truncateAddress } from '../lib/utils';
 import { authService } from '../services/authService';
 import { SmartWalletPanel } from '../components/wallet/SmartWalletPanel';
+
+type ProfileTab = 'overview' | 'kyc' | 'security' | 'preferences';
+
+const KYC_STATUS_CONFIG: Record<string, { color: string; badge: string; label: string }> = {
+  approved:      { color: 'text-emerald-400', badge: 'pill-success', label: 'Verified ✓' },
+  pending:       { color: 'text-amber-400',   badge: 'pill-warning', label: 'Under Review' },
+  not_submitted: { color: 'text-slate-400',   badge: 'pill-neutral', label: 'Not Submitted' },
+  rejected:      { color: 'text-red-400',     badge: 'pill-danger',  label: 'Rejected' },
+};
 
 export function Profile() {
   const { user, updateUser } = useAuth();
   const { address, isConnected, connect } = useWallet();
 
-  const [documentCid, setDocumentCid] = useState('');
+  const [activeTab, setActiveTab]         = useState<ProfileTab>('overview');
+  const [documentCid, setDocumentCid]     = useState('');
   const [isLinkingWallet, setIsLinkingWallet] = useState(false);
   const [isSubmittingKYC, setIsSubmittingKYC] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage]             = useState<string | null>(null);
+  const [error, setError]                 = useState<string | null>(null);
 
-  // Nominee State (Module 17)
-  const [nomineeName, setNomineeName] = useState('Robert Doe');
-  const [nomineeEmail, setNomineeEmail] = useState('robert.doe@example.com');
-  const [nomineePhone, setNomineePhone] = useState('+1 (555) 234-5678');
-  const [nomineeGovId, setNomineeGovId] = useState('US-PASSPORT-998811');
+  // Nominee state
+  const [nomineeName, setNomineeName]         = useState('Robert Doe');
+  const [nomineeEmail, setNomineeEmail]       = useState('robert.doe@example.com');
   const [nomineeRelationship, setNomineeRelationship] = useState('Son / Primary Heir');
-  const [nomineeWallet, setNomineeWallet] = useState('0x9999999999999999999999999999999999999999');
-  const [nomineeSaved, setNomineeSaved] = useState(false);
+  const [nomineeWallet, setNomineeWallet]     = useState('0x9999999999999999999999999999999999999999');
+  const [nomineeSaved, setNomineeSaved]       = useState(false);
 
-  // Link MetaMask wallet to user account
+  const kycCfg = KYC_STATUS_CONFIG[user?.kyc_status ?? 'not_submitted'];
+
   const handleLinkWallet = async () => {
-    setError(null);
-    setMessage(null);
-    setIsLinkingWallet(true);
-
+    setError(null); setMessage(null); setIsLinkingWallet(true);
     try {
       let activeAddress = address;
-      if (!activeAddress) {
-        activeAddress = await connect();
-      }
-
+      if (!activeAddress) activeAddress = await connect();
       const { nonce } = await authService.requestWalletNonce(activeAddress);
-      const signature = await window.ethereum.request({
-        method: 'personal_sign',
-        params: [nonce, activeAddress],
-      });
-
+      const signature = await (window as any).ethereum.request({ method: 'personal_sign', params: [nonce, activeAddress] });
       const res = await authService.verifyWallet(activeAddress, signature);
-
-      if (user) {
-        updateUser({ ...user, wallet_address: res.wallet_address });
-      }
+      if (user) updateUser({ ...user, wallet_address: res.wallet_address });
       setMessage('Wallet linked successfully!');
     } catch (err: any) {
       setError(err.message || 'Failed to link wallet');
@@ -57,17 +58,11 @@ export function Profile() {
   };
 
   const handleSubmitKYC = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setMessage(null);
-    setIsSubmittingKYC(true);
-
+    e.preventDefault(); setError(null); setMessage(null); setIsSubmittingKYC(true);
     try {
       if (!documentCid) throw new Error('Document CID or link is required');
-      if (user) {
-        updateUser({ ...user, kyc_status: 'pending' });
-      }
-      setMessage('KYC documents submitted successfully. Pending admin review.');
+      if (user) updateUser({ ...user, kyc_status: 'pending' });
+      setMessage('KYC documents submitted. Pending admin review — usually 1-2 business days.');
     } catch (err: any) {
       setError(err.message || 'Failed to submit KYC');
     } finally {
@@ -82,253 +77,376 @@ export function Profile() {
     setTimeout(() => setNomineeSaved(false), 4000);
   };
 
+  const STATS = [
+    { icon: '🏆', label: 'Trust Level',      value: 'Gold Investor',  color: 'text-amber-400' },
+    { icon: '⭐', label: 'Reward Points',     value: '3,250 pts',      color: 'text-amber-400' },
+    { icon: '💰', label: 'Portfolio Value',   value: '₹2,45,000',     color: 'text-white' },
+    { icon: '🎖️', label: 'Achievements',      value: '8 / 16',        color: 'text-purple-400' },
+    { icon: '🗳️', label: 'DAO Votes',         value: '2 Votes',       color: 'text-indigo-400' },
+    { icon: '💸', label: 'Rental Income',     value: '₹6,450',        color: 'text-emerald-400' },
+  ];
+
+  const TABS: { id: ProfileTab; label: string; icon: React.ReactNode }[] = [
+    { id: 'overview',     label: 'Overview',     icon: <User className="w-4 h-4" /> },
+    { id: 'kyc',          label: 'KYC & Wallet', icon: <ShieldCheck className="w-4 h-4" /> },
+    { id: 'security',     label: 'Security',     icon: <Lock className="w-4 h-4" /> },
+    { id: 'preferences',  label: 'Preferences',  icon: <Settings className="w-4 h-4" /> },
+  ];
+
   return (
-    <div className="max-w-4xl mx-auto px-4 py-10 space-y-8 animate-fade-in">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold text-white">Account Settings & Compliance</h1>
-        <p className="text-xs text-slate-400">Manage your profile, legal compliance layer, nominee, and Web3 wallet</p>
+    <div className="page-container animate-fade-in">
+
+      {/* ── Header Hero ── */}
+      <div className="relative rounded-3xl overflow-hidden p-8 mb-6 border border-white/[0.06]"
+        style={{ background: 'linear-gradient(135deg, rgba(79,70,229,0.1) 0%, rgba(15,23,42,0.9) 70%)' }}>
+        <div className="absolute -right-16 -top-16 w-80 h-80 bg-indigo-600/8 rounded-full blur-3xl" />
+
+        <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-6">
+          {/* Avatar */}
+          <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-600 to-emerald-500 flex items-center justify-center text-3xl font-black text-white shadow-xl shadow-indigo-500/20">
+            {user?.full_name?.charAt(0).toUpperCase() ?? 'U'}
+          </div>
+
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className="text-2xl font-black text-white">{user?.full_name}</h1>
+              <span className="level-badge level-gold">🥇 Gold Investor</span>
+            </div>
+            <p className="text-sm text-slate-400 mb-3">{user?.email}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`pill-badge ${kycCfg.badge}`}><ShieldCheck className="w-3 h-3" /> KYC {kycCfg.label}</span>
+              <span className="pill-badge pill-info capitalize">{user?.role?.replace('_', ' ')}</span>
+              {user?.wallet_address && (
+                <span className="pill-badge pill-neutral font-mono">{truncateAddress(user.wallet_address)}</span>
+              )}
+              <span className="pill-badge pill-neutral">Member since Nov 2024</span>
+            </div>
+          </div>
+
+          <button className="btn-ghost text-sm shrink-0">
+            <Edit3 className="w-4 h-4" /> Edit Profile
+          </button>
+        </div>
       </div>
 
+      {/* ── Stats row ── */}
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-6 stagger-children">
+        {STATS.map(s => (
+          <div key={s.label} className="stat-card text-center py-4 animate-slide-up">
+            <div className="text-2xl mb-1">{s.icon}</div>
+            <div className={`text-sm font-bold ${s.color}`}>{s.value}</div>
+            <div className="text-xs text-slate-500 mt-0.5">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Alerts ── */}
       {message && (
-        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-          {message}
+        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-sm flex items-center gap-2 mb-4">
+          <CheckCircle2 className="w-4 h-4 shrink-0" /> {message}
         </div>
       )}
-
       {error && (
-        <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          {error}
+        <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-sm flex items-center gap-2 mb-4">
+          <AlertCircle className="w-4 h-4 shrink-0" /> {error}
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Profile Card */}
-        <div className="glass-card p-6 space-y-4">
-          <div className="flex items-center gap-3 border-b border-slate-900 pb-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
-              <User className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-white">Profile Details</h3>
-              <p className="text-[11px] text-slate-400">Registered user information</p>
-            </div>
-          </div>
-
-          <div className="space-y-3 text-xs">
-            <div>
-              <span className="text-slate-400 block mb-1">Full Name</span>
-              <div className="font-semibold text-white p-2.5 rounded-lg bg-slate-900/60 border border-slate-800">
-                {user?.full_name}
-              </div>
-            </div>
-            <div>
-              <span className="text-slate-400 block mb-1">Email Address</span>
-              <div className="font-semibold text-white p-2.5 rounded-lg bg-slate-900/60 border border-slate-800">
-                {user?.email}
-              </div>
-            </div>
-            <div>
-              <span className="text-slate-400 block mb-1">Role</span>
-              <div className="font-semibold text-indigo-300 p-2.5 rounded-lg bg-slate-900/60 border border-slate-800 capitalize">
-                {user?.role.replace('_', ' ')}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Web3 Wallet Card */}
-        <div className="glass-card p-6 space-y-4">
-          <div className="flex items-center gap-3 border-b border-slate-900 pb-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-              <Wallet className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-white">Web3 Wallet</h3>
-              <p className="text-[11px] text-slate-400">Linked Ethereum / Polygon address</p>
-            </div>
-          </div>
-
-          <div className="space-y-4 text-xs">
-            <div>
-              <span className="text-slate-400 block mb-1">Linked Wallet</span>
-              <div className="font-mono text-slate-200 p-2.5 rounded-lg bg-slate-900/60 border border-slate-800">
-                {user?.wallet_address ? truncateAddress(user.wallet_address) : 'No wallet linked'}
-              </div>
-            </div>
-
-            <button
-              onClick={handleLinkWallet}
-              disabled={isLinkingWallet}
-              className="btn-secondary w-full text-xs py-2.5"
-            >
-              {isLinkingWallet ? 'Verifying Signature...' : user?.wallet_address ? 'Re-link / Switch Wallet' : 'Connect & Link Wallet'}
-            </button>
-          </div>
-        </div>
+      {/* ── Tab bar ── */}
+      <div className="tab-bar inline-flex mb-6">
+        {TABS.map(t => (
+          <button
+            key={t.id}
+            onClick={() => setActiveTab(t.id)}
+            className={`tab-item flex items-center gap-1.5 ${activeTab === t.id ? 'active' : ''}`}
+          >
+            {t.icon} {t.label}
+          </button>
+        ))}
       </div>
 
-      {/* Compliance Layer Card — Module 16 */}
-      <div className="glass-card p-6 space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-900 pb-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
-              <Scale className="w-5 h-5" />
+      {/* ══════════ OVERVIEW TAB ══════════ */}
+      {activeTab === 'overview' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          {/* Profile Details */}
+          <div className="stat-card">
+            <p className="section-header mb-5"><User className="w-4 h-4 text-indigo-400" /> Profile Details</p>
+            <div className="space-y-4">
+              {[
+                { label: 'Full Name',   value: user?.full_name },
+                { label: 'Email',       value: user?.email },
+                { label: 'Role',        value: user?.role?.replace('_', ' '), capitalize: true },
+                { label: 'Member Since',value: 'November 2024' },
+              ].map(f => (
+                <div key={f.label}>
+                  <label className="label text-xs">{f.label}</label>
+                  <div className={`input-field bg-slate-900/50 text-white font-medium ${f.capitalize ? 'capitalize' : ''}`}
+                    style={{ cursor: 'default' }}>
+                    {f.value}
+                  </div>
+                </div>
+              ))}
             </div>
-            <div>
-              <h3 className="text-sm font-bold text-white">Compliance & Whitelist Profile (ERC-3643 Ready)</h3>
-              <p className="text-[11px] text-slate-400">Automated transfer permission & regulatory risk profile</p>
+          </div>
+
+          {/* Compliance Layer */}
+          <div className="stat-card">
+            <div className="flex items-center justify-between mb-5">
+              <p className="section-header"><Scale className="w-4 h-4 text-blue-400" /> Compliance Profile</p>
+              <span className="pill-badge pill-success text-xs">ERC-3643 Ready</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              {[
+                { label: 'KYC Status',       value: kycCfg.label,      color: kycCfg.color },
+                { label: 'Jurisdiction',      value: 'India (356)',     color: 'text-blue-400' },
+                { label: 'Whitelist Status',  value: 'Active',         color: 'text-emerald-400' },
+                { label: 'Risk Profile',      value: 'Medium',         color: 'text-amber-400' },
+                { label: 'AML Check',         value: 'Passed',         color: 'text-emerald-400' },
+                { label: 'Investment Cap',    value: '₹50L/year',      color: 'text-white' },
+              ].map(c => (
+                <div key={c.label} className="px-3 py-2.5 rounded-xl bg-slate-900/50 border border-slate-800/60">
+                  <div className="text-xs text-slate-500 mb-1">{c.label}</div>
+                  <div className={`text-sm font-bold ${c.color}`}>{c.value}</div>
+                </div>
+              ))}
+            </div>
+            <SmartWalletPanel />
+          </div>
+
+          {/* Nominee & Beneficiary */}
+          <div className="stat-card lg:col-span-2">
+            <p className="section-header mb-5"><Users className="w-4 h-4 text-purple-400" /> Nominee & Beneficiary</p>
+            <form onSubmit={handleSaveNominee} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[
+                { label: 'Nominee Full Name',    value: nomineeName,         setter: setNomineeName },
+                { label: 'Nominee Email',        value: nomineeEmail,        setter: setNomineeEmail },
+                { label: 'Relationship',         value: nomineeRelationship, setter: setNomineeRelationship },
+                { label: 'Nominee Wallet Address', value: nomineeWallet,     setter: setNomineeWallet },
+              ].map(f => (
+                <div key={f.label}>
+                  <label className="label">{f.label}</label>
+                  <input
+                    className="input-field"
+                    value={f.value}
+                    onChange={e => f.setter(e.target.value)}
+                  />
+                </div>
+              ))}
+              <div className="sm:col-span-2">
+                <button type="submit" className="btn-primary text-sm">
+                  <FileCheck className="w-4 h-4" />
+                  {nomineeSaved ? 'Saved!' : 'Save Nominee Details'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════ KYC TAB ══════════ */}
+      {activeTab === 'kyc' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          {/* KYC Status */}
+          <div className="stat-card">
+            <div className="flex items-center justify-between mb-5">
+              <p className="section-header"><ShieldCheck className="w-4 h-4 text-indigo-400" /> KYC Verification</p>
+              <span className={`pill-badge ${kycCfg.badge}`}>{kycCfg.label}</span>
+            </div>
+
+            {user?.kyc_status === 'approved' ? (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+                </div>
+                <div className="text-lg font-bold text-white mb-1">Identity Verified</div>
+                <p className="text-sm text-slate-400">Your KYC is complete. You have full access to all investment features.</p>
+                <div className="mt-4 pill-badge pill-success mx-auto inline-flex">+200 reward points earned</div>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmitKYC} className="space-y-4">
+                <div>
+                  <label className="label">Document CID / IPFS Link</label>
+                  <input
+                    className="input-field"
+                    placeholder="QmXoypiz... or https://ipfs.io/..."
+                    value={documentCid}
+                    onChange={e => setDocumentCid(e.target.value)}
+                  />
+                  <p className="text-xs text-slate-500 mt-1.5">
+                    Upload your Aadhaar / PAN / Passport to IPFS or any document storage, then paste the link here.
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-amber-500/8 border border-amber-500/20 text-xs text-amber-300">
+                  ⚠️ Documents are verified by our compliance team within 1–2 business days. Approved KYC earns +200 reward points.
+                </div>
+                <button
+                  type="submit"
+                  disabled={isSubmittingKYC}
+                  className="btn-primary w-full"
+                >
+                  <Upload className="w-4 h-4" />
+                  {isSubmittingKYC ? 'Submitting...' : 'Submit KYC Documents'}
+                </button>
+              </form>
+            )}
+          </div>
+
+          {/* Wallet */}
+          <div className="stat-card">
+            <p className="section-header mb-5"><Wallet className="w-4 h-4 text-emerald-400" /> Web3 Wallet</p>
+            <div className="space-y-4">
+              <div>
+                <label className="label">Linked Wallet Address</label>
+                <div className="input-field font-mono text-sm bg-slate-900/50" style={{ cursor: 'default' }}>
+                  {user?.wallet_address ? truncateAddress(user.wallet_address) : 'No wallet linked'}
+                </div>
+              </div>
+              <div>
+                <label className="label">Connected Wallet</label>
+                <div className="input-field font-mono text-sm bg-slate-900/50 flex items-center gap-2" style={{ cursor: 'default' }}>
+                  {isConnected
+                    ? <><span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />{truncateAddress(address)}</>
+                    : <span className="text-slate-500">Not connected</span>
+                  }
+                </div>
+              </div>
+              <button
+                onClick={handleLinkWallet}
+                disabled={isLinkingWallet}
+                className="btn-secondary w-full"
+              >
+                <Wallet className="w-4 h-4" />
+                {isLinkingWallet ? 'Verifying Signature...' : user?.wallet_address ? 'Re-link / Switch Wallet' : 'Connect & Link Wallet'}
+              </button>
+              <p className="text-xs text-slate-500">
+                Linking your wallet enables on-chain token ownership, dividend claims, and DAO voting.
+              </p>
             </div>
           </div>
-          <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            ERC-3643 Compatible
-          </span>
         </div>
+      )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-          <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
-            <span className="text-slate-400 block mb-1">KYC Status</span>
-            <span className="font-semibold text-emerald-400 flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Verified
-            </span>
-          </div>
-          <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
-            <span className="text-slate-400 block mb-1">Jurisdiction</span>
-            <span className="font-semibold text-slate-200 flex items-center gap-1">
-              <Globe className="w-3.5 h-3.5 text-blue-400" /> United States (840)
-            </span>
-          </div>
-          <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
-            <span className="text-slate-400 block mb-1">Risk Tier</span>
-            <span className="font-semibold text-indigo-300">Tier 1 (Low Risk)</span>
-          </div>
-          <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
-            <span className="text-slate-400 block mb-1">Transfer Permission</span>
-            <span className="font-semibold text-emerald-400">Allowed</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Nominee & Inheritance Card — Module 17 */}
-      <div className="glass-card p-6 space-y-4">
-        <div className="flex items-center gap-3 border-b border-slate-900 pb-3">
-          <div className="w-10 h-10 rounded-xl bg-cyan-600/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-            <Users className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-white">Nominee & Beneficiary Designation (Module 17)</h3>
-            <p className="text-[11px] text-slate-400">Assign legal nominee for off-chain inheritance & token transfer</p>
-          </div>
-        </div>
-
-        <form onSubmit={handleSaveNominee} className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-          <div>
-            <label className="label">Nominee Full Name</label>
-            <input
-              type="text"
-              required
-              value={nomineeName}
-              onChange={(e) => setNomineeName(e.target.value)}
-              className="input-field"
-            />
-          </div>
-          <div>
-            <label className="label">Relationship</label>
-            <input
-              type="text"
-              required
-              value={nomineeRelationship}
-              onChange={(e) => setNomineeRelationship(e.target.value)}
-              className="input-field"
-            />
-          </div>
-          <div>
-            <label className="label">Email Address</label>
-            <input
-              type="email"
-              required
-              value={nomineeEmail}
-              onChange={(e) => setNomineeEmail(e.target.value)}
-              className="input-field"
-            />
-          </div>
-          <div>
-            <label className="label">Government ID / Passport</label>
-            <input
-              type="text"
-              required
-              value={nomineeGovId}
-              onChange={(e) => setNomineeGovId(e.target.value)}
-              className="input-field"
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="label">Nominee Wallet Address</label>
-            <input
-              type="text"
-              required
-              value={nomineeWallet}
-              onChange={(e) => setNomineeWallet(e.target.value)}
-              className="input-field font-mono"
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <button type="submit" className="btn-primary text-xs py-2.5 w-full sm:w-auto">
-              <FileCheck className="w-4 h-4" /> Save Nominee Details
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {/* KYC Section */}
-      <div className="glass-card p-6 space-y-4">
-        <div className="flex items-center gap-3 border-b border-slate-900 pb-3">
-          <div className="w-10 h-10 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-400">
-            <ShieldCheck className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-white">KYC / Identity Verification</h3>
-            <p className="text-[11px] text-slate-400">Submit legal proof of identity for regulatory compliance</p>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs">
-          <span className="text-slate-400">Current Status</span>
-          <span className={`px-2.5 py-1 rounded-full font-semibold uppercase text-[10px] tracking-wider ${
-            user?.kyc_status === 'approved' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' :
-            user?.kyc_status === 'pending' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30' :
-            'bg-slate-800 text-slate-400'
-          }`}>
-            {user?.kyc_status.replace('_', ' ')}
-          </span>
-        </div>
-
-        {user?.kyc_status !== 'approved' && (
-          <form onSubmit={handleSubmitKYC} className="space-y-3 pt-2">
-            <div className="space-y-1">
-              <label className="label">IPFS Document CID / Passport Hash</label>
-              <input
-                type="text"
-                required
-                value={documentCid}
-                onChange={(e) => setDocumentCid(e.target.value)}
-                placeholder="e.g. QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco"
-                className="input-field"
-              />
+      {/* ══════════ SECURITY TAB ══════════ */}
+      {activeTab === 'security' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="stat-card">
+            <p className="section-header mb-5"><Lock className="w-4 h-4 text-red-400" /> Password & Security</p>
+            <div className="space-y-4">
+              <div>
+                <label className="label">Current Password</label>
+                <input type="password" className="input-field" placeholder="••••••••" />
+              </div>
+              <div>
+                <label className="label">New Password</label>
+                <input type="password" className="input-field" placeholder="••••••••" />
+              </div>
+              <div>
+                <label className="label">Confirm New Password</label>
+                <input type="password" className="input-field" placeholder="••••••••" />
+              </div>
+              <button className="btn-primary text-sm w-full"><Lock className="w-4 h-4" /> Update Password</button>
             </div>
-            <button
-              type="submit"
-              disabled={isSubmittingKYC}
-              className="btn-primary text-xs py-2.5"
-            >
-              <Upload className="w-4 h-4" /> {isSubmittingKYC ? 'Submitting...' : 'Submit Documents'}
-            </button>
-          </form>
-        )}
-      </div>
+          </div>
 
-      <SmartWalletPanel />
+          <div className="stat-card">
+            <p className="section-header mb-5"><Shield className="w-4 h-4 text-indigo-400" /> Security Overview</p>
+            <div className="space-y-3">
+              {[
+                { label: '2-Factor Authentication', status: false, tip: 'Enable 2FA for stronger account security' },
+                { label: 'Email Verified',           status: true,  tip: 'Your email is verified' },
+                { label: 'Wallet Linked',            status: !!user?.wallet_address, tip: 'Link MetaMask for on-chain security' },
+                { label: 'KYC Completed',            status: user?.kyc_status === 'approved', tip: 'Complete KYC for full access' },
+              ].map(item => (
+                <div key={item.label} className="flex items-center gap-3 p-3 rounded-xl bg-slate-900/40 border border-slate-800/60">
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0
+                    ${item.status ? 'bg-emerald-500/20 border border-emerald-500/40' : 'bg-red-500/10 border border-red-500/30'}`}>
+                    {item.status
+                      ? <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                      : <AlertCircle className="w-3 h-3 text-red-400" />
+                    }
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-white">{item.label}</div>
+                    <div className="text-xs text-slate-500">{item.tip}</div>
+                  </div>
+                  {!item.status && (
+                    <button className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1">
+                      Enable <ChevronRight className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════ PREFERENCES TAB ══════════ */}
+      {activeTab === 'preferences' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="stat-card">
+            <p className="section-header mb-5"><Bell className="w-4 h-4 text-amber-400" /> Notification Preferences</p>
+            <div className="space-y-3">
+              {[
+                { label: 'Dividend Income Alerts',    desc: 'Notify when rental/dividend income is received',  on: true },
+                { label: 'Investment Confirmations',  desc: 'On-chain confirmation of token purchases',        on: true },
+                { label: 'DAO Governance Proposals',  desc: 'New proposals requiring your vote',              on: true },
+                { label: 'Reward Points Earned',      desc: 'When you earn points from platform actions',      on: true },
+                { label: 'Price Alerts',              desc: 'Significant changes in token valuations',         on: false },
+                { label: 'Marketing Updates',         desc: 'New asset listings and platform news',            on: false },
+              ].map(n => (
+                <div key={n.label} className="flex items-center justify-between p-3 rounded-xl bg-slate-900/40 border border-slate-800/60">
+                  <div>
+                    <div className="text-sm font-medium text-white">{n.label}</div>
+                    <div className="text-xs text-slate-500">{n.desc}</div>
+                  </div>
+                  <div className={`w-11 h-6 rounded-full relative cursor-pointer transition-colors ${n.on ? 'bg-indigo-600' : 'bg-slate-700'}`}>
+                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${n.on ? 'left-6' : 'left-1'}`} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <p className="section-header mb-5"><Settings className="w-4 h-4 text-slate-400" /> Investment Preferences</p>
+            <div className="space-y-4">
+              <div>
+                <label className="label">Risk Tolerance</label>
+                <select className="input-field">
+                  <option>Medium Risk</option>
+                  <option>Low Risk</option>
+                  <option>High Risk</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">Preferred Asset Types</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {['Real Estate', 'Agriculture', 'Renewable Energy', 'Commercial', 'Infrastructure', 'Healthcare'].map(t => (
+                    <label key={t} className="flex items-center gap-2 cursor-pointer p-2.5 rounded-lg bg-slate-900/50 border border-slate-800/60 hover:border-indigo-500/30 transition-colors">
+                      <input type="checkbox" defaultChecked={['Real Estate','Agriculture'].includes(t)}
+                        className="w-4 h-4 rounded accent-indigo-500" />
+                      <span className="text-xs text-slate-300 font-medium">{t}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="label">Minimum Investment Ticket</label>
+                <select className="input-field">
+                  <option>₹5,000</option>
+                  <option>₹10,000</option>
+                  <option>₹25,000</option>
+                  <option>₹50,000</option>
+                </select>
+              </div>
+              <button className="btn-primary text-sm w-full">Save Preferences</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

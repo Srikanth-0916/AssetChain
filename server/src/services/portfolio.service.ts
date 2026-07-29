@@ -1,3 +1,10 @@
+export interface SectorConcentrationInfo {
+  is_concentrated: boolean;
+  sector: string;
+  percentage: number;
+  message?: string;
+}
+
 export class PortfolioService {
   async getPortfolio(userId: string) {
     const holdings = [
@@ -15,6 +22,7 @@ export class PortfolioService {
           id: 'asset-demo-uuid-001',
           title: 'Manhattan Commercial Plaza',
           token_price: 275,
+          asset_type: 'Commercial Real Estate',
           contract_address: '0x1111111111111111111111111111111111111111',
         },
       },
@@ -32,6 +40,7 @@ export class PortfolioService {
           id: 'asset-demo-uuid-002',
           title: 'Solar Farm Alpha 1',
           token_price: 130,
+          asset_type: 'Renewable Energy',
           contract_address: '0x2222222222222222222222222222222222222222',
         },
       },
@@ -41,6 +50,34 @@ export class PortfolioService {
     const currentValue = holdings.reduce((sum, item) => sum + item.current_value, 0);
     const totalDividends = holdings.reduce((sum, item) => sum + item.unclaimed_dividends, 0);
 
+    // Compute sector concentration logic
+    const sectorValues: Record<string, number> = {};
+    for (const h of holdings) {
+      const type = h.asset.asset_type || 'Other';
+      sectorValues[type] = (sectorValues[type] || 0) + h.current_value;
+    }
+
+    let concentration: SectorConcentrationInfo = {
+      is_concentrated: false,
+      sector: '',
+      percentage: 0,
+    };
+
+    if (currentValue > 0 && holdings.length >= 2) {
+      for (const [sector, val] of Object.entries(sectorValues)) {
+        const pct = Math.round((val / currentValue) * 100);
+        if (pct >= 50) {
+          concentration = {
+            is_concentrated: true,
+            sector,
+            percentage: pct,
+            message: `You're concentrated in ${sector} (${pct}% of portfolio) — consider diversifying into other asset classes.`,
+          };
+          break;
+        }
+      }
+    }
+
     return {
       summary: {
         total_invested: totalInvested,
@@ -49,6 +86,7 @@ export class PortfolioService {
         unclaimed_dividends: totalDividends,
         total_assets: holdings.length,
       },
+      sector_concentration: concentration,
       holdings,
     };
   }

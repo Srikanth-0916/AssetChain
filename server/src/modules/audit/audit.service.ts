@@ -1,7 +1,16 @@
 import { v4 as uuidv4 } from 'uuid';
+import { supabaseAdmin } from '../../config/database';
 
 /**
  * Audit Service — logs all admin actions, contract events, and security alerts.
+ *
+ * Persistence strategy:
+ *   1. Every log entry is written to the in-memory store immediately (for UI speed)
+ *   2. Every log entry is also persisted to Supabase `audit_logs` table asynchronously
+ *   3. If Supabase write fails, the error is LOGGED (not silently swallowed)
+ *
+ * This is fail-close for observability: we don't hide persistence failures.
+ * The in-memory fallback means the app continues to work even if Supabase is down.
  */
 export type AuditEventType =
   | 'admin_action' | 'kyc_approved' | 'kyc_rejected'
@@ -72,8 +81,48 @@ export class AuditService {
       severity,
       timestamp: new Date().toISOString(),
     };
+
+    // 1. In-memory write (immediate, synchronous)
     auditLog.unshift(event);
+
+    // 2. Supabase persistence (async, non-blocking)
+    this.persistToSupabase(event);
+
     return event;
+  }
+
+  /**
+   * Persist a single audit event to Supabase.
+   * Failures are explicitly logged — never silently swallowed.
+   */
+  private persistToSupabase(event: AuditEvent): void {
+    Promise.resolve(
+      supabaseAdmin.from('audit_logs').insert({
+        id: event.id,
+        type: event.type,
+        actor_id: event.actorId,
+        actor_role: event.actorRole,
+        description: event.description,
+        metadata: event.metadata,
+        severity: event.severity,
+        timestamp: event.timestamp,
+      })
+    )
+      .then(({ error }: any) => {
+        if (error) {
+          // Fail-close: log the error explicitly so it's visible in monitoring
+          console.error(
+            `[AuditService] ⚠️  Supabase persistence FAILED for audit event ${event.id} (type: ${event.type}):`,
+            error.message
+          );
+        }
+      })
+      .catch((err: Error) => {
+        console.error(
+          `[AuditService] ⚠️  Supabase connection error for audit event ${event.id}:`,
+          err.message
+        );
+      });
   }
 
   getLog(limit = 50): AuditEvent[] {
@@ -83,6 +132,11 @@ export class AuditService {
   getLogByType(type: AuditEventType): AuditEvent[] {
     return auditLog.filter((e) => e.type === type);
   }
+
+  getLogBySeverity(severity: AuditEvent['severity']): AuditEvent[] {
+    return auditLog.filter((e) => e.severity === severity);
+  }
 }
 
 export const auditService = new AuditService();
+

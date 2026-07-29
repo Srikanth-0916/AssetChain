@@ -14,7 +14,7 @@ describe('Backend Auth & Token Verification', () => {
     const token = generateToken(payload);
     expect(token).toBeTypeOf('string');
 
-    const decoded = jwt.verify(token, env.JWT_SECRET) as JWTPayload;
+    const decoded = jwt.verify(token, env.JWT_SECRET, { algorithms: ['HS256'] }) as JWTPayload;
     expect(decoded.userId).toBe('test-uuid-123');
     expect(decoded.email).toBe('investor@assetchain.io');
     expect(decoded.role).toBe('investor');

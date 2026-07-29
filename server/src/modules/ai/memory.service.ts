@@ -8,6 +8,9 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { supabaseAdmin } from '../../config/database';
+import { env } from '../../config/env';
+import { ServiceUnavailableError } from '../../utils/errors';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -106,6 +109,31 @@ export class ConversationMemoryService {
     if (mem.history.length > MAX_HISTORY_PER_USER) {
       mem.history = mem.history.slice(-MAX_HISTORY_PER_USER);
     }
+
+    try {
+      const { error } = await supabaseAdmin.from('ai_memory').insert({
+        id: turn.id,
+        user_id: userId,
+        role: turn.role,
+        content: turn.content,
+        data: turn.data,
+        timestamp: turn.timestamp,
+      });
+
+      if (error) {
+        if (env.NODE_ENV === 'production') {
+          console.error(`[ConversationMemoryService] 🚨 CRITICAL PROD FAILURE: AI Memory persistence failed for ${userId}:`, error.message);
+          throw new ServiceUnavailableError(`AI Memory persistence failure: ${error.message}`);
+        } else {
+          console.warn(`[ConversationMemoryService] ⚠️ Dev Mode Warning: Supabase write failed for AI memory:`, error.message);
+        }
+      }
+    } catch (err: any) {
+      if (env.NODE_ENV === 'production') {
+        throw err instanceof ServiceUnavailableError ? err : new ServiceUnavailableError(`AI memory store failure: ${err.message}`);
+      }
+    }
+
     return turn;
   }
 

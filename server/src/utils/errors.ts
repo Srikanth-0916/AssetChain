@@ -62,3 +62,10 @@ export class RateLimitError extends AppError {
     super(message, 429, 'RATE_LIMITED');
   }
 }
+
+export class ServiceUnavailableError extends AppError {
+  constructor(message = 'Service temporarily unavailable: persistence store failure') {
+    super(message, 503, 'SERVICE_UNAVAILABLE');
+  }
+}
+

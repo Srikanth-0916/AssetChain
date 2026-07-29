@@ -17,6 +17,20 @@ const preferencesSchema = z.object({
 // ─── Controller ───────────────────────────────────────────────────────────────
 
 export class AIController {
+  /** POST /ai/chat */
+  async chat(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { prompt = '', budget = 10000, risk_preference = 'medium' } = req.body;
+      const result = await aiService.chat(
+        req.user!.userId,
+        prompt,
+        Number(budget),
+        risk_preference as 'low' | 'medium' | 'high'
+      );
+      sendSuccess(res, result);
+    } catch (error) { next(error); }
+  }
+
   /** POST /ai/investment-advice */
   async investmentAdvice(req: Request, res: Response, next: NextFunction) {
     try {

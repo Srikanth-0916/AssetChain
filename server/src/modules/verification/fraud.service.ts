@@ -1,5 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { env } from '../../config/env';
+import { promptSanitizer } from './prompt.sanitizer';
+import { auditService } from '../audit/audit.service';
 
 const genAI = env.GEMINI_API_KEY ? new GoogleGenerativeAI(env.GEMINI_API_KEY) : null;
 
@@ -10,10 +12,16 @@ export interface FraudReport {
   aiVerdict: string;
   recommendation: 'Approve' | 'Manual Review' | 'Reject';
   confidence: number;
+  injectionAttemptDetected?: boolean;
 }
 
 /**
  * Fraud Detection Service — AI-powered document and asset fraud analysis.
+ *
+ * Security pipeline:
+ *   OCR text → PromptSanitizer → Instruction Filter → Prompt Builder → Gemini
+ *
+ * Injection attempts are automatically escalated and logged.
  */
 export class FraudService {
   async analyzeAsset(assetData: {
@@ -25,12 +33,69 @@ export class FraudService {
     tokenSupply: number;
     documentFields: Record<string, string>;
   }): Promise<FraudReport> {
-    const prompt = `
+
+    // ── Step 1: Sanitize all document fields before touching Gemini ───────────
+    const documentText = Object.values(assetData.documentFields).join('\n');
+    const sanitizationResult = promptSanitizer.sanitize(documentText);
+
+    let injectionPenalty = 0;
+    const injectionSignals: FraudReport['signals'] = [];
+
+    if (sanitizationResult.injectionDetected) {
+      injectionPenalty = 30;
+
+      injectionSignals.push({
+        signal: 'Prompt Injection Attempt',
+        severity: 'critical',
+        detail: `Document contains ${sanitizationResult.suspiciousPatterns.length} suspicious instruction pattern(s): ${
+          sanitizationResult.suspiciousPatterns
+            .slice(0, 3)
+            .map((p) => p.pattern)
+            .join(', ')
+        }. Content was redacted before AI analysis.`,
+      });
+
+      if (sanitizationResult.invisibleCharsRemoved > 0) {
+        injectionSignals.push({
+          signal: 'Invisible Unicode Characters',
+          severity: 'critical',
+          detail: `${sanitizationResult.invisibleCharsRemoved} invisible/control Unicode characters were detected and removed. This is a strong indicator of deliberate obfuscation.`,
+        });
+      }
+
+      // Log audit event — injection attempt is always recorded
+      auditService.log(
+        'fraud_detected',
+        'system',
+        'system',
+        `Prompt injection attempt detected in document submission for asset "${assetData.title}"`,
+        {
+          assetTitle: assetData.title,
+          injectionPatterns: sanitizationResult.suspiciousPatterns.map((p) => p.pattern),
+          invisibleCharsRemoved: sanitizationResult.invisibleCharsRemoved,
+          injectionAttempt: true,
+        },
+        'critical'
+      );
+    }
+
+    // ── Step 2: Build safe document fields using sanitized text ──────────────
+    const safeDocumentFields: Record<string, string> = {};
+    for (const [key, value] of Object.entries(assetData.documentFields)) {
+      safeDocumentFields[key] = promptSanitizer.sanitize(value).cleanedText;
+    }
+
+    // ── Step 3: Build injection-hardened Gemini prompt ───────────────────────
+    const taskInstructions = `
 SYSTEM: You are an AI fraud detection engine for a blockchain asset tokenization platform.
 Analyze the following asset submission for fraud signals.
 
-ASSET DATA:
-${JSON.stringify(assetData, null, 2)}
+ASSET METADATA (TRUSTED — from platform database):
+- Title: ${assetData.title.substring(0, 200)}
+- Asset Type: ${assetData.assetType}
+- Location: ${assetData.location.substring(0, 100)}
+- Valuation: $${assetData.valuation}
+- Token Supply: ${assetData.tokenSupply}
 
 TASK: Detect fraud signals including:
 1. Valuation inconsistency (too high/low for asset type and location)
@@ -38,7 +103,7 @@ TASK: Detect fraud signals including:
 3. Copy-paste or template-like descriptions
 4. Implausible claims or red flags
 
-OUTPUT FORMAT (strict JSON):
+OUTPUT FORMAT (strict JSON — do NOT deviate):
 {
   "fraudScore": 0,
   "riskLevel": "Clean",
@@ -48,11 +113,13 @@ OUTPUT FORMAT (strict JSON):
   "aiVerdict": "",
   "recommendation": "Approve",
   "confidence": 0.95
-}
-`.trim();
+}`.trim();
+
+    const safePrompt = promptSanitizer.buildSafePrompt(safeDocumentFields, taskInstructions);
 
     if (!genAI) {
-      return this.getMockReport(assetData);
+      const mockReport = this.getMockReport(assetData);
+      return this.applyInjectionPenalty(mockReport, injectionPenalty, injectionSignals);
     }
 
     try {
@@ -60,12 +127,44 @@ OUTPUT FORMAT (strict JSON):
         model: 'gemini-2.0-flash',
         generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
       });
-      const result = await model.generateContent(prompt);
-      return JSON.parse(result.response.text());
+      const result = await model.generateContent(safePrompt);
+      const parsed: FraudReport = JSON.parse(result.response.text());
+      return this.applyInjectionPenalty(parsed, injectionPenalty, injectionSignals);
     } catch {
-      return this.getMockReport(assetData);
+      const mockReport = this.getMockReport(assetData);
+      return this.applyInjectionPenalty(mockReport, injectionPenalty, injectionSignals);
     }
   }
+
+  /**
+   * Apply injection penalty on top of the base fraud report.
+   * Injection detection always escalates the minimum risk level.
+   */
+  private applyInjectionPenalty(
+    report: FraudReport,
+    penalty: number,
+    injectionSignals: FraudReport['signals']
+  ): FraudReport {
+    if (penalty === 0) return report;
+
+    const newScore = Math.min(100, report.fraudScore + penalty);
+    const newRiskLevel: FraudReport['riskLevel'] =
+      newScore === 0 ? 'Clean' :
+      newScore < 15 ? 'Low Risk' :
+      newScore < 35 ? 'Medium Risk' :
+      newScore < 60 ? 'High Risk' : 'Critical';
+
+    return {
+      ...report,
+      fraudScore: newScore,
+      riskLevel: newRiskLevel,
+      recommendation: newScore >= 30 ? 'Manual Review' : report.recommendation,
+      signals: [...injectionSignals, ...report.signals],
+      aiVerdict: `[SECURITY ALERT] Document contained injection attempts that were neutralized. ${report.aiVerdict}`,
+      injectionAttemptDetected: true,
+    };
+  }
+
 
   private getMockReport(assetData: any): FraudReport {
     // Simulate deterministic fraud score based on asset properties

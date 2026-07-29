@@ -1,6 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import { auditService } from '../audit/audit.service';
 import { supabaseAdmin } from '../../config/database';
+import { env } from '../../config/env';
+import { ServiceUnavailableError } from '../../utils/errors';
+import { encryptField, decryptField } from '../../utils/encryption';
 
 export interface Nominee {
   id: string;
@@ -68,7 +71,7 @@ export class NomineeService {
           fullName: data.full_name,
           email: data.email,
           phone: data.phone,
-          governmentId: data.government_id,
+          governmentId: decryptField(data.government_id),
           relationship: data.relationship,
           nomineeWalletAddress: data.nominee_wallet_address,
           allocationPercentage: data.allocation_percentage,
@@ -76,8 +79,10 @@ export class NomineeService {
           updatedAt: data.updated_at,
         };
       }
-    } catch {
-      // Memory fallback
+    } catch (err: any) {
+      if (env.NODE_ENV === 'production') {
+        throw new ServiceUnavailableError(`Nominee DB read error: ${err.message}`);
+      }
     }
 
     return nomineeStore.get(userId) || null;
@@ -103,21 +108,32 @@ export class NomineeService {
     nomineeStore.set(userId, updated);
 
     try {
-      await supabaseAdmin.from('nominees').upsert({
+      const { error } = await supabaseAdmin.from('nominees').upsert({
         id: updated.id,
         user_id: updated.userId,
         full_name: updated.fullName,
         email: updated.email,
         phone: updated.phone,
-        government_id: updated.governmentId,
+        government_id: encryptField(updated.governmentId), // Encrypted with AES-256-GCM
         relationship: updated.relationship,
         nominee_wallet_address: updated.nomineeWalletAddress,
         allocation_percentage: updated.allocationPercentage,
         status: updated.status,
         updated_at: updated.updatedAt,
       });
-    } catch {
-      // Memory fallback
+
+      if (error) {
+        if (env.NODE_ENV === 'production') {
+          console.error(`[NomineeService] 🚨 CRITICAL PROD FAILURE: Nominee write failed for ${userId}:`, error.message);
+          throw new ServiceUnavailableError(`Nominee persistence failure: ${error.message}`);
+        } else {
+          console.warn(`[NomineeService] ⚠️ Dev Mode Warning: Supabase write failed for nominee:`, error.message);
+        }
+      }
+    } catch (err: any) {
+      if (env.NODE_ENV === 'production') {
+        throw err instanceof ServiceUnavailableError ? err : new ServiceUnavailableError(`Nominee store failure: ${err.message}`);
+      }
     }
 
     auditService.log(

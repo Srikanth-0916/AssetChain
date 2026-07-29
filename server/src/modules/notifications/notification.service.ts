@@ -1,8 +1,12 @@
 import { v4 as uuidv4 } from 'uuid';
+import { supabaseAdmin } from '../../config/database';
+import { env } from '../../config/env';
+import { ServiceUnavailableError } from '../../utils/errors';
 
 /**
- * Notification Service — in-memory notification store.
- * In production: integrate with email/SMS/push/Telegram.
+ * Notification Service — notification store with Supabase write-through.
+ * In development: logs warning on Supabase error and falls back to memory.
+ * In production: throws HTTP 503 ServiceUnavailableError if Supabase write fails.
  */
 export type NotificationType =
   | 'kyc_approved' | 'kyc_rejected'
@@ -24,7 +28,7 @@ export interface Notification {
 const notificationStore = new Map<string, Notification[]>();
 
 export class NotificationService {
-  notify(userId: string, type: NotificationType, title: string, message: string, data?: Record<string, any>): Notification {
+  async notify(userId: string, type: NotificationType, title: string, message: string, data?: Record<string, any>): Promise<Notification> {
     const notification: Notification = {
       id: uuidv4(),
       userId,
@@ -38,8 +42,34 @@ export class NotificationService {
 
     const existing = notificationStore.get(userId) || [];
     existing.unshift(notification);
-    // Keep last 50 notifications per user
+    // Keep last 50 notifications per user in memory
     notificationStore.set(userId, existing.slice(0, 50));
+
+    try {
+      const { error } = await supabaseAdmin.from('notifications').insert({
+        id: notification.id,
+        user_id: notification.userId,
+        type: notification.type,
+        title: notification.title,
+        message: notification.message,
+        read: notification.read,
+        data: notification.data,
+        created_at: notification.createdAt,
+      });
+
+      if (error) {
+        if (env.NODE_ENV === 'production') {
+          console.error(`[NotificationService] 🚨 CRITICAL PROD FAILURE: Notification persistence failed for ${userId}:`, error.message);
+          throw new ServiceUnavailableError(`Notification persistence failure: ${error.message}`);
+        } else {
+          console.warn(`[NotificationService] ⚠️ Dev Mode Warning: Supabase write failed for notification:`, error.message);
+        }
+      }
+    } catch (err: any) {
+      if (env.NODE_ENV === 'production') {
+        throw err instanceof ServiceUnavailableError ? err : new ServiceUnavailableError(`Notification store failure: ${err.message}`);
+      }
+    }
 
     return notification;
   }

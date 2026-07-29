@@ -33,6 +33,23 @@ export interface ScoredAsset {
   marketTrendScore: number;
 }
 
+export interface ScoreBreakdown {
+  overallScore: number;         // 0-100 composite investment score
+  roiScore: number;             // Contribution from ROI dimension
+  riskScore: number;            // Contribution from risk (inverse)
+  liquidityScore: number;       // Contribution from liquidity
+  occupancyScore: number;       // Contribution from occupancy
+  marketTrendScore: number;     // Contribution from market trend
+  diversificationImpact: string; // Human-readable diversification benefit
+  weights: {                    // Scoring weights used (transparent)
+    roi: number;
+    risk: number;
+    liquidity: number;
+    occupancy: number;
+    marketTrend: number;
+  };
+}
+
 export interface RecommendedItem {
   assetId: string;
   assetName: string;
@@ -46,6 +63,16 @@ export interface RecommendedItem {
   riskLevel: string;
   investmentScore: number;
   confidence: number;
+  // ── Explainability fields ──────────────────────────────
+  scoreBreakdown: ScoreBreakdown;
+  reasons: string[];            // Deterministic bullet points (why this asset)
+  warnings: string[];           // Risk warnings from deterministic checks
+}
+
+export interface AlternativeAsset {
+  assetName: string;
+  investmentScore: number;
+  reason: string;               // Why it ranked lower
 }
 
 export interface DeterministicEngineResult {
@@ -55,6 +82,7 @@ export interface DeterministicEngineResult {
   currency: string;
   recommendedAllocation: RecommendedItem[];
   rankedAssets: ScoredAsset[];
+  alternativeAssets: AlternativeAsset[];  // Assets considered but not selected
   portfolioRisk: string;
   diversificationScore: number;
   overallConfidence: number;
@@ -77,6 +105,7 @@ export class RecommendationEngine {
         currency: user.currency,
         recommendedAllocation: [],
         rankedAssets: [],
+        alternativeAssets: [],
         portfolioRisk: 'Unknown',
         diversificationScore: 0,
         overallConfidence: 0,
@@ -106,6 +135,7 @@ export class RecommendationEngine {
         currency: user.currency,
         recommendedAllocation: [],
         rankedAssets: [],
+        alternativeAssets: [],
         portfolioRisk: user.riskPreference,
         diversificationScore: 0,
         overallConfidence: 0,
@@ -151,6 +181,8 @@ export class RecommendationEngine {
     // Deterministic Budget Allocation Weights
     const weights = count === 1 ? [1.0] : count === 2 ? [0.6, 0.4] : [0.5, 0.3, 0.2];
 
+    const WEIGHTS = { roi: 0.30, risk: 0.25, liquidity: 0.20, occupancy: 0.15, marketTrend: 0.10 };
+
     const recommendedAllocation: RecommendedItem[] = selected.map((item, index) => {
       const weight = weights[index];
       const allocationAmount = Math.round(user.budget * weight);
@@ -158,6 +190,45 @@ export class RecommendationEngine {
       const tokensToBuy = item.asset.tokenPrice > 0 ? Math.floor(allocationAmount / item.asset.tokenPrice) : 0;
       const riskLevel = item.asset.riskScore < 20 ? 'Low Risk' : item.asset.riskScore < 45 ? 'Medium Risk' : 'High Risk';
       const confidence = Math.min(99, Math.max(70, item.investmentScore));
+
+      // ── Deterministic Score Breakdown ──────────────────────────────────────
+      const diversificationTypes = selected.map((s) => s.asset.assetType);
+      const uniqueTypes = new Set(diversificationTypes).size;
+      const diversificationImpact =
+        uniqueTypes > 1
+          ? `+${uniqueTypes * 8} points to portfolio diversity (${uniqueTypes} asset types)`
+          : user.existingHoldingsCount > 0
+          ? '+5 points to portfolio diversity (adds to existing holdings)'
+          : 'First investment — establishes portfolio baseline';
+
+      const scoreBreakdown: ScoreBreakdown = {
+        overallScore: item.investmentScore,
+        roiScore: item.roiScore,
+        riskScore: item.riskScoreComp,
+        liquidityScore: item.liquidityScore,
+        occupancyScore: item.occupancyScore,
+        marketTrendScore: item.marketTrendScore,
+        diversificationImpact,
+        weights: WEIGHTS,
+      };
+
+      // ── Deterministic Reasons (bullet points from data) ─────────────────
+      const reasons: string[] = [];
+      if (item.roiScore >= 70) reasons.push(`Strong annual yield of ${item.asset.roi}% (ROI score: ${item.roiScore}/100)`);
+      if (item.riskScoreComp >= 75) reasons.push(`Low fraud risk — clean AI fraud analysis (risk score: ${item.asset.riskScore}/100, lower is better)`);
+      if (item.occupancyScore >= 85) reasons.push(`High occupancy rate (~${item.asset.occupancy}%) indicates stable income generation`);
+      if (item.liquidityScore >= 80) reasons.push(`High token liquidity (${item.asset.liquidity}/100) — easier to exit position if needed`);
+      if (item.asset.spvName) reasons.push(`Backed by verified SPV: ${item.asset.spvName}`);
+      if (item.asset.verificationStatus === 'tokenized') reasons.push('Asset is fully tokenized and actively trading on the marketplace');
+      if (item.marketTrendScore >= 90) reasons.push(`Asset type (${item.asset.assetType.replace(/_/g, ' ')}) shows strong market trend score (${item.marketTrendScore}/100)`);
+      if (reasons.length === 0) reasons.push(`Investment score of ${item.investmentScore}/100 meets ${user.riskPreference} risk profile criteria`);
+
+      // ── Deterministic Warnings (from data checks) ─────────────────────
+      const warnings: string[] = [];
+      if (item.asset.riskScore >= 30) warnings.push(`Moderate fraud risk score (${item.asset.riskScore}/100) — recommend reviewing asset documents before investing`);
+      if (item.asset.liquidity < 70) warnings.push(`Lower liquidity (${item.asset.liquidity}/100) — this position may be harder to exit quickly`);
+      if (percentage >= 60) warnings.push(`This allocation represents ${percentage}% of your budget — consider diversifying further`);
+      if (item.asset.assetType === 'residential_real_estate') warnings.push('Residential real estate returns are subject to local market conditions and regulatory changes');
 
       return {
         assetId: item.asset.id,
@@ -172,8 +243,22 @@ export class RecommendationEngine {
         riskLevel,
         investmentScore: item.investmentScore,
         confidence,
+        scoreBreakdown,
+        reasons,
+        warnings,
       };
     });
+
+    // ── Alternative Assets (not selected — explain why) ─────────────────────
+    const alternativeAssets: AlternativeAsset[] = scoredAssets
+      .slice(count) // Assets ranked but not selected
+      .map((item) => ({
+        assetName: item.asset.title,
+        investmentScore: item.investmentScore,
+        reason: item.asset.riskScore > (user.riskPreference === 'low' ? 35 : 60)
+          ? `Excluded: fraud risk score of ${item.asset.riskScore}/100 exceeds your ${user.riskPreference} risk profile threshold`
+          : `Ranked lower: investment score ${item.investmentScore}/100 vs top pick ${scoredAssets[0].investmentScore}/100. Lower ${item.asset.roi < (scoredAssets[0]?.asset.roi || 0) ? 'ROI' : 'occupancy or liquidity'} metrics.`,
+      }));
 
     const avgConfidence = Math.round(
       recommendedAllocation.reduce((sum, r) => sum + r.confidence, 0) / (recommendedAllocation.length || 1)
@@ -187,6 +272,7 @@ export class RecommendationEngine {
       currency: user.currency,
       recommendedAllocation,
       rankedAssets: scoredAssets,
+      alternativeAssets,
       portfolioRisk: user.riskPreference,
       diversificationScore,
       overallConfidence: avgConfidence,
@@ -194,5 +280,6 @@ export class RecommendationEngine {
     };
   }
 }
+
 
 export const recommendationEngine = new RecommendationEngine();
