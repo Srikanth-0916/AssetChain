@@ -1,7 +1,10 @@
 import dotenv from 'dotenv';
+import path from 'path';
 import { z } from 'zod';
 
-dotenv.config();
+// Resolve .env relative to this file's directory (server/.env),
+// so it works correctly regardless of the process working directory.
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const envSchema = z.object({
   // Server
@@ -29,8 +32,9 @@ const envSchema = z.object({
   POLYGON_AMOY_RPC_URL: z.string().url().default('https://rpc-amoy.polygon.technology'),
   DEPLOYER_PRIVATE_KEY: z.string().min(1).default('0x0000000000000000000000000000000000000000000000000000000000000001'),
 
-  // AI Copilot
-  GEMINI_API_KEY: z.string().optional().default(''),
+  // AI Copilot — injected via GitHub Secret in CI, or set in server/.env locally.
+  // Do NOT provide a default: an empty default masked the missing-key bug.
+  GEMINI_API_KEY: z.string().optional(),
 
   // Payment Gateway
   RAZORPAY_KEY_ID: z.string().optional().default(''),
