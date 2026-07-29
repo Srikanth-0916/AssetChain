@@ -270,20 +270,27 @@ Return JSON format with fields:
     await memoryService.addTurn(userId, 'user', 'Analyze my portfolio diversification and performance');
 
     const portfolioData = await portfolioService.getPortfolio(userId);
-    const total = portfolioData.summary.total_invested;
-    const shares = portfolioData.holdings.map((h: any) => h.investment_amount / (total || 1));
+    const total: number = portfolioData.summary.total_invested ?? 0;
+    const shares = portfolioData.holdings.map((h: any) => (h.investment_amount || 0) / (total || 1));
     const hhi = shares.reduce((sum: number, s: number) => sum + s * s, 0);
     const diversificationScore = Math.round((1 - hhi) * 100);
+    const currentValue: number = portfolioData.holdings.reduce(
+      (sum: number, h: any) => sum + (h.current_value || 0),
+      0,
+    );
 
     const holdings = portfolioData.holdings.map((h: any) => ({
       title: h.asset?.title || 'Unknown Asset',
-      tokensOwned: h.tokens_owned,
-      currentValue: h.current_value,
-      profit: h.profit_loss,
+      tokensOwned: h.tokens_owned ?? 0,
+      investmentAmount: h.investment_amount ?? 0,
+      currentValue: h.current_value ?? 0,
+      profitLoss: h.profit_loss ?? 0,
+      assetType: h.asset?.asset_type || 'Unknown',
     }));
 
     const basePrompt = buildPortfolioAnalysisPrompt({
-      portfolioTotal: total,
+      totalInvested: total,
+      currentValue,
       diversificationScore,
       holdings,
     });
@@ -349,14 +356,17 @@ Return JSON format with fields:
    */
   async analyzeRisk(userId: string, assetId: string) {
     await memoryService.addTurn(userId, 'user', `Analyze risk for asset: ${assetId}`);
-    const { assets } = await assetService.getMarketplaceAssets();
+    const { assets } = await assetService.getMarketplaceAssets({});
     const asset = assets.find((a: any) => a.id === assetId) || assets[0];
 
     const basePrompt = buildRiskAnalysisPrompt({
-      title: asset?.title || 'Target Asset',
+      assetTitle: asset?.title || 'Target Asset',
       assetType: asset?.asset_type || 'commercial_property',
-      valuation: Number(asset?.valuation || 1000000),
+      valuation: Number(asset?.valuation ?? 1_000_000),
+      tokenPrice: Number(asset?.token_price ?? 100),
       location: asset?.location || 'New York, USA',
+      verificationStatus: asset?.verification_status || 'pending',
+      createdAt: asset?.created_at || new Date().toISOString(),
     });
 
     const promptWithMemory = await withMemory(userId, basePrompt);
@@ -386,10 +396,21 @@ Return JSON format with fields:
   async getMarketInsights(userId: string) {
     await memoryService.addTurn(userId, 'user', 'Get macro real estate & RWA market insights');
     const { assets } = await assetService.getMarketplaceAssets({ status: 'tokenized' });
+    const tvlForPrompt = assets.reduce((s: number, a: any) => s + Number(a.valuation ?? 0), 0);
 
     const basePrompt = buildMarketInsightsPrompt({
-      totalAssetsCount: assets.length,
-      assetTypes: Array.from(new Set(assets.map((a: any) => a.asset_type))),
+      assets: assets.slice(0, 10).map((a: any) => ({
+        title: a.title,
+        assetType: a.asset_type,
+        valuation: Number(a.valuation ?? 0),
+        tokenPrice: Number(a.token_price ?? 0),
+        location: a.location || 'Unknown',
+      })),
+      platformStats: {
+        totalAssets: assets.length,
+        totalValue: tvlForPrompt,
+        activeProposals: 0,
+      },
     });
 
     const promptWithMemory = await withMemory(userId, basePrompt);

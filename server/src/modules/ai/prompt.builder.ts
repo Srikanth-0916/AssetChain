@@ -108,9 +108,9 @@ You are the TrustChain AI Copilot — a portfolio intelligence engine for blockc
 ${EXPLAINABILITY_REQUIREMENT}
 
 PORTFOLIO DATA:
-- Total Invested: $${ctx.totalInvested.toLocaleString()}
-- Current Value: $${ctx.currentValue.toLocaleString()}
-- P&L: $${(ctx.currentValue - ctx.totalInvested).toLocaleString()}
+- Total Invested: $${(ctx.totalInvested ?? 0).toLocaleString()}
+- Current Value: $${(ctx.currentValue ?? 0).toLocaleString()}
+- P&L: $${((ctx.currentValue ?? 0) - (ctx.totalInvested ?? 0)).toLocaleString()}
 - Diversification Score: ${ctx.diversificationScore}/100
 
 Holdings:
