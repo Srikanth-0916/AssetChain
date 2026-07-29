@@ -60,6 +60,11 @@ Do NOT return a score or recommendation without explaining it. Users are making 
 // ─── Prompt Builders ──────────────────────────────────────────────────────────
 
 export function buildInvestmentAdvicePrompt(ctx: InvestmentAdviceContext): string {
+  const budget = ctx?.userBudget ?? 0;
+  const risk = (ctx?.riskPreference || 'medium').toUpperCase();
+  const portfolio = ctx?.existingPortfolio ?? [];
+  const assets = ctx?.availableAssets ?? [];
+
   return `
 SYSTEM:
 You are the TrustChain AI Copilot — an expert investment advisor for a blockchain RWA tokenization platform.
@@ -67,12 +72,12 @@ Use ONLY the structured data below. Never invent data. Never recommend assets ab
 ${EXPLAINABILITY_REQUIREMENT}
 
 USER CONTEXT:
-- Available Budget: $${ctx.userBudget.toLocaleString()} USD
-- Risk Preference: ${ctx.riskPreference.toUpperCase()}
-- Existing Portfolio: ${JSON.stringify(ctx.existingPortfolio)}
+- Available Budget: $${budget.toLocaleString()} USD
+- Risk Preference: ${risk}
+- Existing Portfolio: ${JSON.stringify(portfolio)}
 
 AVAILABLE ASSETS:
-${JSON.stringify(ctx.availableAssets, null, 2)}
+${JSON.stringify(assets, null, 2)}
 
 OUTPUT FORMAT (strict JSON):
 {
@@ -102,19 +107,25 @@ OUTPUT FORMAT (strict JSON):
 }
 
 export function buildPortfolioAnalysisPrompt(ctx: PortfolioAnalysisContext): string {
+  const totalInvested = ctx?.totalInvested ?? 0;
+  const currentValue = ctx?.currentValue ?? 0;
+  const profitLoss = currentValue - totalInvested;
+  const diversificationScore = ctx?.diversificationScore ?? 0;
+  const holdings = ctx?.holdings ?? [];
+
   return `
 SYSTEM:
 You are the TrustChain AI Copilot — a portfolio intelligence engine for blockchain RWA investments.
 ${EXPLAINABILITY_REQUIREMENT}
 
 PORTFOLIO DATA:
-- Total Invested: $${(ctx.totalInvested ?? 0).toLocaleString()}
-- Current Value: $${(ctx.currentValue ?? 0).toLocaleString()}
-- P&L: $${((ctx.currentValue ?? 0) - (ctx.totalInvested ?? 0)).toLocaleString()}
-- Diversification Score: ${ctx.diversificationScore}/100
+- Total Invested: $${totalInvested.toLocaleString()}
+- Current Value: $${currentValue.toLocaleString()}
+- P&L: $${profitLoss.toLocaleString()}
+- Diversification Score: ${diversificationScore}/100
 
 Holdings:
-${JSON.stringify(ctx.holdings, null, 2)}
+${JSON.stringify(holdings, null, 2)}
 
 OUTPUT FORMAT (strict JSON):
 {
