@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [ main, master, develop ]
 
+# Cancel any in-progress run for the same branch/PR when a new push arrives.
+# This prevents stale queued runs from executing with outdated code.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   smart-contracts-build:
     name: Build & Verify Smart Contracts
@@ -47,6 +53,12 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Verify Commit Under Test
+        run: |
+          echo "Running CI for commit: ${{ github.sha }}"
+          echo "Branch: ${{ github.ref_name }}"
+          grep -n "totalInvested\|portfolioTotal\|try {" server/src/modules/ai/ai.service.ts | head -20
+
       - name: Run Vitest Test Suite
         env:
           PORT: 3001
@@ -79,4 +91,3 @@ jobs:
           cd client
           npx tsc
           npx vite build
-
