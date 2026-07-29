@@ -52,6 +52,7 @@ jobs:
           PORT: 3001
           NODE_ENV: test
           JWT_SECRET: test_jwt_secret_min_32_characters_long
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           cd server
           npx vitest run
