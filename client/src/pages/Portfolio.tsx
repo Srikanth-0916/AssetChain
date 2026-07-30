@@ -10,6 +10,9 @@ import {
 import { formatCurrency } from '../lib/utils';
 import { WhyPanel } from '../components/trust/WhyPanel';
 import { ContextualAITip } from '../components/trust/ContextualAITip';
+import { TrustScorePanel } from '../components/explainability/TrustScorePanel';
+import { ROIBreakdownPanel } from '../components/explainability/ROIBreakdownPanel';
+import { RiskBreakdownPanel } from '../components/explainability/RiskBreakdownPanel';
 
 const ASSET_TYPE_COLORS: Record<string, string> = {
   commercial_property:    '#6366f1',
@@ -350,30 +353,50 @@ export function Portfolio() {
                 const pct = summary.total_invested > 0 ? (h.investment_amount / summary.total_invested) * 100 : 0;
                 const color = ASSET_TYPE_COLORS[h.asset?.asset_type || 'default'];
                 return (
-                  <div key={h.id || i} className="flex items-center gap-4 p-4 rounded-xl bg-slate-900/40 border border-slate-800/60 hover:border-indigo-500/30 transition-colors">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl"
-                      style={{ background: `${color}15`, border: `1px solid ${color}30` }}>
-                      🏗️
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-white text-sm truncate">{h.asset?.title || 'Unnamed Asset'}</div>
-                      <div className="text-xs text-slate-500 capitalize">{(h.asset?.asset_type || 'unknown').replace(/_/g, ' ')}</div>
-                      <div className="mt-2 progress-bar-track" style={{ height: '3px' }}>
-                        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+                  <div key={h.id || i} className="p-4 rounded-xl bg-slate-900/40 border border-slate-800/60 hover:border-indigo-500/30 transition-colors space-y-3">
+                    {/* Top row: icon + title + investment */}
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl"
+                        style={{ background: `${color}15`, border: `1px solid ${color}30` }}>
+                        🏗️
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-white text-sm truncate">{h.asset?.title || 'Unnamed Asset'}</div>
+                        <div className="text-xs text-slate-500 capitalize">{(h.asset?.asset_type || 'unknown').replace(/_/g, ' ')}</div>
+                        <div className="mt-2 progress-bar-track" style={{ height: '3px' }}>
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-sm font-bold text-white">{formatCurrency(h.investment_amount)}</div>
+                        <div className="text-xs text-slate-500">{pct.toFixed(1)}% of portfolio</div>
+                        {h.unclaimed_dividends > 0 && (
+                          <button
+                            onClick={() => handleClaim(h.asset?.title, h.unclaimed_dividends)}
+                            className="mt-1 text-xs text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1 ml-auto"
+                          >
+                            Claim {formatCurrency(h.unclaimed_dividends)} <Zap className="w-3 h-3" />
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <div className="text-sm font-bold text-white">{formatCurrency(h.investment_amount)}</div>
-                      <div className="text-xs text-slate-500">{pct.toFixed(1)}% of portfolio</div>
-                      {h.unclaimed_dividends > 0 && (
-                        <button
-                          onClick={() => handleClaim(h.asset?.title, h.unclaimed_dividends)}
-                          className="mt-1 text-xs text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1 ml-auto"
-                        >
-                          Claim {formatCurrency(h.unclaimed_dividends)} <Zap className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
+
+                    {/* Explainability row */}
+                    {h.asset?.id && (
+                      <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/[0.04]">
+                        <TrustScorePanel assetId={h.asset.id} />
+                        <ROIBreakdownPanel
+                          assetType={h.asset?.asset_type}
+                          investmentAmount={h.investment_amount}
+                        />
+                        <RiskBreakdownPanel
+                          assetType={h.asset?.asset_type}
+                          fraudScore={15}
+                          liquidityIndex={85}
+                          riskTier="medium"
+                        />
+                      </div>
+                    )}
                   </div>
                 );
               })}

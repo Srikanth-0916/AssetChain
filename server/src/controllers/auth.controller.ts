@@ -79,6 +79,33 @@ export class AuthController {
   }
 
   /**
+   * POST /auth/wallet/public-nonce
+   * Public (unauthenticated) nonce generation for wallet-first login/registration.
+   */
+  async publicWalletNonce(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await walletService.generatePublicNonce(req.body.wallet_address);
+      sendSuccess(res, result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * POST /auth/wallet/login
+   * Public (unauthenticated) wallet login/registration via off-chain EIP-191 signature.
+   */
+  async publicWalletLogin(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { wallet_address, signature, role } = req.body;
+      const result = await walletService.loginWithWallet(wallet_address, signature, role);
+      sendSuccess(res, result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * POST /auth/wallet/nonce
    */
   async walletNonce(req: Request, res: Response, next: NextFunction) {

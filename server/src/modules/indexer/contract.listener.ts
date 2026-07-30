@@ -10,6 +10,7 @@ import { ethers } from 'ethers';
 import { env } from '../../config/env';
 import { blockTracker } from './block.tracker';
 import { indexedEventStore } from './event.indexer';
+import { approvalService } from '../approval/approval.service';
 
 // Minimal ABI for event signatures we care about
 const EVENT_SIGNATURES = {
@@ -19,6 +20,8 @@ const EVENT_SIGNATURES = {
   ProposalCreated: 'event ProposalCreated(uint256 indexed proposalId, address indexed proposer, string description)',
   VoteCast: 'event VoteCast(uint256 indexed proposalId, address indexed voter, bool support, uint256 weight)',
   DividendClaimed: 'event DividendClaimed(address indexed claimant, uint256 amount)',
+  ApprovalVoted: 'event ApprovalVoted(uint256 indexed assetId, address indexed voter, string role, bool approved, string comments)',
+  AssetApproved: 'event AssetApproved(uint256 indexed assetId, address indexed safeAddress, uint256 approvedCount, string safeTxHash)',
 };
 
 const INTERFACE = new ethers.Interface(Object.values(EVENT_SIGNATURES));
@@ -87,15 +90,35 @@ export class ContractListener {
       const parsed = INTERFACE.parseLog({ data: log.data, topics: log.topics as string[] });
       if (!parsed) return;
 
+      const argsObj = Object.fromEntries(parsed.args.map((v, i) => [parsed.fragment.inputs[i].name, v?.toString()]));
+
       indexedEventStore.addEvent({
         txHash: log.transactionHash,
         blockNumber: log.blockNumber,
         confirmations: latestBlock - log.blockNumber,
         contractAddress: log.address,
         eventName: parsed.name,
-        args: Object.fromEntries(parsed.args.map((v, i) => [parsed.fragment.inputs[i].name, v?.toString()])),
+        args: argsObj,
         timestamp: new Date().toISOString(),
       });
+
+      // Blockchain-First Asset Approval indexing
+      if (parsed.name === 'ApprovalVoted') {
+        await approvalService.processOnChainApprovalEvent({
+          txHash: log.transactionHash,
+          assetId: argsObj.assetId,
+          voterAddress: argsObj.voter,
+          role: argsObj.role as any,
+          decision: argsObj.approved === 'true' ? 'approved' : 'rejected',
+          comments: argsObj.comments,
+        });
+      } else if (parsed.name === 'AssetApproved') {
+        await approvalService.processOnChainApprovalEvent({
+          txHash: log.transactionHash,
+          assetId: argsObj.assetId,
+          status: 'approved',
+        });
+      }
     } catch { /* Skip unparseable logs */ }
   }
 }

@@ -43,6 +43,21 @@ router.post(
   authController.resetPassword
 );
 
+// ─── Public Wallet-First Auth Routes ───
+router.post(
+  '/wallet/public-nonce',
+  authLimiter,
+  validate(walletNonceSchema),
+  authController.publicWalletNonce
+);
+
+router.post(
+  '/wallet/login',
+  authLimiter,
+  validate(walletVerifySchema),
+  authController.publicWalletLogin
+);
+
 // ─── Authenticated Auth Routes ───
 router.post('/logout', authenticate, authController.logout);
 router.get('/me', authenticate, authController.getMe);

@@ -44,8 +44,16 @@ const envSchema = z.object({
   REDIS_URL: z.string().optional().default(''),
   CHROMA_URL: z.string().optional().default(''),
 
+  // Gnosis Safe Multi-Sig (Phase 1.2)
+  // Set in production to real deployed Safe address on Polygon Amoy
+  GNOSIS_SAFE_ADDRESS: z.string().optional().default(''),
+  // Comma-separated signer wallet addresses (verifier,legal_reviewer,admin)
+  GNOSIS_SAFE_SIGNERS: z.string().optional().default(''),
+  // Deployer wallet address (used for on-chain whitelist sync, audit anchoring)
+  DEPLOYER_WALLET_ADDRESS: z.string().optional().default(''),
+
   // Versioning
-  APP_VERSION: z.string().default('2.0.0'),
+  APP_VERSION: z.string().default('2.1.0'),
 });
 
 function validateEnv() {

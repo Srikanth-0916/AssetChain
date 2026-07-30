@@ -47,7 +47,7 @@ function renderMarkdownish(text: string) {
 }
 
 import { ConfidenceMeter } from '../components/trust/ConfidenceMeter';
-import { WhyPanel } from '../components/trust/WhyPanel';
+import { RecommendationPanel } from '../components/explainability/RecommendationPanel';
 
 // ─── AI Response Card ─────────────────────────────────────────────────────────
 
@@ -78,12 +78,12 @@ function AIResponseCard({ data }: { data: any }) {
             <div className="flex items-center gap-2">
               <Lightbulb className="w-3.5 h-3.5" /> Summary
             </div>
-            <WhyPanel
-              title="Why this recommendation?"
-              factors={[
-                { label: 'Calculated Confidence', value: `${confidenceVal}%`, status: 'positive', explanation: 'Multi-dimensional evaluation score derived from 5 asset dimensions' },
-                { label: 'Risk Profile', value: 'Medium', status: 'positive', explanation: 'Matched against user specified risk profile and budget' },
-              ]}
+            {/* ✔ Explainability panel — full recommendation breakdown */}
+            <RecommendationPanel
+              confidencePct={confidenceVal}
+              reasons={reasons}
+              caveats={caveats}
+              evidenceSources={data.evidence || []}
             />
           </div>
           <p className="text-slate-300 leading-relaxed">{data.summary}</p>
@@ -387,44 +387,65 @@ export function AICopilot() {
         </div>
       )}
 
-      {/* Quick Prompts */}
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+      {/* Quick Prompts — compact chip row */}
+      <div className="flex flex-wrap gap-2">
         {quickPrompts.map((prompt) => (
-          <button key={prompt.id} onClick={() => handleQuickPrompt(prompt)} disabled={isLoading}
-            className={`p-3 rounded-2xl border text-left transition-all disabled:opacity-50 disabled:cursor-not-allowed ${colorMap[prompt.color]}`}>
-            <div className="mb-1.5">{prompt.icon}</div>
-            <div className="font-semibold text-xs">{prompt.label}</div>
+          <button
+            key={prompt.id}
+            onClick={() => handleQuickPrompt(prompt)}
+            disabled={isLoading}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${colorMap[prompt.color]}`}
+          >
+            {prompt.icon}
+            {prompt.label}
           </button>
         ))}
       </div>
 
       {/* Messages Stream */}
-      <div className="flex-1 overflow-y-auto glass-card p-4 space-y-4 min-h-0">
+      <div className="flex-1 overflow-y-auto glass-card p-5 flex flex-col gap-5 min-h-0">
         {messages.map((msg) => (
-          <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs flex-shrink-0 ${
-              msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-indigo-400 border border-slate-700'
+          <div
+            key={msg.id}
+            className={`flex gap-3 animate-fade-in ${
+              msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'
+            }`}
+          >
+            {/* Avatar */}
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
+              msg.role === 'user'
+                ? 'bg-gradient-to-br from-indigo-600 to-indigo-700 text-white shadow-md shadow-indigo-500/20'
+                : 'bg-slate-800/80 text-indigo-400 border border-white/[0.08]'
             }`}>
               {msg.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
             </div>
-            <div className={`space-y-2 max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-              {msg.content && msg.content !== msg.data?.summary && (
-                <div className={`p-4 rounded-2xl text-xs leading-relaxed ${
-                  msg.role === 'user'
-                    ? 'bg-indigo-600 text-white rounded-tr-none'
-                    : 'bg-slate-900/80 border border-slate-800 text-slate-200 rounded-tl-none'
-                }`}>
-                  {msg.isLoading ? (
-                    <div className="flex items-center gap-2 text-indigo-300">
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Retrieving vector context & executing RAG pipeline...</span>
-                    </div>
-                  ) : (
-                    <div dangerouslySetInnerHTML={{ __html: renderMarkdownish(msg.content) }} />
-                  )}
+
+            {/* Bubble column */}
+            <div className={`flex flex-col gap-2 max-w-[86%] ${
+              msg.role === 'user' ? 'items-end' : 'items-start'
+            }`}>
+              {/* Typing indicator */}
+              {msg.isLoading ? (
+                <div className="chat-bubble-ai flex items-center gap-1.5 py-3.5 px-5">
+                  <span className="typing-dot w-2 h-2 bg-indigo-400 rounded-full" />
+                  <span className="typing-dot w-2 h-2 bg-indigo-400 rounded-full" />
+                  <span className="typing-dot w-2 h-2 bg-indigo-400 rounded-full" />
                 </div>
+              ) : (
+                <>
+                  {msg.content && msg.content !== msg.data?.summary && (
+                    <div className={msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai'}>
+                      <div dangerouslySetInnerHTML={{ __html: renderMarkdownish(msg.content) }} />
+                    </div>
+                  )}
+                  {msg.data && <AIResponseCard data={msg.data} />}
+                </>
               )}
-              {msg.data && <AIResponseCard data={msg.data} />}
+
+              {/* Timestamp */}
+              <span className="text-[10px] text-slate-600 px-1">
+                {msg.timestamp.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+              </span>
             </div>
           </div>
         ))}
@@ -432,21 +453,33 @@ export function AICopilot() {
       </div>
 
       {/* Input Bar */}
-      <div className="glass-card p-2 flex items-center gap-2">
+      <div className="glass-card p-3 flex items-center gap-3 border border-white/[0.07] focus-within:border-indigo-500/40 transition-colors">
         <input
+          id="ai-chat-input"
           type="text"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-          placeholder="Ask AI Copilot (e.g. Should I invest in Solar Farm Alpha with $50k budget?)"
-          className="flex-1 bg-transparent px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none"
+          onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+          placeholder="Ask anything — investment advice, risk analysis, market insights…"
+          className="flex-1 bg-transparent px-2 py-1.5 text-sm text-white placeholder-slate-600 focus:outline-none"
+          disabled={isLoading}
         />
+        {inputValue && (
+          <span className="text-[10px] text-slate-600 flex-shrink-0">
+            {inputValue.length}/500
+          </span>
+        )}
         <button
+          id="ai-chat-send"
           onClick={handleSend}
           disabled={isLoading || !inputValue.trim()}
-          className="btn-primary text-xs py-2 px-4 rounded-xl disabled:opacity-50"
+          className="btn-primary text-xs !py-2.5 !px-4 flex-shrink-0"
+          title="Send (Enter)"
         >
-          <Send className="w-3.5 h-3.5" />
+          {isLoading
+            ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            : <Send className="w-4 h-4" />
+          }
         </button>
       </div>
     </div>

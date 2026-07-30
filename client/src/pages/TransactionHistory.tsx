@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Receipt, TrendingUp, ArrowUpRight, Vote, Star, ExternalLink,
-  ChevronDown, ChevronUp, Download, Filter, Search
+  ChevronDown, ChevronUp, Download, Filter, Search, Copy, Check
 } from 'lucide-react';
 
 type TxCategory = 'all' | 'investment' | 'income' | 'governance' | 'reward';
@@ -68,31 +68,75 @@ export function TransactionHistory() {
   const totalIn  = TRANSACTIONS.filter(t=>t.amountPositive && t.amount.startsWith('+')).reduce((s,t) => s + parseFloat(t.amount.replace(/[^0-9.]/g,'')), 0);
   const totalOut = TRANSACTIONS.filter(t=>!t.amountPositive && t.amount.startsWith('-')).reduce((s,t) => s + parseFloat(t.amount.replace(/[^0-9.]/g,'')), 0);
 
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopyHash = (txHash: string, id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(txHash);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleDownloadReceipt = (tx: Transaction, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const content = `=======================================================
+ASSETCHAIN OFFICIAL TRANSACTION RECEIPT
+=======================================================
+Receipt Ref ID : ${tx.id.toUpperCase()}
+Asset Token    : ${tx.asset}
+Activity       : ${tx.description}
+Transaction Amt: ${tx.amount || 'N/A'}
+Status         : ${tx.status}
+Timestamp      : ${tx.date} at ${tx.time}
+Network        : ${tx.network}
+Block Number   : ${tx.block}
+Gas Units Used : ${tx.gasUsed || 'N/A'}
+Tx Hash        : ${tx.txHash}
+=======================================================
+Verified via AssetChain Protocol (Polygon Amoy Testnet)
+Generated at: ${new Date().toISOString()}
+`;
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `AssetChain_Receipt_${tx.id}_${tx.date}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="page-container animate-fade-in">
 
       {/* Header */}
-      <div className="flex items-center gap-3 mb-8">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-cyan-600/10 border border-emerald-500/20 flex items-center justify-center">
-          <Receipt className="w-5 h-5 text-emerald-400" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Transaction History</h1>
-          <p className="text-sm text-slate-400">Complete record of all your on-chain and platform transactions</p>
+      <div className="flex items-center justify-between gap-4 mb-8">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-cyan-600/10 border border-emerald-500/20 flex items-center justify-center shadow-lg shadow-emerald-500/10">
+            <Receipt className="w-6 h-6 text-emerald-400" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-white tracking-tight">Transaction History</h1>
+            <p className="text-sm text-slate-400">Complete record of your on-chain settlements and platform activity</p>
+          </div>
         </div>
       </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
         {[
-          { label: 'Total Transactions', value: TRANSACTIONS.length, color: 'text-white', prefix: '' },
-          { label: 'Total Invested',     value: `₹${totalOut.toLocaleString()}`, color: 'text-red-400', prefix: '' },
-          { label: 'Total Income',       value: `₹${(totalIn).toLocaleString()}`, color: 'text-emerald-400', prefix: '' },
-          { label: 'Net Position',       value: `+₹${(totalIn-totalOut<0?0:totalIn-totalOut).toLocaleString()}`, color: 'text-indigo-400', prefix: '' },
+          { label: 'Total Transactions', value: TRANSACTIONS.length, color: 'text-white', badge: 'All-Time' },
+          { label: 'Total Invested',     value: `₹${totalOut.toLocaleString()}`, color: 'text-red-400', badge: 'Capital' },
+          { label: 'Total Income',       value: `₹${(totalIn).toLocaleString()}`, color: 'text-emerald-400', badge: 'Yield' },
+          { label: 'Net Position',       value: `+₹${(totalIn-totalOut<0?0:totalIn-totalOut).toLocaleString()}`, color: 'text-indigo-400', badge: 'ROI' },
         ].map(s => (
-          <div key={s.label} className="stat-card text-center py-4">
-            <div className={`text-xl font-black ${s.color}`}>{s.value}</div>
-            <div className="text-xs text-slate-500 mt-1">{s.label}</div>
+          <div key={s.label} className="stat-card py-4 px-5 flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{s.label}</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">{s.badge}</span>
+            </div>
+            <div className={`text-2xl font-black ${s.color} mt-2`}>{s.value}</div>
           </div>
         ))}
       </div>
@@ -122,7 +166,7 @@ export function TransactionHistory() {
       {/* Table */}
       <div className="stat-card overflow-hidden">
         {/* Table header */}
-        <div className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-4 px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide border-b border-slate-800/60">
+        <div className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-4 px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide border-b border-slate-800/60 bg-slate-900/40">
           <span>Type</span>
           <span>Details</span>
           <span className="text-right">Amount</span>
@@ -133,7 +177,7 @@ export function TransactionHistory() {
         {filtered.length === 0 && (
           <div className="py-16 text-center text-slate-500">
             <Receipt className="w-10 h-10 mx-auto mb-3 opacity-20" />
-            <p className="text-sm">No transactions match your filter</p>
+            <p className="text-sm">No transactions match your filter criteria</p>
           </div>
         )}
 
@@ -143,18 +187,18 @@ export function TransactionHistory() {
             return (
               <div key={tx.id}>
                 <div
-                  className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-4 px-4 py-4 cursor-pointer hover:bg-slate-800/30 transition-colors items-center"
+                  className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-4 px-5 py-4 cursor-pointer hover:bg-slate-800/40 transition-colors items-center"
                   onClick={() => setExpanded(isExpanded ? null : tx.id)}
                 >
                   {/* Icon */}
-                  <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700/50 flex items-center justify-center text-lg shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-slate-800/80 border border-slate-700/60 flex items-center justify-center text-lg shrink-0 shadow-inner">
                     {tx.icon}
                   </div>
 
                   {/* Details */}
                   <div className="min-w-0">
                     <div className="font-semibold text-white text-sm truncate">{tx.asset}</div>
-                    <div className="text-xs text-slate-500 truncate">{tx.description}</div>
+                    <div className="text-xs text-slate-400 truncate">{tx.description}</div>
                   </div>
 
                   {/* Amount */}
@@ -168,35 +212,51 @@ export function TransactionHistory() {
                   </div>
 
                   {/* Date */}
-                  <div className="hidden sm:flex items-center gap-1 text-right shrink-0">
-                    <div className="text-xs text-slate-500 text-right">
+                  <div className="hidden sm:flex items-center gap-2 text-right shrink-0">
+                    <div className="text-xs text-slate-400 text-right">
                       <div>{tx.date}</div>
-                      <div>{tx.time}</div>
+                      <div className="text-[11px] text-slate-500">{tx.time}</div>
                     </div>
-                    {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-600" /> : <ChevronDown className="w-4 h-4 text-slate-600" />}
+                    {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
                   </div>
                 </div>
 
                 {/* Receipt Drawer */}
                 {isExpanded && (
-                  <div className="bg-slate-900/60 border-t border-slate-800/60 px-4 py-4 animate-fade-in">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl">
+                  <div className="bg-slate-900/80 border-t border-slate-800/80 px-6 py-5 animate-fade-in">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-w-4xl">
                       {[
-                        { label: 'Transaction Hash', value: tx.txHash, mono: true, link: tx.network !== 'Off-chain' ? `https://amoy.polygonscan.com/tx/${tx.txHash}` : null },
-                        { label: 'Block',            value: tx.block, mono: true, link: null },
-                        { label: 'Network',          value: tx.network, mono: false, link: null },
-                        { label: 'Gas Used',         value: tx.gasUsed || '—', mono: true, link: null },
-                        { label: 'Date & Time',      value: `${tx.date} at ${tx.time}`, mono: false, link: null },
-                        { label: 'Status',           value: tx.status, mono: false, link: null },
+                        { label: 'Transaction Hash', value: tx.txHash, mono: true, copyable: true },
+                        { label: 'Block Number',     value: tx.block, mono: true },
+                        { label: 'Network',          value: tx.network, mono: false },
+                        { label: 'Gas Units Used',   value: tx.gasUsed || '—', mono: true },
+                        { label: 'Date & Time',      value: `${tx.date} at ${tx.time}`, mono: false },
+                        { label: 'Verification Status', value: tx.status, mono: false },
                       ].map(row => (
-                        <div key={row.label} className="flex flex-col gap-0.5">
-                          <span className="text-xs text-slate-500 font-medium">{row.label}</span>
+                        <div key={row.label} className="flex flex-col gap-1 p-3 rounded-xl bg-slate-950/50 border border-slate-800/60">
+                          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{row.label}</span>
                           <div className="flex items-center gap-2">
-                            <span className={`text-sm text-white ${row.mono ? 'font-mono text-xs bg-slate-800/60 px-2 py-0.5 rounded truncate max-w-[200px]' : 'font-medium'}`}>
+                            <span className={`text-xs text-slate-200 ${row.mono ? 'font-mono bg-slate-900 px-2 py-0.5 rounded text-indigo-300 border border-indigo-500/20 truncate' : 'font-medium'}`}>
                               {row.mono && row.value.length > 20 ? truncateTx(row.value) : row.value}
                             </span>
-                            {row.link && (
-                              <a href={row.link} target="_blank" rel="noreferrer" className="text-indigo-400 hover:text-indigo-300" onClick={e => e.stopPropagation()}>
+                            {row.copyable && (
+                              <button
+                                onClick={(e) => handleCopyHash(tx.txHash, tx.id, e)}
+                                className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+                                title="Copy full Hash"
+                              >
+                                {copiedId === tx.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                              </button>
+                            )}
+                            {row.copyable && tx.network !== 'Off-chain' && (
+                              <a
+                                href={`https://amoy.polygonscan.com/tx/${tx.txHash}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="p-1 rounded-md text-indigo-400 hover:text-indigo-300 hover:bg-white/10 transition-colors shrink-0"
+                                title="View on Polygonscan"
+                                onClick={e => e.stopPropagation()}
+                              >
                                 <ExternalLink className="w-3.5 h-3.5" />
                               </a>
                             )}
@@ -204,9 +264,20 @@ export function TransactionHistory() {
                         </div>
                       ))}
                     </div>
-                    <button className="btn-ghost text-xs mt-4 flex items-center gap-1.5">
-                      <Download className="w-3 h-3" /> Download Receipt
-                    </button>
+
+                    <div className="flex items-center gap-3 mt-5 pt-4 border-t border-slate-800/60">
+                      <button
+                        onClick={(e) => handleDownloadReceipt(tx, e)}
+                        className="btn-primary text-xs py-2 px-4 flex items-center gap-2"
+                      >
+                        <Download className="w-4 h-4" /> Download Official Receipt (.TXT)
+                      </button>
+                      {copiedId === tx.id && (
+                        <span className="text-xs text-emerald-400 font-medium animate-fade-in">
+                          ✓ Tx Hash copied to clipboard!
+                        </span>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

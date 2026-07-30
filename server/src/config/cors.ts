@@ -7,11 +7,15 @@ export const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, curl, server-to-server)
     if (!origin) return callback(null, true);
-    if (env.NODE_ENV === 'development') return callback(null, true);
-    if (configuredOrigins.includes(origin) || configuredOrigins.includes('*') || origin.startsWith('http://localhost:')) {
+    // Allow all localhost origins in development
+    if (env.NODE_ENV === 'development' && origin.startsWith('http://localhost:')) {
       return callback(null, true);
     }
-    callback(null, true); // Permissive in prototype mode
+    // Explicitly allow only configured origins in staging/production
+    if (configuredOrigins.includes(origin) || configuredOrigins.includes('*')) {
+      return callback(null, true);
+    }
+    callback(new Error(`CORS: Origin ${origin} not allowed`), false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

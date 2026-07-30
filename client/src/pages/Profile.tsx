@@ -10,6 +10,7 @@ import {
 import { truncateAddress } from '../lib/utils';
 import { authService } from '../services/authService';
 import { SmartWalletPanel } from '../components/wallet/SmartWalletPanel';
+import { RecognitionBadges } from '../components/badges/RecognitionBadges';
 
 type ProfileTab = 'overview' | 'kyc' | 'security' | 'preferences';
 
@@ -79,9 +80,9 @@ export function Profile() {
 
   const STATS = [
     { icon: '🏆', label: 'Trust Level',      value: 'Gold Investor',  color: 'text-amber-400' },
-    { icon: '⭐', label: 'Reward Points',     value: '3,250 pts',      color: 'text-amber-400' },
+    { icon: '🎖️', label: 'Recognition Badges', value: '5 Badges',      color: 'text-indigo-400' },
     { icon: '💰', label: 'Portfolio Value',   value: '₹2,45,000',     color: 'text-white' },
-    { icon: '🎖️', label: 'Achievements',      value: '8 / 16',        color: 'text-purple-400' },
+    { icon: '🗺️', label: 'Trust Journey',     value: '6 / 7 Steps',   color: 'text-emerald-400' },
     { icon: '🗳️', label: 'DAO Votes',         value: '2 Votes',       color: 'text-indigo-400' },
     { icon: '💸', label: 'Rental Income',     value: '₹6,450',        color: 'text-emerald-400' },
   ];
@@ -212,6 +213,11 @@ export function Profile() {
               ))}
             </div>
             <SmartWalletPanel />
+          </div>
+
+          {/* Recognition-Only Badges (No financial incentives, non-redeemable) */}
+          <div className="lg:col-span-2">
+            <RecognitionBadges />
           </div>
 
           {/* Nominee & Beneficiary */}

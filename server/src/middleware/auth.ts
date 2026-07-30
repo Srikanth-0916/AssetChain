@@ -9,7 +9,7 @@ import { UnauthorizedError } from '../utils/errors';
 export interface JWTPayload {
   userId: string;
   email: string;
-  role: 'admin' | 'asset_owner' | 'investor';
+  role: 'admin' | 'asset_owner' | 'investor' | 'verifier' | 'legal_reviewer';
   walletAddress?: string;
 }
 
@@ -32,16 +32,6 @@ export function authenticate(req: Request, _res: Response, next: NextFunction): 
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    // For demo/dev mode convenience, allow fallback user if non-production
-    if (env.NODE_ENV === 'development') {
-      req.user = {
-        userId: 'investor-demo-uuid-001',
-        email: 'jrpsp@gmail.com',
-        role: 'admin',
-      };
-      next();
-      return;
-    }
     throw new UnauthorizedError('No authentication token provided');
   }
 
@@ -65,7 +55,7 @@ export function authenticate(req: Request, _res: Response, next: NextFunction): 
 /**
  * Role-based authorization middleware.
  */
-export function authorizeRole(...roles: Array<'admin' | 'asset_owner' | 'investor'>) {
+export function authorizeRole(...roles: Array<'admin' | 'asset_owner' | 'investor' | 'verifier' | 'legal_reviewer'>) {
   return (req: Request, _res: Response, next: NextFunction): void => {
     if (!req.user) {
       throw new UnauthorizedError('Authentication required');

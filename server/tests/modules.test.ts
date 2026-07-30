@@ -24,8 +24,8 @@ describe('AssetChain Modules 13-17 Test Suite', () => {
     });
   });
 
-  // Module 14: Multi-Signature Approval Workflow
-  describe('Module 14: Multi-Signature Approval (2-of-3)', () => {
+  // Module 14: Multi-Signature Approval Workflow (Blockchain-First Event Indexing)
+  describe('Module 14: Multi-Signature Approval (2-of-3 Blockchain-First)', () => {
     it('Should initialize a 2-of-3 multi-sig approval request', async () => {
       const req = await approvalService.createRequest('asset-test-99', 'Solar Array Test Asset');
       expect(req).toBeDefined();
@@ -33,19 +33,42 @@ describe('AssetChain Modules 13-17 Test Suite', () => {
       expect(req.requiredVotes).toBe(2);
     });
 
-    it('Should approve request when 2 of 3 roles vote approve', async () => {
+    it('Should approve request via indexed smart contract events (Blockchain-First)', async () => {
       const req = await approvalService.createRequest('asset-test-99', 'Solar Array Test Asset');
       
-      // Vote 1: Verifier approves
-      const step1 = await approvalService.submitVote(req.id, 'verifier', 'user-v1', 'approved');
+      // Smart Contract Event 1: Verifier ApprovalVoted indexed
+      const step1 = await approvalService.processOnChainApprovalEvent({
+        txHash: '0x' + '1'.repeat(64),
+        assetId: 'asset-test-99',
+        voterAddress: '0xVerifierAddress001',
+        role: 'verifier',
+        decision: 'approved',
+        comments: 'Verified on-chain document proof',
+      });
       expect(step1.approvedCount).toBe(1);
       expect(step1.status).toBe('pending');
+      expect(step1.gnosisSafeTxHash).toBe('0x' + '1'.repeat(64));
 
-      // Vote 2: Legal Reviewer approves -> Status becomes APPROVED (2/3 requirement met)
-      const step2 = await approvalService.submitVote(req.id, 'legal_reviewer', 'user-l1', 'approved');
+      // Smart Contract Event 2: Legal Reviewer ApprovalVoted indexed -> 2/3 threshold met
+      const step2 = await approvalService.processOnChainApprovalEvent({
+        txHash: '0x' + '2'.repeat(64),
+        assetId: 'asset-test-99',
+        voterAddress: '0xLegalAddress002',
+        role: 'legal_reviewer',
+        decision: 'approved',
+        comments: 'On-chain legal title verified',
+      });
       expect(step2.approvedCount).toBe(2);
       expect(step2.status).toBe('approved');
-      console.log('✓ 2-of-3 Multi-Sig policy enforced successfully: Request is APPROVED');
+      expect(step2.gnosisSafeTxHash).toBe('0x' + '2'.repeat(64));
+      console.log('✓ Blockchain-First Multi-Sig indexed approval successful: Status APPROVED via on-chain events');
+    });
+
+    it('Should maintain backward compatibility for submitVote method', async () => {
+      const req = await approvalService.createRequest('asset-compat-100', 'Compatibility Test Asset');
+      const step1 = await approvalService.submitVote(req.id, 'verifier', 'user-v1', 'approved');
+      expect(step1.approvedCount).toBe(1);
+      expect(step1.gnosisSafeTxHash).toContain('0xvote_');
     });
   });
 

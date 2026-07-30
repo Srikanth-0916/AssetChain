@@ -18,6 +18,7 @@ import complianceRoutes from '../modules/compliance/compliance.routes';
 import nomineeRoutes from '../modules/nominee/nominee.routes';
 import recommendationRoutes from '../modules/recommendation/recommendation.routes';
 import trustRoutes from '../modules/trust/trust.routes';
+import activityRoutes from '../modules/activity/activity.routes';
 
 const router = Router();
 
@@ -42,6 +43,7 @@ router.use('/compliance', complianceRoutes);
 router.use('/nominee', nomineeRoutes);
 router.use('/recommendation', recommendationRoutes);
 router.use('/trust', trustRoutes);
+router.use('/activity', activityRoutes);
 
 // ─── System Health Public Status Endpoint ──────────────────────────────────
 router.get('/system/health', (_req: Request, res) => {
@@ -71,7 +73,7 @@ router.get('/health', (req: Request, res) => {
     success: true,
     requestId: req.requestId,
     data: {
-      name: 'TrustChain AI API',
+      name: 'AssetChain API',
       status: 'healthy',
       version: env.APP_VERSION,
       environment: env.NODE_ENV,

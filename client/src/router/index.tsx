@@ -26,6 +26,9 @@ const AchievementCenter = lazy(() => import('../pages/AchievementCenter').then(m
 const ActivityTimeline  = lazy(() => import('../pages/ActivityTimeline').then(m => ({ default: m.ActivityTimeline })));
 const TransactionHistory= lazy(() => import('../pages/TransactionHistory').then(m => ({ default: m.TransactionHistory })));
 const InvestmentJourney = lazy(() => import('../pages/InvestmentJourney').then(m => ({ default: m.InvestmentJourney })));
+const RWACollateralVault = lazy(() => import('../pages/RWACollateralVault').then(m => ({ default: m.RWACollateralVault })));
+const CopyTradingLeaderboard = lazy(() => import('../pages/CopyTradingLeaderboard').then(m => ({ default: m.CopyTradingLeaderboard })));
+const OracleIoTValuation = lazy(() => import('../pages/OracleIoTValuation').then(m => ({ default: m.OracleIoTValuation })));
 
 // ─── Loading fallback ──────────────────────────────────────────────────────────
 function RouteLoader() {
@@ -96,6 +99,18 @@ export const router = createBrowserRouter([
       {
         path: 'journey',
         element: <ProtectedRoute><InvestmentJourney /></ProtectedRoute>,
+      },
+      {
+        path: 'lending',
+        element: <ProtectedRoute><RWACollateralVault /></ProtectedRoute>,
+      },
+      {
+        path: 'copy-trading',
+        element: <ProtectedRoute><CopyTradingLeaderboard /></ProtectedRoute>,
+      },
+      {
+        path: 'oracles',
+        element: <ProtectedRoute><OracleIoTValuation /></ProtectedRoute>,
       },
 
       // ─── Protected: Asset Owner ────────────────────────────────────────────

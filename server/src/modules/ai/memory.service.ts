@@ -110,14 +110,25 @@ export class ConversationMemoryService {
       mem.history = mem.history.slice(-MAX_HISTORY_PER_USER);
     }
 
+    // Skip Supabase write if user_id is not a valid UUID (e.g. test fixture IDs like "user-123")
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_REGEX.test(userId)) {
+      return turn; // Memory store is sufficient for non-UUID IDs
+    }
+
     try {
       const { error } = await supabaseAdmin.from('ai_memory').insert({
         id: turn.id,
         user_id: userId,
+        conversation_id: `session_${userId}`,   // stable per-user conversation namespace
         role: turn.role,
         content: turn.content,
-        data: turn.data,
-        timestamp: turn.timestamp,
+        // 'data' and 'timestamp' columns may not exist in older DB deployments
+        // Store structured data in 'metadata' JSONB which always exists
+        metadata: {
+          data: turn.data ?? {},
+          timestamp: turn.timestamp,
+        },
       });
 
       if (error) {

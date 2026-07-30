@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { approvalService, ApprovalRole, ApprovalDecision } from './approval.service';
 import { sendSuccess } from '../../utils/response';
+import { env } from '../../config/env';
 
 const voteSchema = z.object({
   request_id: z.string().uuid(),
@@ -49,12 +50,28 @@ export class ApprovalController {
         decision as ApprovalDecision,
         comments
       );
+
+      // Blockchain-First payload details for direct wallet signing / verification
+      const blockchainTxPayload = {
+        eventName: 'ApprovalVoted',
+        contractAddress: env.GNOSIS_SAFE_ADDRESS || '0xAssetRegistryContract',
+        txHash: updated.gnosisSafeTxHash,
+        signerAddress: req.user!.walletAddress || req.user!.userId,
+        args: {
+          assetId: updated.assetId,
+          voter: req.user!.walletAddress || req.user!.userId,
+          role,
+          approved: decision === 'approved',
+          comments: comments || '',
+        },
+      };
+
       const msg = updated.status === 'approved'
-        ? `Asset approved! ${updated.approvedCount}/${updated.requiredVotes} votes. Tokenization triggered.`
+        ? `Asset approved on-chain! ${updated.approvedCount}/${updated.requiredVotes} votes. Tokenization event triggered.`
         : updated.status === 'rejected'
-        ? 'Asset rejected by multi-sig consensus.'
-        : `Vote recorded (${updated.approvedCount}/${updated.requiredVotes} approvals needed).`;
-      res.json({ success: true, data: updated, message: msg });
+        ? 'Asset rejected by on-chain multi-sig consensus.'
+        : `On-chain vote indexed (${updated.approvedCount}/${updated.requiredVotes} approvals needed).`;
+      res.json({ success: true, data: { ...updated, blockchainTxPayload }, message: msg });
     } catch (error) { next(error); }
   }
 

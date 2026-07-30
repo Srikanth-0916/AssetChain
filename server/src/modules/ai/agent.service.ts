@@ -16,6 +16,7 @@ import { assetService } from '../../services/asset.service';
 import { portfolioService } from '../../services/portfolio.service';
 import { daoService } from '../../services/dao.service';
 import { PLATFORM_TOOLS } from './tools/platform.tools';
+import { oracleService } from '../oracle/oracle.service';
 
 // ─── Tool Executor ────────────────────────────────────────────────────────────
 
@@ -66,18 +67,23 @@ async function executeTool(
     }
 
     case 'calculateROI': {
-      const { investment_amount = 0, holding_period_years = 1 } = args;
-      const estimatedYield = 0.078; // 7.8% blended platform yield
-      const annualReturn = investment_amount * estimatedYield;
+      const { investment_amount = 0, holding_period_years = 1, asset_type = '', asset_id = '', occupancy_rate } = args;
+      // Use oracle service to get per-asset-type yield estimate (replaces hardcoded 7.8%)
+      const yieldEstimate = oracleService.getYieldEstimate(asset_type || 'default', asset_id || undefined, occupancy_rate);
+      const estimatedYieldDecimal = yieldEstimate.occupancyAdjusted / 100;
+      const annualReturn = investment_amount * estimatedYieldDecimal;
       const totalReturn = annualReturn * holding_period_years;
       return {
         investmentAmount: investment_amount,
         holdingPeriodYears: holding_period_years,
-        estimatedAnnualYield: '7.8%',
+        assetType: asset_type || 'mixed',
+        estimatedAnnualYield: `${yieldEstimate.occupancyAdjusted}%`,
+        baseYield: `${yieldEstimate.baseYieldPercent}%`,
+        yieldSource: yieldEstimate.source,
         estimatedAnnualReturn: Math.round(annualReturn),
         totalEstimatedReturn: Math.round(totalReturn),
-        roi: `${(estimatedYield * 100 * holding_period_years).toFixed(1)}%`,
-        note: 'Based on platform blended yield. Not financial advice.',
+        roi: `${(yieldEstimate.occupancyAdjusted * holding_period_years).toFixed(1)}%`,
+        note: yieldEstimate.note,
       };
     }
 

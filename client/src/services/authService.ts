@@ -35,6 +35,16 @@ export const authService = {
     return response.data.data;
   },
 
+  async requestPublicWalletNonce(wallet_address: string): Promise<{ nonce: string; expires_at: string }> {
+    const response = await api.post<ApiResponse<{ nonce: string; expires_at: string }>>('/auth/wallet/public-nonce', { wallet_address });
+    return response.data.data;
+  },
+
+  async loginWithWallet(wallet_address: string, signature: string, role: string = 'investor'): Promise<AuthResponse> {
+    const response = await api.post<ApiResponse<AuthResponse>>('/auth/wallet/login', { wallet_address, signature, role });
+    return response.data.data;
+  },
+
   async requestWalletNonce(wallet_address: string): Promise<{ nonce: string; expires_at: string }> {
     const response = await api.post<ApiResponse<{ nonce: string; expires_at: string }>>('/auth/wallet/nonce', { wallet_address });
     return response.data.data;

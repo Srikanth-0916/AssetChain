@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 export interface AITelemetryLog {
   id: string;
   endpoint: string;
-  handledBy: 'gemini' | 'fallback';
+  handledBy: 'gemini' | 'fallback' | 'cache_hit';
   responseTimeMs: number;
   status: 'success' | 'error';
   tokenCount?: number;
@@ -58,7 +58,7 @@ const startTime = Date.now();
 export class AIObservabilityService {
   logEvent(
     endpoint: string,
-    handledBy: 'gemini' | 'fallback',
+    handledBy: 'gemini' | 'fallback' | 'cache_hit',
     responseTimeMs: number,
     status: 'success' | 'error',
     errorMessage?: string,

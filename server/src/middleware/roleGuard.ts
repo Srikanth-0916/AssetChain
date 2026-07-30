@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { ForbiddenError, UnauthorizedError } from '../utils/errors';
 
-type UserRole = 'admin' | 'asset_owner' | 'investor';
+type UserRole = 'admin' | 'asset_owner' | 'investor' | 'verifier' | 'legal_reviewer';
 
 /**
  * Role-based access control middleware factory.

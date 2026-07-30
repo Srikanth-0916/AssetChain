@@ -7,13 +7,14 @@ import { NotificationBell } from './NotificationBell';
 import {
   Coins, Wallet, LogOut, User as UserIcon, Sparkles, BarChart3,
   LayoutDashboard, Store, PieChart, Star, Activity, Vote,
-  Trophy, Map, Receipt, Menu, X, Shield, ChevronDown
+  Trophy, Map, Receipt, Menu, X, Shield, ChevronDown, Users, Cpu
 } from 'lucide-react';
 
 interface NavItem {
   label: string;
   to: string;
   icon: React.ReactNode;
+  description?: string;
   roles?: string[];
   badge?: string;
 }
@@ -28,11 +29,14 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 const MORE_ITEMS: NavItem[] = [
-  { label: 'Transactions',  to: '/transactions',  icon: <Receipt className="w-4 h-4" /> },
-  { label: 'Achievements',  to: '/achievements',  icon: <Trophy className="w-4 h-4" /> },
-  { label: 'Journey',       to: '/journey',       icon: <Map className="w-4 h-4" /> },
-  { label: 'Analytics',     to: '/analytics',     icon: <BarChart3 className="w-4 h-4" />, roles: ['admin'] },
-  { label: 'Admin',         to: '/admin',         icon: <Shield className="w-4 h-4" />, roles: ['admin'] },
+  { label: 'RWA Lending',   to: '/lending',       icon: <Coins className="w-4 h-4 text-emerald-400" />,   description: 'Borrow USDC against RWA tokens' },
+  { label: 'Copy Trading',  to: '/copy-trading',  icon: <Users className="w-4 h-4 text-amber-400" />,     description: 'Copy top investor portfolios' },
+  { label: 'IoT Oracles',   to: '/oracles',       icon: <Cpu className="w-4 h-4 text-cyan-400" />,        description: 'Chainlink real-time property feeds' },
+  { label: 'Transactions',  to: '/transactions',  icon: <Receipt className="w-4 h-4 text-purple-400" />,  description: 'On-chain & payment ledger' },
+  { label: 'Achievements',  to: '/achievements',  icon: <Trophy className="w-4 h-4 text-indigo-400" />,   description: 'Investor badges & rewards' },
+  { label: 'Journey',       to: '/journey',       icon: <Map className="w-4 h-4 text-blue-400" />,        description: 'Investor onboarding roadmap' },
+  { label: 'Analytics',     to: '/analytics',     icon: <BarChart3 className="w-4 h-4 text-pink-400" />,  description: 'Platform metrics & volume', roles: ['admin'] },
+  { label: 'Admin',         to: '/admin',         icon: <Shield className="w-4 h-4 text-red-400" />,      description: 'Compliance & asset approval', roles: ['admin'] },
 ];
 
 export function Header() {
@@ -60,6 +64,7 @@ export function Header() {
 
   const visibleNav  = NAV_ITEMS.filter(canShow);
   const visibleMore = MORE_ITEMS.filter(canShow);
+  const isMoreChildActive = visibleMore.some(item => isActive(item.to));
 
   return (
     <>
@@ -104,29 +109,58 @@ export function Header() {
 
               {/* More dropdown */}
               {visibleMore.length > 0 && (
-                <div className="relative">
+                <div
+                  className="relative"
+                  onMouseEnter={() => setMoreOpen(true)}
+                  onMouseLeave={() => setMoreOpen(false)}
+                >
                   <button
                     onClick={() => setMoreOpen(v => !v)}
-                    onBlur={() => setTimeout(() => setMoreOpen(false), 150)}
-                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium transition-all
-                      ${moreOpen ? 'bg-white/8 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}
+                    className={`relative flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium transition-all
+                      ${isMoreChildActive
+                        ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/20'
+                        : moreOpen ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}
                   >
-                    More <ChevronDown className={`w-3.5 h-3.5 transition-transform ${moreOpen ? 'rotate-180' : ''}`} />
+                    More <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${moreOpen ? 'rotate-180' : ''}`} />
+                    {isMoreChildActive && (
+                      <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                    )}
                   </button>
+
                   {moreOpen && (
-                    <div className="absolute top-full left-0 mt-1 w-44 glass-card py-1 animate-fade-scale z-50">
-                      {visibleMore.map(item => (
-                        <Link
-                          key={item.to}
-                          to={item.to}
-                          className={`flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium transition-colors
-                            ${isActive(item.to) ? 'text-indigo-300 bg-indigo-500/10' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
-                          onClick={() => setMoreOpen(false)}
-                        >
-                          {item.icon}
-                          {item.label}
-                        </Link>
-                      ))}
+                    <div className="absolute top-full right-0 lg:left-0 mt-1.5 w-64 bg-slate-900/95 backdrop-blur-xl border border-indigo-500/20 rounded-2xl p-2 shadow-2xl shadow-indigo-950/80 animate-fade-scale z-50">
+                      <div className="px-3 py-1.5 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
+                        Platform Features
+                      </div>
+                      {visibleMore.map(item => {
+                        const itemActive = isActive(item.to);
+                        return (
+                          <Link
+                            key={item.to}
+                            to={item.to}
+                            className={`flex items-start gap-3 p-2.5 rounded-xl transition-all group
+                              ${itemActive
+                                ? 'bg-indigo-500/15 text-indigo-200 border border-indigo-500/20'
+                                : 'hover:bg-slate-800/60 text-slate-300 hover:text-white'}`}
+                            onClick={() => setMoreOpen(false)}
+                          >
+                            <div className="p-2 rounded-lg bg-slate-800/80 border border-slate-700/50 group-hover:scale-105 transition-transform shrink-0">
+                              {item.icon}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold flex items-center gap-1.5">
+                                {item.label}
+                                {itemActive && <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />}
+                              </div>
+                              {item.description && (
+                                <p className="text-xs text-slate-400 group-hover:text-slate-300 truncate">
+                                  {item.description}
+                                </p>
+                              )}
+                            </div>
+                          </Link>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

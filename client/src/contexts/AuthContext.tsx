@@ -8,6 +8,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (data: LoginData) => Promise<void>;
+  loginWithWallet: (walletAddress: string, signature: string, role?: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (user: User) => void;
@@ -28,7 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
   const [isLoading, setIsLoading] = useState(true);
 
-  // Validate token on mount
+  // Validate session on mount
   useEffect(() => {
     async function validateSession() {
       if (!token) {
@@ -56,6 +57,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (data: LoginData) => {
     const result = await authService.login(data);
+    setUser(result.user);
+    setToken(result.token);
+    localStorage.setItem(TOKEN_KEY, result.token);
+    localStorage.setItem(USER_KEY, JSON.stringify(result.user));
+  }, []);
+
+  const loginWithWallet = useCallback(async (walletAddress: string, signature: string, role: string = 'investor') => {
+    const result = await authService.loginWithWallet(walletAddress, signature, role);
     setUser(result.user);
     setToken(result.token);
     localStorage.setItem(TOKEN_KEY, result.token);
@@ -96,6 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         isAuthenticated: !!user && !!token,
         login,
+        loginWithWallet,
         register,
         logout,
         updateUser,

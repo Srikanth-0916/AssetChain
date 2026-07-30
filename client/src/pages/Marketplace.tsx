@@ -3,33 +3,172 @@ import { assetService } from '../services/assetService';
 import { marketplaceService } from '../services/marketplaceService';
 import type { Asset } from '../types/asset';
 import { ASSET_TYPE_LABELS } from '../types/asset';
-import { Coins, Search, Filter, AlertCircle, CheckCircle2, ShoppingBag, X, Zap } from 'lucide-react';
+import {
+  Search, CheckCircle2, ShoppingBag, Zap,
+  MapPin, TrendingUp, Shield, Sparkles,
+} from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 import { useWallet } from '../contexts/WalletContext';
 import { PaymentModal } from '../components/payment/PaymentModal';
-import { WhyPanel } from '../components/trust/WhyPanel';
 import { TrustScoreBadges } from '../components/trust/TrustScoreBadges';
 import { ContextualAITip } from '../components/trust/ContextualAITip';
+import { SkeletonGrid } from '../components/ui/SkeletonCard';
+import { EmptyState } from '../components/ui/EmptyState';
+import { TrustScorePanel } from '../components/explainability/TrustScorePanel';
+import { ROIBreakdownPanel } from '../components/explainability/ROIBreakdownPanel';
+import { RiskBreakdownPanel } from '../components/explainability/RiskBreakdownPanel';
+
+// ─── Category filter config ───────────────────────────────────────────────────
+const CATEGORY_COLORS: Record<string, string> = {
+  real_estate:  'text-indigo-400',
+  agriculture:  'text-emerald-400',
+  energy:       'text-amber-400',
+  infrastructure: 'text-cyan-400',
+  commercial:   'text-violet-400',
+};
+
+const BG_GRADIENTS: Record<string, string> = {
+  real_estate:  'from-indigo-900/70 via-slate-900 to-slate-950',
+  agriculture:  'from-emerald-900/60 via-slate-900 to-slate-950',
+  energy:       'from-amber-900/60 via-slate-900 to-slate-950',
+  infrastructure:'from-cyan-900/60 via-slate-900 to-slate-950',
+  commercial:   'from-violet-900/60 via-slate-900 to-slate-950',
+};
+
+// ─── Asset Card ───────────────────────────────────────────────────────────────
+
+function AssetCard({
+  item,
+  onBuy,
+}: {
+  item: Asset;
+  onBuy: (asset: Asset) => void;
+}) {
+  const gradientClass = BG_GRADIENTS[item.asset_type] ?? 'from-indigo-900/60 via-slate-900 to-slate-950';
+  const colorClass    = CATEGORY_COLORS[item.asset_type] ?? 'text-indigo-400';
+  const typeLabel     = ASSET_TYPE_LABELS[item.asset_type] ?? item.asset_type;
+
+  return (
+    <div className="asset-card group">
+      {/* Card Image / Hero */}
+      <div className={`relative h-44 bg-gradient-to-br ${gradientClass} flex items-end p-5 overflow-hidden`}>
+        {/* Subtle grid pattern */}
+        <div className="absolute inset-0 opacity-10"
+          style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.15) 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+
+        {/* Glow orb */}
+        <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full blur-3xl opacity-20 bg-indigo-500" />
+
+        {/* Type tag */}
+        <span className="asset-type-tag z-10">{typeLabel}</span>
+
+        {/* Verified badge */}
+        <span className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-semibold">
+          <Shield className="w-3 h-3" /> Verified
+        </span>
+      </div>
+
+      {/* Body */}
+      <div className="p-5 flex-1 flex flex-col gap-4">
+        {/* Title row */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-white text-[0.9375rem] leading-snug truncate group-hover:text-indigo-300 transition-colors">
+              {item.title}
+            </h3>
+            {item.location && (
+              <p className="flex items-center gap-1 text-[11px] text-slate-500 mt-0.5">
+                <MapPin className="w-3 h-3" />{item.location}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Trust badges */}
+        <TrustScoreBadges activeBadges={['legal', 'spv', 'multisig', 'blockchain']} />
+
+        {/* Explainability row — Why? buttons for Trust, ROI and Risk */}
+        <div className="flex flex-wrap items-center gap-2">
+          <TrustScorePanel assetId={item.id} />
+          <ROIBreakdownPanel
+            assetType={item.asset_type}
+            tokenPrice={Number(item.token_price)}
+            valuation={Number(item.valuation)}
+          />
+          <RiskBreakdownPanel
+            assetType={item.asset_type}
+            fraudScore={15}
+            liquidityIndex={85}
+            riskTier="medium"
+          />
+        </div>
+
+        {/* Stats grid */}
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="bg-slate-900/70 rounded-xl px-3 py-2.5 border border-white/[0.05]">
+            <span className="text-slate-500 block text-[10px] mb-0.5">Valuation</span>
+            <span className="font-bold text-white">{formatCurrency(Number(item.valuation))}</span>
+          </div>
+          <div className="bg-slate-900/70 rounded-xl px-3 py-2.5 border border-white/[0.05]">
+            <span className="text-slate-500 block text-[10px] mb-0.5">Token Price</span>
+            <span className={`font-bold ${colorClass}`}>${item.token_price}</span>
+          </div>
+        </div>
+
+        {/* Available tokens progress */}
+        {(item.tokens_available != null || (item as any).available_tokens != null) && (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-[10px]">
+              <span className="text-slate-500">Tokens Available</span>
+              <span className="text-slate-400 font-semibold">
+                {Number(item.tokens_available ?? (item as any).available_tokens).toLocaleString()} / {Number(item.token_supply ?? (item as any).total_tokens).toLocaleString()}
+              </span>
+            </div>
+            <div className="progress-bar-track">
+              <div
+                className="progress-bar-fill"
+                style={{
+                  width: `${Math.min(
+                    100,
+                    (((Number(item.token_supply ?? (item as any).total_tokens) - Number(item.tokens_available ?? (item as any).available_tokens))) /
+                      Number(item.token_supply ?? (item as any).total_tokens)) *
+                      100
+                  )}%`,
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* CTA */}
+        <button
+          onClick={() => onBuy(item)}
+          className="btn-primary w-full mt-auto text-sm gap-2"
+        >
+          <Zap className="w-4 h-4" />
+          Invest via UPI / Card
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 export function Marketplace() {
   const { isAuthenticated } = useAuth();
   const { isConnected, connect } = useWallet();
 
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [assets, setAssets]             = useState<Asset[]>([]);
+  const [isLoading, setIsLoading]       = useState(true);
+  const [searchTerm, setSearchTerm]     = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
-  // Modal State
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
-  const [quantity, setQuantity] = useState<number>(10);
-  const [isPurchasing, setIsPurchasing] = useState(false);
-  const [purchaseSuccess, setPurchaseSuccess] = useState<string | null>(null);
-  const [purchaseError, setPurchaseError] = useState<string | null>(null);
-  // Payment modal state
+  const [quantity, setQuantity]           = useState<number>(10);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentSuccess, setPaymentSuccess] = useState<string | null>(null);
+  const [paymentSuccess, setPaymentSuccess]     = useState<string | null>(null);
 
   useEffect(() => {
     async function loadAssets() {
@@ -54,16 +193,38 @@ export function Marketplace() {
     return matchesSearch && matchesCat;
   });
 
+  const categories = ['all', ...Array.from(new Set(assets.map(a => a.asset_type)))];
+
+  function handleBuy(asset: Asset) {
+    setSelectedAsset(asset);
+    setShowPaymentModal(true);
+  }
+
   return (
-    <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10 space-y-8 animate-fade-in">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Tokenized Asset Marketplace</h1>
-          <p className="text-xs text-slate-400">Discover and invest in fractional real-world assets verified on Polygon</p>
+    <div className="max-w-[1320px] mx-auto px-4 lg:px-8 py-10 space-y-8 animate-fade-in">
+
+      {/* ── Page Header ── */}
+      <div className="page-header">
+        <div className="page-header-left">
+          <div className="page-header-icon bg-indigo-500/10 border border-indigo-500/20">
+            <TrendingUp className="w-5 h-5 text-indigo-400" />
+          </div>
+          <div>
+            <h1 className="page-title">Asset Marketplace</h1>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Fractional real-world assets · Verified on Polygon Amoy
+            </p>
+          </div>
+        </div>
+        <div className="page-header-actions">
+          <span className="pill-badge pill-info">
+            <Sparkles className="w-3 h-3" />
+            {assets.length} Active Assets
+          </span>
         </div>
       </div>
 
-      {/* Contextual AI Tip */}
+      {/* ── AI Tip ── */}
       <ContextualAITip
         title="Top AI Asset Match"
         message="Based on your profile, Solar Farm Alpha 1 matches 81% confidence with low risk rating (15/100) and verified SPV title."
@@ -71,115 +232,84 @@ export function Marketplace() {
         onAction={() => setSearchTerm('Solar Farm')}
       />
 
-      {/* Filter / Search Bar */}
+      {/* ── Search + Filter Bar ── */}
       <div className="flex flex-col sm:flex-row gap-3">
+        {/* Search */}
         <div className="relative flex-1">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+          <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by asset title, location, or keyword..."
+            placeholder="Search by title, location, or keyword…"
             className="input-field pl-10"
+            id="marketplace-search"
           />
         </div>
 
+        {/* Category select */}
         <select
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
-          className="input-field bg-slate-900 text-white sm:w-64"
+          className="input-field sm:w-56 select"
+          id="marketplace-category"
         >
-          <option value="all">All Asset Categories</option>
+          <option value="all">All Categories</option>
           {Object.entries(ASSET_TYPE_LABELS).map(([key, label]) => (
-            <option key={key} value={key}>
-              {label}
-            </option>
+            <option key={key} value={key}>{label}</option>
           ))}
         </select>
       </div>
 
-      {/* Assets Grid */}
-      {isLoading ? (
-        <div className="text-center py-16 space-y-3">
-          <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs text-slate-400">Loading marketplace assets...</p>
-        </div>
-      ) : filteredAssets.length === 0 ? (
-        <div className="text-center py-16 p-8 glass-card border border-slate-800 space-y-3">
-          <ShoppingBag className="w-10 h-10 text-slate-600 mx-auto" />
-          <p className="text-sm font-semibold text-white">No assets match your search criteria</p>
-          <p className="text-xs text-slate-400">Try adjusting your filters or search keywords.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {filteredAssets.map((item) => (
-            <div key={item.id} className="glass-card-hover overflow-hidden flex flex-col">
-              <div className="h-44 bg-slate-900 relative overflow-hidden flex items-center justify-center">
-                <div className="w-full h-full bg-gradient-to-br from-indigo-900/60 to-slate-900 flex items-center justify-center p-6 text-center">
-                  <span className="text-slate-300 font-bold text-lg leading-tight">{item.title}</span>
-                </div>
-                <div className="absolute top-3 left-3 bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] font-semibold text-indigo-300 border border-indigo-500/20">
-                  {ASSET_TYPE_LABELS[item.asset_type] || item.asset_type}
-                </div>
-              </div>
-              <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-bold text-white text-base">{item.title}</h3>
-                      <p className="text-xs text-slate-400">{item.location || 'Global Location'}</p>
-                    </div>
-                    <WhyPanel
-                      title="Why this rating?"
-                      factors={[
-                        { label: 'Low Fraud Risk', value: '15/100', status: 'positive', explanation: 'Clean AI fraud analysis & verified document history' },
-                        { label: 'Token Liquidity', value: '85/100', status: 'positive', explanation: 'High trading liquidity on secondary marketplace' },
-                        { label: 'Occupancy Rate', value: '100%', status: 'positive', explanation: 'Full occupancy yielding stable quarterly rental returns' },
-                      ]}
-                    />
-                  </div>
-
-                  {/* Trust Score Badges */}
-                  <TrustScoreBadges activeBadges={['legal', 'spv', 'multisig', 'blockchain']} />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs">
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Total Valuation</span>
-                    <span className="font-semibold text-white">{formatCurrency(Number(item.valuation))}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Token Price</span>
-                    <span className="font-semibold text-emerald-400">${item.token_price} / token</span>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setSelectedAsset(item);
-                      setShowPaymentModal(true);
-                    }}
-                    className="btn-primary flex-1 text-xs"
-                  >
-                    <Zap className="w-3.5 h-3.5" /> Buy via UPI/Card
-                  </button>
-                </div>
-              </div>
-            </div>
+      {/* ── Category Chips (quick filter) ── */}
+      {!isLoading && assets.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {categories.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`filter-chip ${selectedCategory === cat ? 'active' : ''}`}
+            >
+              {cat === 'all' ? 'All Assets' : ((ASSET_TYPE_LABELS as any)[cat] ?? cat)}
+            </button>
           ))}
         </div>
       )}
 
-      {/* Payment Success Toast */}
+      {/* ── Grid ── */}
+      {isLoading ? (
+        <SkeletonGrid count={6} showImage />
+      ) : filteredAssets.length === 0 ? (
+        <EmptyState
+          icon={<ShoppingBag className="w-7 h-7" />}
+          title="No assets match your filters"
+          description="Try adjusting your search term or category filter."
+          action={
+            <button
+              onClick={() => { setSearchTerm(''); setSelectedCategory('all'); }}
+              className="btn-ghost text-xs"
+            >
+              Clear filters
+            </button>
+          }
+        />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children animate-slide-up">
+          {filteredAssets.map((item) => (
+            <AssetCard key={item.id} item={item} onBuy={handleBuy} />
+          ))}
+        </div>
+      )}
+
+      {/* ── Payment Success Toast ── */}
       {paymentSuccess && (
-        <div className="fixed bottom-6 right-6 z-50 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2 shadow-xl animate-fade-in">
+        <div className="fixed bottom-6 right-6 z-50 max-w-sm p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2.5 shadow-2xl animate-fade-in">
           <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
           {paymentSuccess}
         </div>
       )}
 
-      {/* Razorpay Payment Modal */}
+      {/* ── Payment Modal ── */}
       {showPaymentModal && selectedAsset && (
         <PaymentModal
           assetId={selectedAsset.id}
@@ -189,7 +319,7 @@ export function Marketplace() {
           onSuccess={(txHash) => {
             setShowPaymentModal(false);
             setSelectedAsset(null);
-            setPaymentSuccess(`✅ ${quantity} tokens of ${selectedAsset?.title} minted! Tx: ${txHash?.slice(0, 12)}...`);
+            setPaymentSuccess(`✅ ${quantity} tokens of ${selectedAsset?.title} minted! Tx: ${txHash?.slice(0, 12)}…`);
             setTimeout(() => setPaymentSuccess(null), 5000);
           }}
           onClose={() => {

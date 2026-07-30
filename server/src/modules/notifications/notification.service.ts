@@ -1,12 +1,12 @@
 import { v4 as uuidv4 } from 'uuid';
+import { Response } from 'express';
 import { supabaseAdmin } from '../../config/database';
 import { env } from '../../config/env';
 import { ServiceUnavailableError } from '../../utils/errors';
 
 /**
  * Notification Service — notification store with Supabase write-through.
- * In development: logs warning on Supabase error and falls back to memory.
- * In production: throws HTTP 503 ServiceUnavailableError if Supabase write fails.
+ * Phase 3.3: Added Server-Sent Events (SSE) push — real-time notifications without polling.
  */
 export type NotificationType =
   | 'kyc_approved' | 'kyc_rejected'
@@ -27,8 +27,21 @@ export interface Notification {
 
 const notificationStore = new Map<string, Notification[]>();
 
+// ─── SSE Subscriber Registry (Phase 3.3) ─────────────────────────────────────
+// Maps userId → Set of active SSE Response objects
+const sseSubscribers = new Map<string, Set<Response>>();
+
 export class NotificationService {
-  async notify(userId: string, type: NotificationType, title: string, message: string, data?: Record<string, any>): Promise<Notification> {
+  /**
+   * Create a notification and push it to all active SSE connections for the user.
+   */
+  async notify(
+    userId: string,
+    type: NotificationType,
+    title: string,
+    message: string,
+    data?: Record<string, any>
+  ): Promise<Notification> {
     const notification: Notification = {
       id: uuidv4(),
       userId,
@@ -42,19 +55,37 @@ export class NotificationService {
 
     const existing = notificationStore.get(userId) || [];
     existing.unshift(notification);
-    // Keep last 50 notifications per user in memory
     notificationStore.set(userId, existing.slice(0, 50));
+
+    // Push to active SSE subscribers (Phase 3.3)
+    this.pushToSSE(userId, notification);
+
+    // Map service-layer type to DB notification_type ENUM
+    // DB ENUM: asset_approved, asset_rejected, investment_confirmed, dao_vote_open,
+    //          profit_distributed, kyc_approved, kyc_rejected, wallet_tx, security_alert
+    const typeMap: Record<NotificationType, string> = {
+      kyc_approved:        'kyc_approved',
+      kyc_rejected:        'kyc_rejected',
+      asset_approved:      'asset_approved',
+      asset_rejected:      'asset_rejected',
+      asset_tokenized:     'asset_approved',      // closest valid DB ENUM
+      dividend_available:  'profit_distributed',
+      proposal_created:    'dao_vote_open',
+      vote_cast:           'dao_vote_open',
+      purchase_confirmed:  'investment_confirmed',
+      fraud_alert:         'security_alert',
+      system:              'security_alert',
+    };
 
     try {
       const { error } = await supabaseAdmin.from('notifications').insert({
         id: notification.id,
         user_id: notification.userId,
-        type: notification.type,
+        type: typeMap[notification.type] ?? 'security_alert',
         title: notification.title,
-        message: notification.message,
-        read: notification.read,
-        data: notification.data,
-        created_at: notification.createdAt,
+        body: notification.message,           // DB col: body (not message)
+        read_status: notification.read,       // DB col: read_status (not read)
+        metadata: notification.data ?? {},   // DB col: metadata (not data)
       });
 
       if (error) {
@@ -74,6 +105,7 @@ export class NotificationService {
     return notification;
   }
 
+
   getNotifications(userId: string): Notification[] {
     return notificationStore.get(userId) || this.getSeedNotifications(userId);
   }
@@ -92,30 +124,70 @@ export class NotificationService {
     return this.getNotifications(userId).filter((n) => !n.read).length;
   }
 
+  // ─── SSE Methods (Phase 3.3) ───────────────────────────────────────────────
+
+  /**
+   * Register an SSE subscriber for a user.
+   * Call when client connects to GET /api/v1/notifications/stream.
+   * Returns a cleanup function to call on connection close.
+   */
+  addSSESubscriber(userId: string, res: Response): () => void {
+    if (!sseSubscribers.has(userId)) {
+      sseSubscribers.set(userId, new Set());
+    }
+    sseSubscribers.get(userId)!.add(res);
+    console.log(`[NotificationService] SSE subscriber added for ${userId}. Active: ${sseSubscribers.get(userId)!.size}`);
+
+    return () => {
+      const subscribers = sseSubscribers.get(userId);
+      if (subscribers) {
+        subscribers.delete(res);
+        if (subscribers.size === 0) sseSubscribers.delete(userId);
+      }
+      console.log(`[NotificationService] SSE subscriber removed for ${userId}`);
+    };
+  }
+
+  /**
+   * Push a notification to all active SSE connections for a user.
+   */
+  private pushToSSE(userId: string, notification: Notification): void {
+    const subscribers = sseSubscribers.get(userId);
+    if (!subscribers || subscribers.size === 0) return;
+
+    const payload = `data: ${JSON.stringify(notification)}\n\n`;
+    const dead = new Set<Response>();
+
+    for (const res of subscribers) {
+      try {
+        res.write(payload);
+      } catch {
+        dead.add(res); // Connection dropped — mark for cleanup
+      }
+    }
+
+    // Remove dead connections
+    for (const d of dead) subscribers.delete(d);
+  }
+
   private getSeedNotifications(userId: string): Notification[] {
     const seeds: Notification[] = [
       {
-        id: uuidv4(),
-        userId,
-        type: 'dividend_available',
+        id: uuidv4(), userId, type: 'dividend_available',
         title: 'Dividend Ready to Claim',
         message: 'You have $350 USDC in unclaimed dividends from Manhattan Commercial Plaza.',
         read: false,
         createdAt: new Date(Date.now() - 3600000).toISOString(),
       },
       {
-        id: uuidv4(),
-        userId,
-        type: 'proposal_created',
+        id: uuidv4(), userId, type: 'proposal_created',
         title: 'New DAO Proposal',
         message: 'A new governance proposal "Install Rooftop Solar Panels" has been created. Your vote matters!',
         read: false,
         createdAt: new Date(Date.now() - 7200000).toISOString(),
       },
       {
-        id: uuidv4(),
-        userId,
-        type: 'kyc_approved',
+        id: uuidv4(), userId, type: 'kyc_approved',
         title: 'KYC Approved',
         message: 'Your identity verification has been approved. You can now participate in all platform activities.',
         read: true,

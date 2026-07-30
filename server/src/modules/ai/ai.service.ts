@@ -21,16 +21,30 @@ import { aiObservabilityService } from './ai.observability';
 const genAI = env.GEMINI_API_KEY ? new GoogleGenerativeAI(env.GEMINI_API_KEY) : null;
 let geminiRateLimitedUntil = 0;
 
+// In-memory AI response cache (promptHash -> { response, expiresAt })
+const aiCache = new Map<string, { response: any; expiresAt: number }>();
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes cache
+
 /**
  * Call Gemini with a structured prompt, parse JSON response.
- * Falls back gracefully to mock if API key not configured or during 429 rate limit backoff window.
+ * Utilizes an in-memory cache and falls back gracefully to mock if API key not configured or during 429 backoff.
  */
 async function callGemini(prompt: string, mockResponse: object, endpointName = '/ai/copilot'): Promise<any> {
   const startTime = Date.now();
+
+  // 1. Check in-memory cache
+  const cached = aiCache.get(prompt);
+  if (cached && cached.expiresAt > Date.now()) {
+    aiObservabilityService.logEvent(endpointName, 'cache_hit', Date.now() - startTime, 'success', undefined, 50);
+    return cached.response;
+  }
+
+  // 2. Rate limit backoff check
   if (!genAI || Date.now() < geminiRateLimitedUntil) {
     aiObservabilityService.logEvent(endpointName, 'fallback', Date.now() - startTime, 'success', undefined, 250);
     return mockResponse;
   }
+
   try {
     const model = genAI.getGenerativeModel({
       model: 'gemini-2.0-flash',
@@ -38,13 +52,17 @@ async function callGemini(prompt: string, mockResponse: object, endpointName = '
     });
     const result = await model.generateContent(prompt);
     const parsed = JSON.parse(result.response.text());
+
+    // Cache successful response
+    aiCache.set(prompt, { response: parsed, expiresAt: Date.now() + CACHE_TTL_MS });
+
     aiObservabilityService.logEvent(endpointName, 'gemini', Date.now() - startTime, 'success', undefined, 450);
     return parsed;
   } catch (error: any) {
     if (error?.status === 429 || error?.message?.includes('429')) {
       geminiRateLimitedUntil = Date.now() + 30000; // 30s rate limit backoff
     }
-    console.warn('[AIService] Gemini call failed, using mock response:', error);
+    console.warn('[AIService] Gemini call failed, using mock response:', error.message || error);
     aiObservabilityService.logEvent(endpointName, 'fallback', Date.now() - startTime, 'success', error.message, 300);
     return mockResponse;
   }

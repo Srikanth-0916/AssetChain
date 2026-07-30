@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import {
   TrendingUp, Building2, ShieldAlert, Wallet, Coins, ArrowUpRight,
   Vote, PlusCircle, FileCheck2, Sparkles, Star, Heart, Activity,
-  Trophy, ChevronRight, ArrowRight, BarChart3, Receipt, Map, Shield
+  Trophy, ChevronRight, ArrowRight, BarChart3, Receipt, Map, Shield, Users, Cpu
 } from 'lucide-react';
 import { formatCurrency, truncateAddress } from '../lib/utils';
 import { ContextualAITip } from '../components/trust/ContextualAITip';
@@ -157,6 +157,56 @@ export function Dashboard() {
       </div>
 
       {/* ──────────────────────────────────────────────
+          WEB3 ATTRACTION FEATURES ROW
+      ────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Link to="/lending" className="stat-card p-4 hover:border-emerald-500/40 transition-all group">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
+              <Coins className="w-5 h-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-bold text-white flex items-center justify-between">
+                <span>RWA Collateral Vault</span>
+                <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full font-bold">New</span>
+              </div>
+              <p className="text-[11px] text-slate-400 truncate mt-0.5">Borrow USDC instantly against asset tokens</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link to="/copy-trading" className="stat-card p-4 hover:border-amber-500/40 transition-all group">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
+              <Users className="w-5 h-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-bold text-white flex items-center justify-between">
+                <span>1-Click Copy Trading</span>
+                <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full font-bold">+34.2%</span>
+              </div>
+              <p className="text-[11px] text-slate-400 truncate mt-0.5">Replicate top accredited investor portfolios</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link to="/oracles" className="stat-card p-4 hover:border-cyan-500/40 transition-all group">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 group-hover:scale-110 transition-transform">
+              <Cpu className="w-5 h-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-bold text-white flex items-center justify-between">
+                <span>Chainlink IoT Oracles</span>
+                <span className="text-[10px] text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full font-bold">Live</span>
+              </div>
+              <p className="text-[11px] text-slate-400 truncate mt-0.5">Real-time solar output & occupancy feeds</p>
+            </div>
+          </div>
+        </Link>
+      </div>
+
+      {/* ──────────────────────────────────────────────
           AI INSIGHT + QUICK ACTIONS (2-col)
       ────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -265,7 +315,7 @@ export function Dashboard() {
       </div>
 
       {/* ── Trust Journey ── */}
-      <TrustJourney completedSteps={['account', 'kyc', 'first_inv', 'diversified', 'rental']} />
+      <TrustJourney />
 
     </div>
   );

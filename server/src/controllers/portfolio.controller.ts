@@ -5,7 +5,7 @@ import { sendSuccess } from '../utils/response';
 export class PortfolioController {
   async getPortfolio(req: Request, res: Response, next: NextFunction) {
     try {
-      const portfolio = await portfolioService.getPortfolio(req.user!.userId);
+      const portfolio = await portfolioService.getPortfolio(req.user!.userId, req.user?.walletAddress);
       sendSuccess(res, portfolio);
     } catch (error) {
       next(error);

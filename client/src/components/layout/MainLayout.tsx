@@ -1,13 +1,19 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { OnboardingWalkthrough } from '../trust/OnboardingWalkthrough';
 
 export function MainLayout() {
+  const { pathname } = useLocation();
+
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 selection:bg-indigo-600 selection:text-white">
+    <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1">
+      <main
+        key={pathname}
+        className="flex-1 animate-fade-in"
+        style={{ animationDuration: '0.3s' }}
+      >
         <Outlet />
       </main>
       <Footer />
@@ -15,3 +21,4 @@ export function MainLayout() {
     </div>
   );
 }
+

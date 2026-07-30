@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { createHash } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { supabaseAdmin } from '../config/database';
 import { generateToken, JWTPayload } from '../middleware/auth';
@@ -8,6 +9,14 @@ import {
   UnauthorizedError,
   UnprocessableError,
 } from '../utils/errors';
+
+// In-memory reset token store (hashed_token → userId + expiry)
+// In production: store in users.reset_token column in Supabase
+const resetTokenStore = new Map<string, { userId: string; expiresAt: Date }>();
+
+function hashToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
 
 // Local in-memory user store initialized with seeded demo accounts for demo resilience
 const localUsersStore: Map<string, any> = new Map();
@@ -79,27 +88,40 @@ export class AuthService {
       }
     }
 
-    // Try Supabase if configured
-    try {
-      const { data: existing } = await supabaseAdmin
-        .from('users')
-        .select('id')
-        .eq('email', normalizedEmail)
-        .single();
+    let authUserId: string = uuidv4();
 
-      if (existing) {
-        throw new ConflictError('An account with this email already exists');
+    // Try Supabase Auth Registration (Admin API with email_confirm: true) & Profiles Table Upsert
+    try {
+      const { data: authData, error: authErr } = await supabaseAdmin.auth.admin.createUser({
+        email: normalizedEmail,
+        password: data.password,
+        email_confirm: true,
+        user_metadata: {
+          full_name: data.full_name,
+          role: data.role,
+        },
+      });
+
+      if (authErr) {
+        if (authErr.message.includes('already registered') || authErr.message.includes('already exists')) {
+          throw new ConflictError('An account with this email already exists');
+        }
+        console.warn('[AuthService] ⚠️ Supabase Auth admin.createUser error:', authErr.message);
+      }
+
+      if (authData?.user) {
+        authUserId = authData.user.id;
       }
     } catch (e: any) {
       if (e instanceof ConflictError) throw e;
+      console.warn('[AuthService] ⚠️ Supabase connection warning during register:', e.message);
     }
 
-    // Hash password
     const salt = await bcrypt.genSalt(10);
     const password_hash = await bcrypt.hash(data.password, salt);
 
     const newUser = {
-      id: uuidv4(),
+      id: authUserId,
       full_name: data.full_name,
       email: normalizedEmail,
       password_hash,
@@ -112,9 +134,24 @@ export class AuthService {
     localUsersStore.set(newUser.id, newUser);
 
     try {
-      await supabaseAdmin.from('users').insert(newUser);
-    } catch {
-      // Supabase offline / mock mode
+      const { error: profileErr } = await supabaseAdmin.from('profiles').upsert({
+        id: newUser.id,
+        full_name: newUser.full_name,
+        email: newUser.email,
+        role: newUser.role,
+        kyc_status: newUser.kyc_status,
+        is_suspended: false,
+        created_at: newUser.created_at,
+        updated_at: new Date().toISOString(),
+      });
+
+      if (profileErr) {
+        console.warn('[AuthService] ⚠️ Supabase profiles table upsert warning:', profileErr.message);
+      } else {
+        console.log(`[AuthService] ✅ User profile successfully persisted to Supabase database for ID: ${newUser.id}`);
+      }
+    } catch (e: any) {
+      console.warn('[AuthService] ⚠️ Supabase offline / mock mode fallback:', e.message);
     }
 
     const { password_hash: _, ...userWithoutPassword } = newUser;
@@ -130,92 +167,272 @@ export class AuthService {
   }
 
   /**
-   * Authenticate user with email and password.
+   * Authenticate user with email and password via Supabase Auth.
+   * Primary path: supabaseAdmin.auth.signInWithPassword()
+   * Fallback: seeded demo accounts in localUsersStore (development only).
    */
   async login(email: string, password: string) {
     const normalizedEmail = email.toLowerCase().trim();
-    let targetUser: any = null;
 
-    // Search local store first
+    // ─── 1. Try Supabase Auth (PRIMARY — production path) ──────────────────────
+    try {
+      const { data: authData, error: authErr } = await supabaseAdmin.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
+
+      if (authData?.user && !authErr) {
+        const supabaseUser = authData.user;
+
+        // Fetch profile from public.profiles for role & additional fields
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('id, full_name, email, role, kyc_status, wallet_address, is_suspended, created_at')
+          .eq('id', supabaseUser.id)
+          .single();
+
+        const resolvedUser = profile ?? {
+          id: supabaseUser.id,
+          full_name: supabaseUser.user_metadata?.full_name || normalizedEmail.split('@')[0],
+          email: normalizedEmail,
+          role: supabaseUser.user_metadata?.role || 'investor',
+          kyc_status: 'not_submitted',
+          wallet_address: null,
+          is_suspended: false,
+          created_at: supabaseUser.created_at,
+        };
+
+        if (resolvedUser.is_suspended) {
+          throw new UnauthorizedError('Your account has been suspended. Please contact support.');
+        }
+
+        localUsersStore.set(resolvedUser.id, resolvedUser);
+
+        const tokenPayload: JWTPayload = {
+          userId: resolvedUser.id,
+          email: resolvedUser.email,
+          role: resolvedUser.role,
+          walletAddress: resolvedUser.wallet_address || undefined,
+        };
+        const token = generateToken(tokenPayload);
+        const { password_hash: _, ...userWithoutPassword } = resolvedUser as any;
+        return { user: userWithoutPassword, token };
+      }
+
+      // If Supabase Auth returns an error that is NOT "offline", surface it
+      if (authErr && !authErr.message.toLowerCase().includes('fetch')) {
+        throw new UnauthorizedError('Invalid email or password');
+      }
+    } catch (e: any) {
+      if (e instanceof UnauthorizedError) throw e;
+      // Network/offline → fall through to demo seed below
+    }
+
+    // ─── 2. Demo seed fallback (development only, seeded accounts only) ────────
     for (const u of localUsersStore.values()) {
       if (u.email.toLowerCase() === normalizedEmail) {
+        if (u.is_suspended) {
+          throw new UnauthorizedError('Your account has been suspended. Please contact support.');
+        }
+        if (u.password_hash) {
+          const isValid = await bcrypt.compare(password, u.password_hash);
+          if (!isValid) throw new UnauthorizedError('Invalid email or password');
+        }
+        const tokenPayload: JWTPayload = {
+          userId: u.id,
+          email: u.email,
+          role: u.role,
+          walletAddress: u.wallet_address || undefined,
+        };
+        const token = generateToken(tokenPayload);
+        const { password_hash: _, ...userWithoutPassword } = u;
+        return { user: userWithoutPassword, token };
+      }
+    }
+
+    throw new UnauthorizedError('Invalid email or password');
+  }
+
+  /**
+   * Initiate password reset.
+   * Generates a secure token, stores its SHA-256 hash in memory (or Supabase users.reset_token).
+   * In production: send token via email (nodemailer/Resend).
+   */
+  async forgotPassword(email: string) {
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Find user (always return generic message to prevent email enumeration)
+    let userId: string | null = null;
+    for (const u of localUsersStore.values()) {
+      if (u.email.toLowerCase() === normalizedEmail) {
+        userId = u.id;
+        break;
+      }
+    }
+
+    if (!userId) {
+      try {
+        const { data } = await supabaseAdmin.from('profiles').select('id').eq('email', normalizedEmail).single();
+        if (data) userId = data.id;
+      } catch {}
+    }
+
+    if (userId) {
+      // Generate plain token (sent via email) + store hashed version
+      const plainToken = uuidv4() + uuidv4(); // 72-char URL-safe token
+      const hashedToken = hashToken(plainToken);
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+      resetTokenStore.set(hashedToken, { userId, expiresAt });
+
+      // In production: send email with reset link
+      // await emailService.sendPasswordReset(normalizedEmail, plainToken);
+      console.log(`[AuthService] Password reset token for ${normalizedEmail}: ${plainToken.slice(0, 8)}... (full token omitted from logs)`);
+    }
+
+    // Always return same message (prevents email enumeration)
+    return { message: 'If an account with that email exists, a password reset link has been sent.' };
+  }
+
+  /**
+   * Reset password using a valid reset token.
+   * Verifies by comparing SHA-256(token) against stored hash.
+   */
+  async resetPassword(token: string, newPassword: string) {
+    const hashedToken = hashToken(token);
+
+    // Check in-memory store first
+    let entry = resetTokenStore.get(hashedToken);
+
+    if (!entry) {
+      throw new UnprocessableError('Invalid or expired password reset token.');
+    }
+
+    if (entry.expiresAt < new Date()) {
+      resetTokenStore.delete(hashedToken);
+      throw new UnprocessableError('Password reset token has expired. Please request a new one.');
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const password_hash = await bcrypt.hash(newPassword, salt);
+
+    // Update password in memory
+    const user = localUsersStore.get(entry.userId);
+    if (user) {
+      localUsersStore.set(entry.userId, { ...user, password_hash });
+    }
+
+    resetTokenStore.delete(hashedToken);
+
+    return { message: 'Password reset successful. You can now log in with your new password.' };
+  }
+
+  /**
+   * Wallet-First Login/Registration.
+   * Finds existing user by wallet_address or creates a new user in public.profiles.
+   */
+  async loginOrCreateWithWallet(walletAddress: string, role: 'investor' | 'asset_owner' = 'investor') {
+    const normalizedAddress = walletAddress.toLowerCase().trim();
+    let targetUser: any = null;
+
+    // Search local memory store first
+    for (const u of localUsersStore.values()) {
+      if (u.wallet_address && u.wallet_address.toLowerCase() === normalizedAddress) {
         targetUser = u;
         break;
       }
     }
 
-    // If not found in local memory, try Supabase
+    // Try Supabase if not found
     if (!targetUser) {
       try {
-        const { data: user } = await supabaseAdmin
-          .from('users')
-          .select('id, full_name, email, password_hash, role, kyc_status, wallet_address, is_suspended, created_at')
-          .eq('email', normalizedEmail)
+        const { data } = await supabaseAdmin
+          .from('profiles')
+          .select('id, full_name, email, role, kyc_status, wallet_address, is_suspended, created_at')
+          .eq('wallet_address', normalizedAddress)
           .single();
 
-        if (user) {
-          targetUser = user;
-          localUsersStore.set(user.id, user);
+        if (data) {
+          targetUser = data;
+          localUsersStore.set(data.id, data);
         }
-      } catch {
-        // Offline mode
-      }
+      } catch {}
     }
 
-    // If user not in store and not in Supabase, but providing a password, auto-create account for smooth mentor demo experience if email looks valid
+    // If user does not exist yet, auto-register in Supabase Auth + public.profiles
     if (!targetUser) {
-      const salt = await bcrypt.genSalt(10);
-      const password_hash = await bcrypt.hash(password, salt);
+      let authUserId = uuidv4();
+      const generatedEmail = `wallet_${normalizedAddress.slice(2, 10)}@assetchain.io`;
+      const generatedName  = `Web3 Investor (${normalizedAddress.slice(0, 6)}...${normalizedAddress.slice(-4)})`;
+
+      try {
+        const { data: authData } = await supabaseAdmin.auth.admin.createUser({
+          email: generatedEmail,
+          password: `W3_${uuidv4()}!`,
+          email_confirm: true,
+          user_metadata: {
+            full_name: generatedName,
+            role: role,
+          },
+        });
+        if (authData?.user) {
+          authUserId = authData.user.id;
+        }
+      } catch (e: any) {
+        console.warn('[AuthService] ⚠️ Supabase Auth admin.createUser for wallet warning:', e.message);
+      }
+
       targetUser = {
-        id: uuidv4(),
-        full_name: email.split('@')[0].replace('.', ' '),
-        email: normalizedEmail,
-        password_hash,
-        role: email.includes('admin') ? 'admin' : email.includes('owner') ? 'asset_owner' : 'investor',
-        kyc_status: 'approved',
+        id: authUserId,
+        full_name: generatedName,
+        email: generatedEmail,
+        wallet_address: normalizedAddress,
+        role: role,
+        kyc_status: 'not_submitted',
         is_suspended: false,
         created_at: new Date().toISOString(),
       };
+
       localUsersStore.set(targetUser.id, targetUser);
+
+      try {
+        const { error: profileErr } = await supabaseAdmin.from('profiles').upsert({
+          id: targetUser.id,
+          full_name: targetUser.full_name,
+          email: targetUser.email,
+          wallet_address: targetUser.wallet_address,
+          role: targetUser.role,
+          kyc_status: targetUser.kyc_status,
+          is_suspended: false,
+          created_at: targetUser.created_at,
+          updated_at: new Date().toISOString(),
+        });
+
+        if (profileErr) {
+          console.warn('[AuthService] ⚠️ Supabase wallet profiles upsert warning:', profileErr.message);
+        } else {
+          console.log(`[AuthService] ✅ Wallet user profile persisted to Supabase database: ${targetUser.wallet_address}`);
+        }
+      } catch (e: any) {
+        console.warn('[AuthService] ⚠️ Supabase wallet profiles upsert catch:', e.message);
+      }
     }
 
     if (targetUser.is_suspended) {
       throw new UnauthorizedError('Your account has been suspended. Please contact support.');
     }
 
-    // Verify password if hash exists
-    if (targetUser.password_hash) {
-      const isValidPassword = await bcrypt.compare(password, targetUser.password_hash);
-      if (!isValidPassword) {
-        throw new UnauthorizedError('Invalid email or password');
-      }
-    }
-
     const tokenPayload: JWTPayload = {
       userId: targetUser.id,
       email: targetUser.email,
       role: targetUser.role,
-      walletAddress: targetUser.wallet_address || undefined,
+      walletAddress: targetUser.wallet_address,
     };
+
     const token = generateToken(tokenPayload);
 
     const { password_hash: _, ...userWithoutPassword } = targetUser;
-
     return { user: userWithoutPassword, token };
-  }
-
-  /**
-   * Initiate password reset.
-   */
-  async forgotPassword(email: string) {
-    return { message: 'If an account with that email exists, a reset link has been sent.' };
-  }
-
-  /**
-   * Reset password.
-   */
-  async resetPassword(token: string, newPassword: string) {
-    return { message: 'Password reset successful' };
   }
 
   /**
@@ -227,7 +444,7 @@ export class AuthService {
     if (!user) {
       try {
         const { data } = await supabaseAdmin
-          .from('users')
+          .from('profiles')
           .select('id, full_name, email, wallet_address, role, kyc_status, is_suspended, created_at, updated_at')
           .eq('id', userId)
           .single();

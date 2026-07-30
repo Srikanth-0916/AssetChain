@@ -145,9 +145,34 @@ export function Analytics() {
 
   if (isLoading && !data) {
     return (
-      <div className="flex items-center justify-center py-32 flex-col gap-4">
-        <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs text-slate-400">Loading platform analytics...</p>
+      <div className="max-w-[1320px] mx-auto px-4 lg:px-8 py-10 space-y-8 animate-fade-in">
+        {/* Header skeleton */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="skeleton w-11 h-11 rounded-xl" />
+            <div>
+              <div className="skeleton w-44 h-5 rounded mb-2" />
+              <div className="skeleton w-64 h-3 rounded" />
+            </div>
+          </div>
+          <div className="skeleton w-24 h-9 rounded-xl" />
+        </div>
+        {/* KPI skeleton */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="stat-card space-y-3">
+              <div className="skeleton w-24 h-3 rounded" />
+              <div className="skeleton w-32 h-6 rounded" />
+              <div className="skeleton w-16 h-3 rounded" />
+            </div>
+          ))}
+        </div>
+        {/* Charts skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="skeleton-card h-64" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -155,19 +180,24 @@ export function Analytics() {
   const ov = data?.overview || {};
 
   return (
-    <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10 space-y-8 animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Platform Analytics</h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Real-time intelligence dashboard · Last updated: {lastRefresh.toLocaleTimeString()}
-          </p>
+    <div className="max-w-[1320px] mx-auto px-4 lg:px-8 py-10 space-y-8 animate-fade-in">
+      {/* ── Page Header ── */}
+      <div className="page-header">
+        <div className="page-header-left">
+          <div className="page-header-icon bg-indigo-500/10 border border-indigo-500/20">
+            <BarChart3 className="w-5 h-5 text-indigo-400" />
+          </div>
+          <div>
+            <h1 className="page-title">Platform Analytics</h1>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Real-time intelligence · Updated {lastRefresh.toLocaleTimeString()}
+            </p>
+          </div>
         </div>
         <button
           onClick={load}
           disabled={isLoading}
-          className="btn-secondary text-xs py-2 px-4"
+          className="btn-secondary text-xs"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
           Refresh
@@ -177,17 +207,17 @@ export function Analytics() {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Total Value Locked', value: formatCurrency(ov.totalValueLocked), icon: <DollarSign className="w-4 h-4" />, change: '+12.4%', up: true, color: 'indigo' },
-          { label: 'Total Assets', value: `${ov.totalAssets || 0} Listed`, icon: <Building2 className="w-4 h-4" />, change: `${ov.tokenizedAssets || 0} Tokenized`, up: true, color: 'emerald' },
-          { label: 'Platform Users', value: `${ov.totalUsers || 0} Registered`, icon: <Users className="w-4 h-4" />, change: `${ov.activeInvestors || 0} Investors`, up: true, color: 'purple' },
-          { label: 'Platform Revenue', value: formatCurrency(ov.totalPlatformRevenue), icon: <TrendingUp className="w-4 h-4" />, change: '2.5% fee rate', up: true, color: 'amber' },
+          { label: 'Total Value Locked', value: formatCurrency(ov.totalValueLocked), icon: <DollarSign className="w-4 h-4" />, change: '+12.4%', up: true, color: 'text-indigo-400' },
+          { label: 'Total Assets', value: `${ov.totalAssets || 0} Listed`, icon: <Building2 className="w-4 h-4" />, change: `${ov.tokenizedAssets || 0} Tokenized`, up: true, color: 'text-emerald-400' },
+          { label: 'Platform Users', value: `${ov.totalUsers || 0} Registered`, icon: <Users className="w-4 h-4" />, change: `${ov.activeInvestors || 0} Investors`, up: true, color: 'text-violet-400' },
+          { label: 'Platform Revenue', value: formatCurrency(ov.totalPlatformRevenue), icon: <TrendingUp className="w-4 h-4" />, change: '2.5% fee rate', up: true, color: 'text-amber-400' },
         ].map((kpi) => (
-          <div key={kpi.label} className="glass-card p-5 space-y-3">
-            <div className="flex items-center justify-between text-slate-400 text-xs">
-              <span>{kpi.label}</span>
-              <span className={`text-${kpi.color}-400`}>{kpi.icon}</span>
+          <div key={kpi.label} className="stat-card">
+            <div className="flex items-center justify-between mb-3">
+              <span className="section-subheader">{kpi.label}</span>
+              <span className={kpi.color}>{kpi.icon}</span>
             </div>
-            <div className="text-xl font-bold text-white">{kpi.value}</div>
+            <div className="text-xl font-bold text-white mb-1">{kpi.value}</div>
             <div className={`text-[11px] flex items-center gap-1 ${kpi.up ? 'text-emerald-400' : 'text-red-400'}`}>
               {kpi.up ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
               {kpi.change}
