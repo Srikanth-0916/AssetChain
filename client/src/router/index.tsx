@@ -20,7 +20,14 @@ const NotFound          = lazy(() => import('../pages/NotFound').then(m => ({ de
 const PrivacyCenter     = lazy(() => import('../pages/PrivacyCenter').then(m => ({ default: m.PrivacyCenter })));
 const SecurityCenter    = lazy(() => import('../pages/SecurityCenter').then(m => ({ default: m.SecurityCenter })));
 
-// ─── New pages ─────────────────────────────────────────────────────────────────
+// ─── Dedicated RBAC Role Workspaces ────────────────────────────────────────────
+const InvestorDashboard   = lazy(() => import('../pages/InvestorDashboard').then(m => ({ default: m.InvestorDashboard })));
+const OwnerDashboard      = lazy(() => import('../pages/OwnerDashboard').then(m => ({ default: m.OwnerDashboard })));
+const LegalDashboard      = lazy(() => import('../pages/LegalDashboard').then(m => ({ default: m.LegalDashboard })));
+const ComplianceDashboard = lazy(() => import('../pages/ComplianceDashboard').then(m => ({ default: m.ComplianceDashboard })));
+const AuditorDashboard    = lazy(() => import('../pages/AuditorDashboard').then(m => ({ default: m.AuditorDashboard })));
+
+// ─── Investor Experience Pages ─────────────────────────────────────────
 const RewardsCenter     = lazy(() => import('../pages/RewardsCenter').then(m => ({ default: m.RewardsCenter })));
 const AchievementCenter = lazy(() => import('../pages/AchievementCenter').then(m => ({ default: m.AchievementCenter })));
 const ActivityTimeline  = lazy(() => import('../pages/ActivityTimeline').then(m => ({ default: m.ActivityTimeline })));
@@ -35,7 +42,7 @@ function RouteLoader() {
   return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-3">
       <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
-      <p className="text-sm text-slate-400 font-medium">Loading module...</p>
+      <p className="text-sm text-slate-400 font-medium">Loading RBAC Workspace Module...</p>
     </div>
   );
 }
@@ -61,7 +68,7 @@ export const router = createBrowserRouter([
       { path: 'marketplace',      element: <Marketplace /> },
       { path: 'security',         element: <SecurityCenter /> },
 
-      // ─── Protected: All authenticated users ───────────────────────────────
+      // ─── Shared Base Protected Routes ─────────────────────────────────────────
       {
         path: 'dashboard',
         element: <ProtectedRoute><Dashboard /></ProtectedRoute>,
@@ -79,7 +86,29 @@ export const router = createBrowserRouter([
         element: <ProtectedRoute><PrivacyCenter /></ProtectedRoute>,
       },
 
-      // ─── NEW: Investor Experience Pages ───────────────────────────────────
+      // ─── Dedicated RBAC Role Workspaces ─────────────────────────────────────
+      {
+        path: 'investor',
+        element: <ProtectedRoute requiredRoles={['investor', 'admin']}><InvestorDashboard /></ProtectedRoute>,
+      },
+      {
+        path: 'owner',
+        element: <ProtectedRoute requiredRoles={['asset_owner', 'admin']}><OwnerDashboard /></ProtectedRoute>,
+      },
+      {
+        path: 'legal',
+        element: <ProtectedRoute requiredRoles={['legal_reviewer', 'admin']}><LegalDashboard /></ProtectedRoute>,
+      },
+      {
+        path: 'compliance',
+        element: <ProtectedRoute requiredRoles={['compliance_officer', 'compliance', 'admin']}><ComplianceDashboard /></ProtectedRoute>,
+      },
+      {
+        path: 'auditor',
+        element: <ProtectedRoute requiredRoles={['auditor', 'admin']}><AuditorDashboard /></ProtectedRoute>,
+      },
+
+      // ─── Investor Experience Pages ───────────────────────────────────────────
       {
         path: 'rewards',
         element: <ProtectedRoute><RewardsCenter /></ProtectedRoute>,
@@ -113,23 +142,23 @@ export const router = createBrowserRouter([
         element: <ProtectedRoute><OracleIoTValuation /></ProtectedRoute>,
       },
 
-      // ─── Protected: Asset Owner ────────────────────────────────────────────
+      // ─── Asset Owner Onboarding ──────────────────────────────────────────────
       {
         path: 'assets/create',
-        element: <ProtectedRoute requiredRoles={['asset_owner']}><CreateAsset /></ProtectedRoute>,
+        element: <ProtectedRoute requiredRoles={['asset_owner', 'admin']}><CreateAsset /></ProtectedRoute>,
       },
       {
         path: 'my-assets',
-        element: <ProtectedRoute requiredRoles={['asset_owner']}><Dashboard /></ProtectedRoute>,
+        element: <ProtectedRoute requiredRoles={['asset_owner', 'admin']}><OwnerDashboard /></ProtectedRoute>,
       },
 
-      // ─── Protected: Investor & Asset Owner ────────────────────────────────
+      // ─── Investor & Asset Owner Portfolio ────────────────────────────────────
       {
         path: 'portfolio',
-        element: <ProtectedRoute requiredRoles={['investor', 'asset_owner']}><Portfolio /></ProtectedRoute>,
+        element: <ProtectedRoute requiredRoles={['investor', 'asset_owner', 'admin']}><Portfolio /></ProtectedRoute>,
       },
 
-      // ─── Protected: Admin only ─────────────────────────────────────────────
+      // ─── Admin Workspace ─────────────────────────────────────────────────────
       {
         path: 'admin',
         element: <ProtectedRoute requiredRoles={['admin']}><AdminPanel /></ProtectedRoute>,

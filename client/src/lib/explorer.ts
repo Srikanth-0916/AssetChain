@@ -18,8 +18,14 @@ export const getExplorerAddressLink = (address: string): string => {
   return `${POLYGON_AMOY_EXPLORER_BASE}/address/${address}`;
 };
 
+/** Check if a transaction hash is a real on-chain EVM transaction (0x + 64 hex chars) */
+export const isRealOnChainTx = (txHash: string | undefined | null): boolean => {
+  if (!txHash) return false;
+  return /^0x[a-fA-F0-9]{64}$/.test(txHash);
+};
+
 export const getExplorerTxLink = (txHash: string): string => {
-  if (!txHash) return POLYGON_AMOY_EXPLORER_BASE;
+  if (!txHash || !isRealOnChainTx(txHash)) return POLYGON_AMOY_EXPLORER_BASE;
   return `${POLYGON_AMOY_EXPLORER_BASE}/tx/${txHash}`;
 };
 

@@ -16,6 +16,15 @@ import routes from './routes';
 export function createApp() {
   const app = express();
 
+  // ─── Disable ETag & HTTP Caching (Prevents HTTP 304 Not Modified) ────────
+  app.disable('etag');
+  app.use((_req, res, next) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    next();
+  });
+
   // ─── Request ID (Module 12) ───────────────────────────────────────────────
   app.use(requestIdMiddleware);
 

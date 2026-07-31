@@ -59,9 +59,10 @@ export function Login() {
         params: [nonce, targetAddress],
       });
 
-      // 4. Verify signature & login/register user (user_id primary key preserved)
+      // 4. Verify signature & login/register user
       await loginWithWallet(targetAddress, signature, 'investor');
-      navigate('/dashboard');
+      const currentUser = authService.getMe().catch(() => null);
+      navigate('/investor');
     } catch (err: any) {
       console.error('[WalletAuth] Error:', err);
       setError(err.message || 'Wallet signature verification failed. Please try again.');
@@ -77,7 +78,10 @@ export function Login() {
     setIsEmailAuth(true);
     try {
       await login({ email, password });
-      navigate('/dashboard');
+      const userJSON = localStorage.getItem('assetchain_user');
+      const parsed = userJSON ? JSON.parse(userJSON) : null;
+      const targetPath = parsed?.role ? (parsed.role === 'admin' ? '/admin' : parsed.role === 'asset_owner' ? '/owner' : parsed.role === 'legal_reviewer' ? '/legal' : parsed.role === 'compliance_officer' ? '/compliance' : parsed.role === 'auditor' ? '/auditor' : '/investor') : '/investor';
+      navigate(targetPath);
     } catch (err: any) {
       setError(err.message || 'Invalid credentials. Please try again.');
     } finally {

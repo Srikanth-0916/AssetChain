@@ -15,7 +15,7 @@ TrustChain AI enables fractional ownership of physical real-world assets — com
 | Subsystem | Development Behavior (`NODE_ENV=development`) | Production Behavior (`NODE_ENV=production`) | Security Controls |
 |-----------|---------------------------------------------|--------------------------------------------|-------------------|
 | **Audit Service** | In-memory + Supabase write warning | Fail-Close (HTTP 503 on DB error) | Append-only log, critical alerts |
-| **Approval Workflow** | 2-of-3 multi-sig policy engine | Fail-Close (HTTP 503 on DB error) | Role validation, duplicate vote block |
+| **Approval Workflow** | 2-of-3 policy engine (Off-chain default) | Fail-Close (HTTP 503 on DB error) | Role validation, duplicate vote block. By default (when `GNOSIS_SAFE_ADDRESS` is not configured), operates in Off-Chain Policy Engine Mode. |
 | **Compliance Engine** | In-memory + Supabase write-through | Fail-Close (HTTP 503 on DB error) | ERC-3643 whitelist, KYC status codes |
 | **Document Encryption** | AES-256-GCM Authenticated Enc. | AES-256-GCM Authenticated Enc. | 96-bit random IV, 128-bit auth tag |
 | **Prompt Injection Protection** | 18 regex patterns + Unicode strip | 18 regex patterns + Unicode strip | Auto +30 fraud score, manual review |

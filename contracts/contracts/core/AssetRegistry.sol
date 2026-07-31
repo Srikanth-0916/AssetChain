@@ -11,6 +11,7 @@ import "./AssetTokenFactory.sol";
  */
 contract AssetRegistry is AccessControl, Pausable {
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    bytes32 public constant VERIFIER_ROLE = keccak256("VERIFIER_ROLE");
 
     enum AssetStatus { Pending, UnderReview, Approved, Rejected, Tokenized }
 
@@ -29,9 +30,16 @@ contract AssetRegistry is AccessControl, Pausable {
         uint256 legalEntityId;
     }
 
+    struct VoteState {
+        uint256 approvals;
+        uint256 rejections;
+    }
+
     mapping(uint256 => Asset) public assets;
     uint256 public assetCount;
     mapping(address => uint256[]) public ownerAssets;
+    mapping(uint256 => VoteState) public assetVoteState;
+    mapping(uint256 => mapping(address => bool)) public hasVotedOnAsset;
 
     AssetTokenFactory public immutable factory;
 
@@ -39,12 +47,14 @@ contract AssetRegistry is AccessControl, Pausable {
     event AssetStatusChanged(uint256 indexed assetId, AssetStatus oldStatus, AssetStatus newStatus);
     event AssetTokenized(uint256 indexed assetId, address tokenContract);
     event SPVDetailsUpdated(uint256 indexed assetId, string spvReference, uint256 legalEntityId);
+    event ApprovalVoted(uint256 indexed assetId, address indexed voter, bool approve, uint256 currentApprovals);
 
     constructor(address admin, address factoryAddress) {
         require(admin != address(0), "Invalid admin");
         require(factoryAddress != address(0), "Invalid factory");
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(ADMIN_ROLE, admin);
+        _grantRole(VERIFIER_ROLE, admin);
         factory = AssetTokenFactory(factoryAddress);
     }
 
@@ -101,6 +111,41 @@ contract AssetRegistry is AccessControl, Pausable {
         }
 
         emit AssetStatusChanged(assetId, oldStatus, newStatus);
+    }
+
+    /**
+     * @notice Direct on-chain multi-sig approval vote by an authorized verifier/admin wallet.
+     * @dev Enforces 2-of-3 threshold directly in smart contract state.
+     */
+    function voteApproval(uint256 assetId, bool approve) external whenNotPaused {
+        require(
+            hasRole(VERIFIER_ROLE, msg.sender) || hasRole(ADMIN_ROLE, msg.sender) || hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
+            "Caller is not an authorized verifier"
+        );
+        require(assetId > 0 && assetId <= assetCount, "Asset does not exist");
+        Asset storage asset = assets[assetId];
+        require(asset.status == AssetStatus.Pending || asset.status == AssetStatus.UnderReview, "Asset is not pending review");
+        require(!hasVotedOnAsset[assetId][msg.sender], "Voter has already cast vote on this asset");
+
+        hasVotedOnAsset[assetId][msg.sender] = true;
+        VoteState storage state = assetVoteState[assetId];
+
+        if (approve) {
+            state.approvals++;
+        } else {
+            state.rejections++;
+        }
+
+        emit ApprovalVoted(assetId, msg.sender, approve, state.approvals);
+
+        if (state.approvals >= 2 && asset.status != AssetStatus.Approved) {
+            asset.status = AssetStatus.Approved;
+            asset.verifiedAt = block.timestamp;
+            emit AssetStatusChanged(assetId, AssetStatus.Pending, AssetStatus.Approved);
+        } else if (state.rejections >= 2 && asset.status != AssetStatus.Rejected) {
+            asset.status = AssetStatus.Rejected;
+            emit AssetStatusChanged(assetId, AssetStatus.Pending, AssetStatus.Rejected);
+        }
     }
 
     function tokenizeAsset(uint256 assetId, string calldata name, string calldata symbol)

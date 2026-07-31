@@ -26,6 +26,8 @@ const envSchema = z.object({
   // Pinata
   PINATA_API_KEY: z.string().min(1).default('mock_key'),
   PINATA_SECRET_KEY: z.string().min(1).default('mock_key'),
+  PINATA_API_SECRET: z.string().optional().default(''),
+  PINATA_JWT: z.string().optional().default(''),
   PINATA_GATEWAY_URL: z.string().default('https://gateway.pinata.cloud/ipfs'),
 
   // Blockchain

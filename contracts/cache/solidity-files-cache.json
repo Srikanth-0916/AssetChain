@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "D:\\Desktop\\Hackathon\\Intern-Project\\AssetChain\\contracts\\contracts\\core\\AssetRegistry.sol": {
-      "lastModificationDate": 1785255730635,
-      "contentHash": "b95945b1f5c51a3ea7e49e30664e7ebd",
+      "lastModificationDate": 1785485663911,
+      "contentHash": "c10cc46227d1f6a40f4e45a1d333f9fe",
       "sourceName": "contracts/core/AssetRegistry.sol",
       "solcConfig": {
         "version": "0.8.20",

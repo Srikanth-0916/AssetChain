@@ -1,14 +1,22 @@
 # TrustChain AI — Known Limitations & Production Readiness
 
-> This document honestly outlines current platform limitations, development behaviors, and production readiness requirements.
+> **Official Presentation Position:**  
+> *"TrustChain AI is a production-oriented enterprise prototype. Core workflows are implemented and validated on Polygon Amoy Testnet with live backend integration. External services such as commercial KYC providers, government land registries, and payment gateways are abstracted behind provider interfaces, allowing seamless replacement of mock adapters with live integrations for production deployment."*
 
 ---
 
-## Data Persistence & Fail-Close Behavior
+## 🔌 Integration Architecture Status Matrix (Live vs Sandbox vs Adapter)
 
-- **Development Mode (`NODE_ENV=development`):** Database connection errors trigger a warning log and fall back to in-memory stores so local development and automated unit tests run without external database dependencies.
-- **Production Mode (`NODE_ENV=production`):** Database connection errors throw a `ServiceUnavailableError` (HTTP 503) and log a critical audit event. The system **fails close** and never silently falls back to in-memory storage.
-- **Supabase PostgreSQL Tables:** Required in production for `audit_logs`, `approval_requests`, `compliance_profiles`, `nominees`, `notifications`, and `ai_memory`.
+| Component / Subsystem | Integration Pattern | Live Environment Status | Fallback / Production Requirement |
+|---|---|---|---|
+| **Smart Contracts** | On-Chain EVM Deployment | **Live on Polygon Amoy Testnet (Chain ID 80002)** | Requires independent 3rd-party security audit (CertiK/OpenZeppelin) for Mainnet. |
+| **Gemini AI Copilot** | Live REST API | **Live Gemini 2.0 Flash (`GEMINI_API_KEY`)** | 30s short-circuit backoff + pre-calculated deterministic math fallback on HTTP 429 rate limit. |
+| **Razorpay Payments** | Sandbox Payment Gateway | **Live Sandbox Test Mode (`RAZORPAY_KEY_ID`)** | Requires merchant account KYC verification for Live Fiat INR production transactions. |
+| **Pinata IPFS Pinning** | Gateway API | **Live Pinata IPFS Gateway** | Uses mock CID generator when API key is unconfigured. |
+| **Real-Time Push** | WebSockets | **Live WebSocket Event Server (`/ws`)** | Pushes instant live events for dividends, fraud alerts, and purchases without polling. |
+| **Identity & KYC Engine** | Provider Adapter Pattern | **HyperVerge / Signzy / Onfido Adapter Interface** | Runs in sandbox verification mode; production requires paid API keys & G2C gateway access. |
+| **State Land Registry** | Registry Sandbox Adapter | **Bhulekh / IGRS Schema Validation Adapter** | Runs in sandbox verification mode; state land records (Bhulekh/AnyROR) lack open G2C APIs. |
+| **Data Persistence** | Dual-Mode Fail-Close | **Supabase PostgreSQL / Local Memory Fallback** | Production (`NODE_ENV=production`) strictly **fails close** (HTTP 503) on DB errors. |
 
 ---
 
@@ -23,7 +31,7 @@
 
 - **Razorpay Payments:** Operating in **Sandbox Test Mode** (`RAZORPAY_KEY_ID` configured for test mode). No live fiat INR transactions are processed.
 - **Polygon Amoy Testnet:** Deployed on Polygon Amoy testnet (Chain ID 80002). Smart contracts have **NOT** been audited by an independent security firm for mainnet launch.
-- **Multi-Sig Consensus:** Enforced via 2-of-3 backend policy engine (`verifier`, `legal_reviewer`, `admin`). Gnosis Safe adapter interface is integrated; full on-chain Safe contract deployment is pending.
+- **Multi-Sig Consensus:** Enforced via 2-of-3 backend policy engine (`verifier`, `legal_reviewer`, `admin`). By default (when `GNOSIS_SAFE_ADDRESS` is not configured), the platform operates in Off-Chain Policy Engine Mode for approvals.
 
 ---
 

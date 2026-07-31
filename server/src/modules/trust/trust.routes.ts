@@ -1,7 +1,21 @@
 import { Router, Request, Response } from 'express';
 import { trustScoreService } from './trust.service';
+import { fraudMonitorService } from './fraud.monitor.service';
 
 const router = Router();
+
+/**
+ * POST /api/v1/trust/fraud/sweep
+ * Triggers automated background continuous fraud scan over active assets.
+ */
+router.post('/fraud/sweep', async (_req: Request, res: Response) => {
+  try {
+    const sweepResult = await fraudMonitorService.runFraudSweep();
+    res.json({ success: true, data: sweepResult });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 /**
  * GET /api/v1/trust/:assetId

@@ -20,9 +20,9 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard',   to: '/dashboard',     icon: <LayoutDashboard className="w-4 h-4" /> },
+  { label: 'Workspace',    to: '/investor',      icon: <LayoutDashboard className="w-4 h-4 text-emerald-400" /> },
   { label: 'Marketplace', to: '/marketplace',   icon: <Store className="w-4 h-4" /> },
-  { label: 'Portfolio',   to: '/portfolio',     icon: <PieChart className="w-4 h-4" />, roles: ['investor', 'asset_owner'] },
+  { label: 'Portfolio',   to: '/portfolio',     icon: <PieChart className="w-4 h-4" />, roles: ['investor', 'asset_owner', 'admin'] },
   { label: 'AI Advisor',  to: '/ai-copilot',    icon: <Sparkles className="w-4 h-4" />, badge: 'AI' },
   { label: 'Rewards',     to: '/rewards',       icon: <Star className="w-4 h-4" />, roles: ['investor'] },
   { label: 'Activity',    to: '/activity',      icon: <Activity className="w-4 h-4" /> },

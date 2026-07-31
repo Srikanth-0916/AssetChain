@@ -97,7 +97,7 @@ export class NomineeService {
       fullName: data.fullName || existing?.fullName || '',
       email: data.email || existing?.email || '',
       phone: data.phone || existing?.phone || '',
-      governmentId: data.governmentId || existing?.governmentId || '',
+      governmentId: data.governmentId ? encryptField(data.governmentId) : (existing?.governmentId || ''),
       relationship: data.relationship || existing?.relationship || 'Beneficiary',
       nomineeWalletAddress: data.nomineeWalletAddress || existing?.nomineeWalletAddress || '0x0000000000000000000000000000000000000000',
       allocationPercentage: data.allocationPercentage ?? existing?.allocationPercentage ?? 100,

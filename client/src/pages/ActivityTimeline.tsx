@@ -7,6 +7,7 @@ import {
   Loader2, Hash,
 } from 'lucide-react';
 import api from '../services/api';
+import { isRealOnChainTx, getExplorerTxLink } from '../lib/explorer';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -220,18 +221,25 @@ function DetailDrawer({ event, onClose }: { event: ActivityEvent; onClose: () =>
         </div>
 
         {/* Footer */}
-        {explorerUrl && (
+        {event.txHash && (
           <div className="px-6 py-4 border-t border-slate-800 flex gap-3">
-            <a
-              href={explorerUrl}
-              target="_blank"
-              rel="noreferrer"
-              id={`explorer-link-${event.id}`}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 rounded-xl text-xs font-semibold hover:bg-indigo-600/30 transition-all"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              View on PolygonScan
-            </a>
+            {isRealOnChainTx(event.txHash) ? (
+              <a
+                href={getExplorerTxLink(event.txHash)}
+                target="_blank"
+                rel="noreferrer"
+                id={`explorer-link-${event.id}`}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 rounded-xl text-xs font-semibold hover:bg-indigo-600/30 transition-all"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                View on PolygonScan
+              </a>
+            ) : (
+              <div className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800/80 border border-slate-700/60 text-slate-300 rounded-xl text-xs font-medium">
+                <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>Off-Chain Multi-Sig Policy Audit Ref: <code className="font-mono text-amber-300/90">{event.txHash.slice(0, 14)}...</code></span>
+              </div>
+            )}
           </div>
         )}
       </div>

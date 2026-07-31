@@ -158,4 +158,30 @@ describe("AssetChain Production Smart Contracts Audit", function () {
     expect(listing.active).to.be.false;
     expect(await tokenContract.balanceOf(owner.address)).to.equal(100); // Refunded
   });
+
+  it("Direct On-Chain Multi-Sig Approval Voting (2-of-3 threshold enforcement)", async function () {
+    // 1. Register new asset
+    await registry.connect(owner).registerAsset(
+      "QmDirectVoteCID",
+      "commercial_property",
+      ethers.parseUnits("500000", 6),
+      5000
+    );
+    let asset = await registry.getAsset(1);
+    expect(asset.status).to.equal(0); // Pending
+
+    // Grant VERIFIER_ROLE to treasuryUser (2nd verifier)
+    const VERIFIER_ROLE = await registry.VERIFIER_ROLE();
+    await registry.connect(admin).grantRole(VERIFIER_ROLE, treasuryUser.address);
+
+    // Vote 1: Admin votes approve (1/2 approvals)
+    await registry.connect(admin).voteApproval(1, true);
+    asset = await registry.getAsset(1);
+    expect(asset.status).to.equal(0); // Still Pending (1 approval)
+
+    // Vote 2: TreasuryUser verifier votes approve (2/2 threshold reached -> Approved)
+    await registry.connect(treasuryUser).voteApproval(1, true);
+    asset = await registry.getAsset(1);
+    expect(asset.status).to.equal(2); // Approved on-chain!
+  });
 });

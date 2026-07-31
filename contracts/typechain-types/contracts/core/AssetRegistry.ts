@@ -73,13 +73,16 @@ export interface AssetRegistryInterface extends Interface {
     nameOrSignature:
       | "ADMIN_ROLE"
       | "DEFAULT_ADMIN_ROLE"
+      | "VERIFIER_ROLE"
       | "assetCount"
+      | "assetVoteState"
       | "assets"
       | "factory"
       | "getAsset"
       | "getRoleAdmin"
       | "grantRole"
       | "hasRole"
+      | "hasVotedOnAsset"
       | "ownerAssets"
       | "paused"
       | "registerAsset"
@@ -89,10 +92,12 @@ export interface AssetRegistryInterface extends Interface {
       | "supportsInterface"
       | "tokenizeAsset"
       | "updateAssetStatus"
+      | "voteApproval"
   ): FunctionFragment;
 
   getEvent(
     nameOrSignatureOrTopic:
+      | "ApprovalVoted"
       | "AssetRegistered"
       | "AssetStatusChanged"
       | "AssetTokenized"
@@ -113,8 +118,16 @@ export interface AssetRegistryInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
+    functionFragment: "VERIFIER_ROLE",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
     functionFragment: "assetCount",
     values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "assetVoteState",
+    values: [BigNumberish]
   ): string;
   encodeFunctionData(
     functionFragment: "assets",
@@ -136,6 +149,10 @@ export interface AssetRegistryInterface extends Interface {
   encodeFunctionData(
     functionFragment: "hasRole",
     values: [BytesLike, AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "hasVotedOnAsset",
+    values: [BigNumberish, AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "ownerAssets",
@@ -170,13 +187,25 @@ export interface AssetRegistryInterface extends Interface {
     functionFragment: "updateAssetStatus",
     values: [BigNumberish, BigNumberish]
   ): string;
+  encodeFunctionData(
+    functionFragment: "voteApproval",
+    values: [BigNumberish, boolean]
+  ): string;
 
   decodeFunctionResult(functionFragment: "ADMIN_ROLE", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "DEFAULT_ADMIN_ROLE",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(
+    functionFragment: "VERIFIER_ROLE",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "assetCount", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "assetVoteState",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "assets", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "factory", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "getAsset", data: BytesLike): Result;
@@ -186,6 +215,10 @@ export interface AssetRegistryInterface extends Interface {
   ): Result;
   decodeFunctionResult(functionFragment: "grantRole", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "hasRole", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "hasVotedOnAsset",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "ownerAssets",
     data: BytesLike
@@ -216,6 +249,35 @@ export interface AssetRegistryInterface extends Interface {
     functionFragment: "updateAssetStatus",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(
+    functionFragment: "voteApproval",
+    data: BytesLike
+  ): Result;
+}
+
+export namespace ApprovalVotedEvent {
+  export type InputTuple = [
+    assetId: BigNumberish,
+    voter: AddressLike,
+    approve: boolean,
+    currentApprovals: BigNumberish
+  ];
+  export type OutputTuple = [
+    assetId: bigint,
+    voter: string,
+    approve: boolean,
+    currentApprovals: bigint
+  ];
+  export interface OutputObject {
+    assetId: bigint;
+    voter: string;
+    approve: boolean;
+    currentApprovals: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
 }
 
 export namespace AssetRegisteredEvent {
@@ -426,7 +488,15 @@ export interface AssetRegistry extends BaseContract {
 
   DEFAULT_ADMIN_ROLE: TypedContractMethod<[], [string], "view">;
 
+  VERIFIER_ROLE: TypedContractMethod<[], [string], "view">;
+
   assetCount: TypedContractMethod<[], [bigint], "view">;
+
+  assetVoteState: TypedContractMethod<
+    [arg0: BigNumberish],
+    [[bigint, bigint] & { approvals: bigint; rejections: bigint }],
+    "view"
+  >;
 
   assets: TypedContractMethod<
     [arg0: BigNumberish],
@@ -480,6 +550,12 @@ export interface AssetRegistry extends BaseContract {
 
   hasRole: TypedContractMethod<
     [role: BytesLike, account: AddressLike],
+    [boolean],
+    "view"
+  >;
+
+  hasVotedOnAsset: TypedContractMethod<
+    [arg0: BigNumberish, arg1: AddressLike],
     [boolean],
     "view"
   >;
@@ -539,6 +615,12 @@ export interface AssetRegistry extends BaseContract {
     "nonpayable"
   >;
 
+  voteApproval: TypedContractMethod<
+    [assetId: BigNumberish, approve: boolean],
+    [void],
+    "nonpayable"
+  >;
+
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
   ): T;
@@ -550,8 +632,18 @@ export interface AssetRegistry extends BaseContract {
     nameOrSignature: "DEFAULT_ADMIN_ROLE"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
+    nameOrSignature: "VERIFIER_ROLE"
+  ): TypedContractMethod<[], [string], "view">;
+  getFunction(
     nameOrSignature: "assetCount"
   ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "assetVoteState"
+  ): TypedContractMethod<
+    [arg0: BigNumberish],
+    [[bigint, bigint] & { approvals: bigint; rejections: bigint }],
+    "view"
+  >;
   getFunction(
     nameOrSignature: "assets"
   ): TypedContractMethod<
@@ -615,6 +707,13 @@ export interface AssetRegistry extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "hasVotedOnAsset"
+  ): TypedContractMethod<
+    [arg0: BigNumberish, arg1: AddressLike],
+    [boolean],
+    "view"
+  >;
+  getFunction(
     nameOrSignature: "ownerAssets"
   ): TypedContractMethod<
     [arg0: AddressLike, arg1: BigNumberish],
@@ -674,7 +773,21 @@ export interface AssetRegistry extends BaseContract {
     [void],
     "nonpayable"
   >;
+  getFunction(
+    nameOrSignature: "voteApproval"
+  ): TypedContractMethod<
+    [assetId: BigNumberish, approve: boolean],
+    [void],
+    "nonpayable"
+  >;
 
+  getEvent(
+    key: "ApprovalVoted"
+  ): TypedContractEvent<
+    ApprovalVotedEvent.InputTuple,
+    ApprovalVotedEvent.OutputTuple,
+    ApprovalVotedEvent.OutputObject
+  >;
   getEvent(
     key: "AssetRegistered"
   ): TypedContractEvent<
@@ -740,6 +853,17 @@ export interface AssetRegistry extends BaseContract {
   >;
 
   filters: {
+    "ApprovalVoted(uint256,address,bool,uint256)": TypedContractEvent<
+      ApprovalVotedEvent.InputTuple,
+      ApprovalVotedEvent.OutputTuple,
+      ApprovalVotedEvent.OutputObject
+    >;
+    ApprovalVoted: TypedContractEvent<
+      ApprovalVotedEvent.InputTuple,
+      ApprovalVotedEvent.OutputTuple,
+      ApprovalVotedEvent.OutputObject
+    >;
+
     "AssetRegistered(uint256,address,string)": TypedContractEvent<
       AssetRegisteredEvent.InputTuple,
       AssetRegisteredEvent.OutputTuple,

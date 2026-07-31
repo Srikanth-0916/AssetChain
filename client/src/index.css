@@ -1,50 +1,55 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&display=swap');
 @import "tailwindcss";
 
 /* ─── Custom Theme ─── */
 @theme {
-  --color-primary-50:  #eef2ff;
-  --color-primary-100: #e0e7ff;
-  --color-primary-200: #c7d2fe;
-  --color-primary-300: #a5b4fc;
-  --color-primary-400: #818cf8;
-  --color-primary-500: #6366f1;
-  --color-primary-600: #4f46e5;
-  --color-primary-700: #4338ca;
-  --color-primary-800: #3730a3;
-  --color-primary-900: #312e81;
-  --color-primary-950: #1e1b4b;
+  /* ══ Primary Brand: Bespoke Institutional Sapphire & Steel ══ */
+  --color-primary-50:  #f0f4f8;
+  --color-primary-100: #d9e2ec;
+  --color-primary-200: #bcccdc;
+  --color-primary-300: #9fb3c8;
+  --color-primary-400: #627d98;
+  --color-primary-500: #2563eb;
+  --color-primary-600: #1d4ed8;
+  --color-primary-700: #1e40af;
+  --color-primary-800: #1e3a8a;
+  --color-primary-900: #102a43;
+  --color-primary-950: #061727;
 
-  --color-accent-400: #34d399;
-  --color-accent-500: #10b981;
-  --color-accent-600: #059669;
+  /* ══ Accent Brand: Warm Institutional Copper / Bronze (CTAs & Highlights) ══ */
+  --color-accent-400: #f59e0b;
+  --color-accent-500: #d97706;
+  --color-accent-600: #b45309;
 
+  /* ══ Surface Canvas ══ */
   --color-surface-50:  #f8fafc;
   --color-surface-100: #f1f5f9;
   --color-surface-200: #e2e8f0;
   --color-surface-700: #334155;
   --color-surface-800: #1e293b;
   --color-surface-900: #0f172a;
-  --color-surface-950: #020617;
+  --color-surface-950: #080c14;
 
-  --color-success:       #10b981;
-  --color-success-light: rgba(16,185,129,0.12);
-  --color-warning:       #f59e0b;
-  --color-warning-light: rgba(245,158,11,0.12);
-  --color-danger:        #ef4444;
-  --color-danger-light:  rgba(239,68,68,0.12);
-  --color-info:          #6366f1;
-  --color-info-light:    rgba(99,102,241,0.12);
+  /* ══ Semantic Status (Decoupled from Accent) ══ */
+  --color-success:       #059669;
+  --color-success-light: rgba(5,150,105,0.14);
+  --color-warning:       #d97706;
+  --color-warning-light: rgba(217,119,6,0.14);
+  --color-danger:        #dc2626;
+  --color-danger-light:  rgba(220,38,38,0.14);
+  --color-info:          #2563eb;
+  --color-info-light:    rgba(37,99,235,0.14);
 
   --color-level-explorer: #64748b;
-  --color-level-investor: #3b82f6;
+  --color-level-investor: #2563eb;
   --color-level-silver:   #94a3b8;
-  --color-level-gold:     #f59e0b;
-  --color-level-platinum: #8b5cf6;
-  --color-level-elite:    #ec4899;
+  --color-level-gold:     #d97706;
+  --color-level-platinum: #7c3aed;
+  --color-level-elite:    #e11d48;
 
   --font-sans:    'Inter', system-ui, -apple-system, sans-serif;
-  --font-display: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  --font-serif:   'Newsreader', Georgia, serif;
+  --font-display: 'Newsreader', 'Inter', serif;
 
   --radius-sm:   8px;
   --radius-md:   12px;
@@ -88,10 +93,54 @@
   h4, h5, h6 { letter-spacing: -0.015em; }
   a { text-decoration: none; }
   button { font-family: var(--font-sans); }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+  .font-serif-hero {
+    font-family: 'Newsreader', Georgia, serif;
+  }
 }
 
 /* ─── Components ─── */
 @layer components {
+
+  /* ══ FINTECH INSTITUTIONAL CARDS ══ */
+  .fintech-card {
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out;
+  }
+  .fintech-card:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+
+  /* ══ FINTECH TABLES ══ */
+  .fintech-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  .fintech-table th {
+    padding: 12px 16px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .fintech-table td {
+    padding: 16px;
+    font-size: 0.875rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    font-variant-numeric: tabular-nums;
+  }
+  .fintech-table tr:hover td {
+    background-color: rgba(255, 255, 255, 0.02);
+  }
 
   /* ══ CARDS ══ */
   .glass-card {

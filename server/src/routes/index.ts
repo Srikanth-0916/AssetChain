@@ -19,6 +19,7 @@ import nomineeRoutes from '../modules/nominee/nominee.routes';
 import recommendationRoutes from '../modules/recommendation/recommendation.routes';
 import trustRoutes from '../modules/trust/trust.routes';
 import activityRoutes from '../modules/activity/activity.routes';
+import discussionRoutes from '../modules/discussion/discussion.routes';
 
 const router = Router();
 
@@ -44,6 +45,7 @@ router.use('/nominee', nomineeRoutes);
 router.use('/recommendation', recommendationRoutes);
 router.use('/trust', trustRoutes);
 router.use('/activity', activityRoutes);
+router.use('/discussion', discussionRoutes);
 
 // ─── System Health Public Status Endpoint ──────────────────────────────────
 router.get('/system/health', (_req: Request, res) => {
@@ -108,6 +110,35 @@ router.get('/health', (req: Request, res) => {
         heapTotalMb: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
       },
     },
+  });
+});
+
+/** Pinata API Authentication & Connection Diagnostic Route */
+router.get('/system/pinata-test', async (_req, res) => {
+  const { ipfsService } = await import('../services/ipfs.service');
+  const result = await ipfsService.testConnection();
+  res.json({
+    success: result.success,
+    data: {
+      status: result.success ? 'connected' : 'auth_failed',
+      message: result.message,
+      isMock: result.isMock,
+      gatewayUrl: env.PINATA_GATEWAY_URL,
+      timestamp: new Date().toISOString(),
+    },
+  });
+});
+
+/** Test Pinning JSON Metadata to Pinata IPFS */
+router.post('/system/pinata-pin', async (req, res) => {
+  const { ipfsService } = await import('../services/ipfs.service');
+  const content = req.body.metadata || { test: 'AssetChain IPFS metadata', createdAt: new Date().toISOString() };
+  const name = req.body.name || 'test_asset_metadata.json';
+  
+  const result = await ipfsService.pinJSONToIPFS(content, name);
+  res.json({
+    success: true,
+    data: result,
   });
 });
 
