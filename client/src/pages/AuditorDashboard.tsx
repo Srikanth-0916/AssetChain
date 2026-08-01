@@ -4,6 +4,8 @@ import {
   ExternalLink, Layers, CheckCircle2, History, AlertCircle
 } from 'lucide-react';
 
+import { RoleWorkQueueWidget } from '../components/workflow/RoleWorkQueueWidget';
+
 export function AuditorDashboard() {
   return (
     <div className="space-y-8 animate-fade-in pb-12">
@@ -12,12 +14,12 @@ export function AuditorDashboard() {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full bg-slate-700 text-slate-300 text-xs font-semibold uppercase tracking-wider">
-              Read-Only Independent Auditor Workspace
+              Auditor Control Center
             </span>
-            <span className="text-xs text-slate-400">• RSA-4096 Signed Vault</span>
+            <span className="text-xs text-slate-400">• RSA-4096 Signed Ledger</span>
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">
-            Auditor & Regulatory Inspector Console
+            Auditor Control Center
           </h1>
           <p className="text-xs text-slate-400">
             Read-only immutable transaction inspection, Treasury Vault snapshot verification, and SEBI/RBI compliance report downloads.
@@ -28,6 +30,8 @@ export function AuditorDashboard() {
           <Download className="w-4 h-4 text-emerald-400" /> Export SEBI Audit Report (PDF/JSON)
         </button>
       </div>
+
+      <RoleWorkQueueWidget role="auditor" />
 
       {/* ── Audit Metrics ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

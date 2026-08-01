@@ -67,6 +67,29 @@ async function seedDemoAccounts() {
 seedDemoAccounts().catch(() => {});
 
 /**
+ * Helper to issue and persist refresh token in Supabase PostgreSQL refresh_tokens table.
+ */
+async function issueRefreshToken(userId: string, deviceInfo = 'Web Browser', ipAddress = '127.0.0.1'): Promise<string> {
+  const rawRefreshToken = uuidv4() + uuidv4();
+  const tokenHash = hashToken(rawRefreshToken);
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
+
+  try {
+    await supabaseAdmin.from('refresh_tokens').insert({
+      user_id: userId,
+      token_hash: tokenHash,
+      device_info: deviceInfo,
+      ip_address: ipAddress,
+      is_revoked: false,
+      expires_at: expiresAt,
+    });
+  } catch (e: any) {
+    console.warn('[AuthService] Refresh token DB save warning:', e.message);
+  }
+  return rawRefreshToken;
+}
+
+/**
  * Authentication service handling registration, login, and password management.
  */
 export class AuthService {
@@ -81,16 +104,31 @@ export class AuthService {
   }) {
     const normalizedEmail = data.email.toLowerCase().trim();
 
-    // Check local memory store first
+    // 1. Check if email already exists in local memory store
     for (const u of localUsersStore.values()) {
       if (u.email.toLowerCase() === normalizedEmail) {
-        throw new ConflictError('An account with this email already exists');
+        throw new ConflictError('This email is already registered. Please log in.');
       }
+    }
+
+    // 2. Check if email already exists in Supabase public.profiles table
+    try {
+      const { data: existingProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('id')
+        .eq('email', normalizedEmail)
+        .single();
+
+      if (existingProfile) {
+        throw new ConflictError('This email is already registered. Please log in.');
+      }
+    } catch (e: any) {
+      if (e instanceof ConflictError) throw e;
     }
 
     let authUserId: string = uuidv4();
 
-    // Try Supabase Auth Registration (Admin API with email_confirm: true) & Profiles Table Upsert
+    // 3. Try Supabase Auth Registration (Admin API with email_confirm: true)
     try {
       const { data: authData, error: authErr } = await supabaseAdmin.auth.admin.createUser({
         email: normalizedEmail,
@@ -104,7 +142,7 @@ export class AuthService {
 
       if (authErr) {
         if (authErr.message.includes('already registered') || authErr.message.includes('already exists')) {
-          throw new ConflictError('An account with this email already exists');
+          throw new ConflictError('This email is already registered. Please log in.');
         }
         console.warn('[AuthService] ⚠️ Supabase Auth admin.createUser error:', authErr.message);
       }
@@ -133,6 +171,7 @@ export class AuthService {
 
     localUsersStore.set(newUser.id, newUser);
 
+    // 4. Persist to Supabase public.profiles, portfolio_cache, and compliance_profiles tables
     try {
       const { error: profileErr } = await supabaseAdmin.from('profiles').upsert({
         id: newUser.id,
@@ -148,10 +187,32 @@ export class AuthService {
       if (profileErr) {
         console.warn('[AuthService] ⚠️ Supabase profiles table upsert warning:', profileErr.message);
       } else {
-        console.log(`[AuthService] ✅ User profile successfully persisted to Supabase database for ID: ${newUser.id}`);
+        console.log(`[AuthService] ✅ User profile successfully persisted to Supabase DB for ID: ${newUser.id}`);
       }
+
+      // Initialize portfolio cache for new user
+      await supabaseAdmin.from('portfolio_cache').upsert({
+        user_id: newUser.id,
+        total_invested: 0,
+        current_market_value: 0,
+        total_profit_loss: 0,
+        total_roi_percent: 0,
+        active_assets_count: 0,
+        unclaimed_dividends: 0,
+        last_updated_at: new Date().toISOString(),
+      });
+
+      // Initialize compliance profile for new user
+      await supabaseAdmin.from('compliance_profiles').upsert({
+        user_id: newUser.id,
+        kyc_status: 'pending',
+        compliance_status: 'compliant',
+        risk_score: 15,
+        erc3643_compatible: true,
+        updated_at: new Date().toISOString(),
+      });
     } catch (e: any) {
-      console.warn('[AuthService] ⚠️ Supabase offline / mock mode fallback:', e.message);
+      console.warn('[AuthService] ⚠️ Supabase DB initialization catch:', e.message);
     }
 
     const { password_hash: _, ...userWithoutPassword } = newUser;
@@ -162,14 +223,13 @@ export class AuthService {
       role: newUser.role,
     };
     const token = generateToken(tokenPayload);
+    const refreshToken = await issueRefreshToken(newUser.id);
 
-    return { user: userWithoutPassword, token };
+    return { user: userWithoutPassword, token, refreshToken };
   }
 
   /**
-   * Authenticate user with email and password via Supabase Auth.
-   * Primary path: supabaseAdmin.auth.signInWithPassword()
-   * Fallback: seeded demo accounts in localUsersStore (development only).
+   * Authenticate user with email and password via Supabase Auth or DB.
    */
   async login(email: string, password: string) {
     const normalizedEmail = email.toLowerCase().trim();
@@ -215,8 +275,9 @@ export class AuthService {
           walletAddress: resolvedUser.wallet_address || undefined,
         };
         const token = generateToken(tokenPayload);
+        const refreshToken = await issueRefreshToken(resolvedUser.id);
         const { password_hash: _, ...userWithoutPassword } = resolvedUser as any;
-        return { user: userWithoutPassword, token };
+        return { user: userWithoutPassword, token, refreshToken };
       }
 
       // If Supabase Auth returns an error that is NOT "offline", surface it
@@ -225,10 +286,9 @@ export class AuthService {
       }
     } catch (e: any) {
       if (e instanceof UnauthorizedError) throw e;
-      // Network/offline → fall through to demo seed below
     }
 
-    // ─── 2. Demo seed fallback (development only, seeded accounts only) ────────
+    // ─── 2. Local/Seeded accounts fallback ─────────────────────────────────────
     for (const u of localUsersStore.values()) {
       if (u.email.toLowerCase() === normalizedEmail) {
         if (u.is_suspended) {
@@ -245,12 +305,77 @@ export class AuthService {
           walletAddress: u.wallet_address || undefined,
         };
         const token = generateToken(tokenPayload);
+        const refreshToken = await issueRefreshToken(u.id);
         const { password_hash: _, ...userWithoutPassword } = u;
-        return { user: userWithoutPassword, token };
+        return { user: userWithoutPassword, token, refreshToken };
       }
     }
 
     throw new UnauthorizedError('Invalid email or password');
+  }
+
+  /**
+   * Session refresh via refresh token rotation.
+   */
+  async refreshSession(refreshTokenStr: string) {
+    if (!refreshTokenStr) {
+      throw new UnauthorizedError('Refresh token required.');
+    }
+
+    const tokenHash = hashToken(refreshTokenStr);
+    let userId: string | null = null;
+
+    try {
+      const { data: record, error } = await supabaseAdmin
+        .from('refresh_tokens')
+        .select('id, user_id, expires_at, is_revoked')
+        .eq('token_hash', tokenHash)
+        .eq('is_revoked', false)
+        .single();
+
+      if (error || !record) {
+        throw new UnauthorizedError('Invalid or expired refresh token. Please log in again.');
+      }
+
+      if (new Date(record.expires_at) < new Date()) {
+        throw new UnauthorizedError('Refresh token has expired. Please log in again.');
+      }
+
+      userId = record.user_id;
+
+      // Revoke used token (refresh token rotation security)
+      await supabaseAdmin.from('refresh_tokens').update({ is_revoked: true }).eq('id', record.id);
+    } catch (e: any) {
+      if (e instanceof UnauthorizedError) throw e;
+      throw new UnauthorizedError('Session restoration failed. Please log in again.');
+    }
+
+    const user = await this.getUserById(userId!);
+    if (user.is_suspended) {
+      throw new UnauthorizedError('Account suspended. Please contact support.');
+    }
+
+    const tokenPayload: JWTPayload = {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      walletAddress: user.wallet_address || undefined,
+    };
+    const newToken = generateToken(tokenPayload);
+    const newRefreshToken = await issueRefreshToken(user.id);
+
+    return { user, token: newToken, refreshToken: newRefreshToken };
+  }
+
+  /**
+   * Revoke a refresh token upon logout.
+   */
+  async revokeRefreshToken(refreshTokenStr: string) {
+    if (!refreshTokenStr) return;
+    const tokenHash = hashToken(refreshTokenStr);
+    try {
+      await supabaseAdmin.from('refresh_tokens').update({ is_revoked: true }).eq('token_hash', tokenHash);
+    } catch {}
   }
 
   /**

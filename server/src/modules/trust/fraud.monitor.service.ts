@@ -57,12 +57,13 @@ export class FraudMonitorService {
           });
 
           // Send notification
-          await notificationService.notifyUser('admin-1', {
-            type: 'SYSTEM',
-            title: `Continuous Fraud Sweep Alert: ${assetId}`,
-            message: `Legal risk score elevated (${check.legalRiskScore}/100). Further due diligence required.`,
-            meta: { assetId, sweepId },
-          });
+          await notificationService.notify(
+            'admin-1',
+            'fraud_alert',
+            `Continuous Fraud Sweep Alert: ${assetId}`,
+            `Legal risk score elevated (${check.legalRiskScore}/100). Further due diligence required.`,
+            { assetId, sweepId }
+          );
         }
       } catch {
         // Continue sweep

@@ -4,6 +4,8 @@ import {
   XCircle, Clock, Building2, Search, ExternalLink
 } from 'lucide-react';
 
+import { RoleWorkQueueWidget } from '../components/workflow/RoleWorkQueueWidget';
+
 export function LegalDashboard() {
   const [selectedAsset, setSelectedAsset] = useState<string | null>('ast-com-01');
 
@@ -14,18 +16,20 @@ export function LegalDashboard() {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-semibold uppercase tracking-wider">
-              Legal & Title Verification Workspace
+              Legal Control Center
             </span>
             <span className="text-xs text-slate-400">• E-Courts & Land Registry Interface</span>
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">
-            Legal Reviewer Dashboard — Advocates & Title Auditors
+            Legal Control Center
           </h1>
           <p className="text-xs text-slate-400">
             Audit property title deeds, 30-year nil-encumbrance certificates, civil court litigation records, and issue SPV legal clearance.
           </p>
         </div>
       </div>
+
+      <RoleWorkQueueWidget role="legal_reviewer" />
 
       {/* ── Metric Summary ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

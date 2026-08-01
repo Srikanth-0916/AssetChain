@@ -4,6 +4,8 @@ import {
   Search, Users, Filter, UserCheck, AlertTriangle, FileText
 } from 'lucide-react';
 
+import { RoleWorkQueueWidget } from '../components/workflow/RoleWorkQueueWidget';
+
 export function ComplianceDashboard() {
   return (
     <div className="space-y-8 animate-fade-in pb-12">
@@ -12,18 +14,20 @@ export function ComplianceDashboard() {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold uppercase tracking-wider">
-              Compliance & Identity Management Workspace
+              Compliance Control Center
             </span>
             <span className="text-xs text-slate-400">• ERC-3643 Whitelist Gateway</span>
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">
-            Compliance Officer Dashboard — KYC, AML & Sanctions
+            Compliance Control Center
           </h1>
           <p className="text-xs text-slate-400">
             Review identity verifications, inspect 3D passive liveness scores, manage UN/OFAC sanctions checks, and update ERC-3643 token permission registries.
           </p>
         </div>
       </div>
+
+      <RoleWorkQueueWidget role="compliance_officer" />
 
       {/* ── Metric Summary ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

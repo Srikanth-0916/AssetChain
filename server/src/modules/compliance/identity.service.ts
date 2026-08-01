@@ -120,9 +120,8 @@ export class IdentityService {
     let erc3643Updated = false;
     if (overallStatus === 'APPROVED') {
       try {
-        await complianceService.updateProfile(req.userId, {
+        await complianceService.updateComplianceProfile(req.userId, {
           kycStatus: 'approved',
-          erc3643Compatible: true,
           riskTier: 'low',
         });
         erc3643Updated = true;

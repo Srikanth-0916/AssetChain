@@ -24,7 +24,8 @@ router.post('/create', async (req: Request, res: Response) => {
  */
 router.get('/:assetId', async (req: Request, res: Response) => {
   try {
-    const discussions = await discussionService.getAssetDiscussions(req.params.assetId);
+    const assetId = Array.isArray(req.params.assetId) ? req.params.assetId[0] : req.params.assetId;
+    const discussions = await discussionService.getAssetDiscussions(assetId);
     res.json({ success: true, data: discussions });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -58,7 +59,8 @@ router.post('/comment', async (req: Request, res: Response) => {
  */
 router.get('/summary/:assetId', async (req: Request, res: Response) => {
   try {
-    const summary = await discussionService.getAssetAISummary(req.params.assetId);
+    const assetId = Array.isArray(req.params.assetId) ? req.params.assetId[0] : req.params.assetId;
+    const summary = await discussionService.getAssetAISummary(assetId);
     res.json({ success: true, data: summary });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -110,7 +112,8 @@ router.post('/like', async (req: Request, res: Response) => {
  * Retrieves investor reputation profile & badge tier.
  */
 router.get('/reputation/:userId', (req: Request, res: Response) => {
-  const rep = discussionService.getReputation(req.params.userId);
+  const userId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
+  const rep = discussionService.getReputation(userId);
   res.json({ success: true, data: rep });
 });
 

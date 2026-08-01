@@ -17,6 +17,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const TOKEN_KEY = 'assetchain_token';
+const REFRESH_TOKEN_KEY = 'assetchain_refresh_token';
 const USER_KEY = 'assetchain_user';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -29,21 +30,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
   const [isLoading, setIsLoading] = useState(true);
 
-  // Validate session on mount
+  // Validate session / Refresh Token on mount
   useEffect(() => {
     async function validateSession() {
-      if (!token) {
+      const storedToken = localStorage.getItem(TOKEN_KEY);
+      const storedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+
+      if (!storedToken && !storedRefreshToken) {
         setIsLoading(false);
         return;
       }
 
       try {
-        const currentUser = await authService.getMe();
-        setUser(currentUser);
-        localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+        if (storedToken) {
+          const currentUser = await authService.getMe();
+          setUser(currentUser);
+          localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+        } else if (storedRefreshToken) {
+          // Token missing/expired — attempt refresh using refresh token
+          const res = await authService.refreshToken(storedRefreshToken);
+          setUser(res.user);
+          setToken(res.token);
+          localStorage.setItem(TOKEN_KEY, res.token);
+          localStorage.setItem(USER_KEY, JSON.stringify(res.user));
+          if (res.refreshToken) {
+            localStorage.setItem(REFRESH_TOKEN_KEY, res.refreshToken);
+          }
+        }
       } catch {
-        // Token invalid — clear session
+        // If current token failed, attempt refresh token fallback before clearing session
+        if (storedRefreshToken && storedToken) {
+          try {
+            const res = await authService.refreshToken(storedRefreshToken);
+            setUser(res.user);
+            setToken(res.token);
+            localStorage.setItem(TOKEN_KEY, res.token);
+            localStorage.setItem(USER_KEY, JSON.stringify(res.user));
+            if (res.refreshToken) {
+              localStorage.setItem(REFRESH_TOKEN_KEY, res.refreshToken);
+            }
+            setIsLoading(false);
+            return;
+          } catch {}
+        }
+        // Both failed — clear session
         localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(REFRESH_TOKEN_KEY);
         localStorage.removeItem(USER_KEY);
         setToken(null);
         setUser(null);
@@ -53,7 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     validateSession();
-  }, [token]);
+  }, []);
 
   const login = useCallback(async (data: LoginData) => {
     const result = await authService.login(data);
@@ -61,6 +93,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(result.token);
     localStorage.setItem(TOKEN_KEY, result.token);
     localStorage.setItem(USER_KEY, JSON.stringify(result.user));
+    if (result.refreshToken) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, result.refreshToken);
+    }
   }, []);
 
   const loginWithWallet = useCallback(async (walletAddress: string, signature: string, role: string = 'investor') => {
@@ -69,6 +104,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(result.token);
     localStorage.setItem(TOKEN_KEY, result.token);
     localStorage.setItem(USER_KEY, JSON.stringify(result.user));
+    if (result.refreshToken) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, result.refreshToken);
+    }
   }, []);
 
   const register = useCallback(async (data: RegisterData) => {
@@ -77,17 +115,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(result.token);
     localStorage.setItem(TOKEN_KEY, result.token);
     localStorage.setItem(USER_KEY, JSON.stringify(result.user));
+    if (result.refreshToken) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, result.refreshToken);
+    }
   }, []);
 
   const logout = useCallback(async () => {
+    const currentRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
     try {
-      await authService.logout();
+      await authService.logout(currentRefreshToken || undefined);
     } catch {
       // Ignore logout API errors
     } finally {
       setUser(null);
       setToken(null);
       localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
     }
   }, []);

@@ -9,6 +9,8 @@ import {
   Zap, Key, Info,
 } from 'lucide-react';
 
+import { getRoleDashboardPath } from '../utils/roleUtils';
+
 const FEATURES = [
   { icon: <Wallet className="w-4 h-4" />,      text: 'Wallet-First Auth — Off-chain & zero gas fee' },
   { icon: <TrendingUp className="w-4 h-4" />,  text: 'Fractional real-world asset investing' },
@@ -17,7 +19,7 @@ const FEATURES = [
 ];
 
 export function Login() {
-  const { login, loginWithWallet } = useAuth();
+  const { login, loginWithWallet, user, isAuthenticated, isLoading } = useAuth();
   const { connect, address, isConnected } = useWallet();
   const navigate  = useNavigate();
   const [searchParams] = useSearchParams();
@@ -30,13 +32,19 @@ export function Login() {
 
   const isExpired = searchParams.get('expired') === 'true';
 
+  // ─── AUTO-REDIRECT IF ALREADY LOGGED IN ──────────────────────────────────────
+  React.useEffect(() => {
+    if (isAuthenticated && !isLoading && user) {
+      navigate(getRoleDashboardPath(user.role), { replace: true });
+    }
+  }, [isAuthenticated, isLoading, user, navigate]);
+
   // ─── 1. WALLET-FIRST AUTH (PRIMARY) ─────────────────────────────────────────
   const handleWalletAuth = async () => {
     setError(null);
     setIsWalletAuth(true);
 
     try {
-      // 1. Connect wallet if not already connected
       let targetAddress = address;
       if (!targetAddress || !isConnected) {
         targetAddress = await connect();
@@ -46,10 +54,8 @@ export function Login() {
         throw new Error('Please connect your Web3 wallet (MetaMask) to continue.');
       }
 
-      // 2. Request public nonce from server (unauthenticated)
       const { nonce } = await authService.requestPublicWalletNonce(targetAddress);
 
-      // 3. Request EIP-191 off-chain personal signature (0 gas fee!)
       if (!(window as any).ethereum) {
         throw new Error('MetaMask or Web3 wallet extension not detected in browser.');
       }
@@ -59,10 +65,10 @@ export function Login() {
         params: [nonce, targetAddress],
       });
 
-      // 4. Verify signature & login/register user
       await loginWithWallet(targetAddress, signature, 'investor');
-      const currentUser = authService.getMe().catch(() => null);
-      navigate('/investor');
+      const userJSON = localStorage.getItem('assetchain_user');
+      const parsed = userJSON ? JSON.parse(userJSON) : null;
+      navigate(getRoleDashboardPath(parsed?.role));
     } catch (err: any) {
       console.error('[WalletAuth] Error:', err);
       setError(err.message || 'Wallet signature verification failed. Please try again.');
@@ -71,7 +77,7 @@ export function Login() {
     }
   };
 
-  // ─── 2. DEMO / EMAIL FALLBACK AUTH ─────────────────────────────────────────
+  // ─── 2. EMAIL AUTH ─────────────────────────────────────────────────────────
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -80,10 +86,9 @@ export function Login() {
       await login({ email, password });
       const userJSON = localStorage.getItem('assetchain_user');
       const parsed = userJSON ? JSON.parse(userJSON) : null;
-      const targetPath = parsed?.role ? (parsed.role === 'admin' ? '/admin' : parsed.role === 'asset_owner' ? '/owner' : parsed.role === 'legal_reviewer' ? '/legal' : parsed.role === 'compliance_officer' ? '/compliance' : parsed.role === 'auditor' ? '/auditor' : '/investor') : '/investor';
-      navigate(targetPath);
+      navigate(getRoleDashboardPath(parsed?.role));
     } catch (err: any) {
-      setError(err.message || 'Invalid credentials. Please try again.');
+      setError(err.message || 'Invalid email or password. Please try again.');
     } finally {
       setIsEmailAuth(false);
     }

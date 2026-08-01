@@ -4,10 +4,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useWallet } from '../../contexts/WalletContext';
 import { truncateAddress } from '../../lib/utils';
 import { NotificationBell } from './NotificationBell';
+import { GlobalSearchModal } from '../system/GlobalSearchModal';
+import { getRoleWorkspaceTitle, getRoleDashboardPath } from '../../utils/roleUtils';
 import {
   Coins, Wallet, LogOut, User as UserIcon, Sparkles, BarChart3,
-  LayoutDashboard, Store, PieChart, Star, Activity, Vote,
-  Trophy, Map, Receipt, Menu, X, Shield, ChevronDown, Users, Cpu
+  LayoutDashboard, Store, PieChart, Star, Activity, Vote, Search,
+  Trophy, Map, Receipt, Menu, X, Shield, ChevronDown, Users, Cpu,
+  FileCheck2, ShieldCheck
 } from 'lucide-react';
 
 interface NavItem {
@@ -20,23 +23,21 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Workspace',    to: '/investor',      icon: <LayoutDashboard className="w-4 h-4 text-emerald-400" /> },
-  { label: 'Marketplace', to: '/marketplace',   icon: <Store className="w-4 h-4" /> },
-  { label: 'Portfolio',   to: '/portfolio',     icon: <PieChart className="w-4 h-4" />, roles: ['investor', 'asset_owner', 'admin'] },
-  { label: 'AI Advisor',  to: '/ai-copilot',    icon: <Sparkles className="w-4 h-4" />, badge: 'AI' },
-  { label: 'Rewards',     to: '/rewards',       icon: <Star className="w-4 h-4" />, roles: ['investor'] },
-  { label: 'Activity',    to: '/activity',      icon: <Activity className="w-4 h-4" /> },
+  { label: 'Control Center', to: '/investor',      icon: <LayoutDashboard className="w-4 h-4 text-emerald-400" /> },
+  { label: 'Marketplace',    to: '/marketplace',   icon: <Store className="w-4 h-4" /> },
+  { label: 'Portfolio',      to: '/portfolio',     icon: <PieChart className="w-4 h-4 text-indigo-400" />, roles: ['investor', 'asset_owner', 'admin'] },
+  { label: 'AI Advisor',     to: '/ai-copilot',    icon: <Sparkles className="w-4 h-4 text-purple-400" />, badge: 'AI' },
+  { label: 'Activity',       to: '/activity',      icon: <Activity className="w-4 h-4 text-amber-400" /> },
 ];
 
 const MORE_ITEMS: NavItem[] = [
-  { label: 'RWA Lending',   to: '/lending',       icon: <Coins className="w-4 h-4 text-emerald-400" />,   description: 'Borrow USDC against RWA tokens' },
-  { label: 'Copy Trading',  to: '/copy-trading',  icon: <Users className="w-4 h-4 text-amber-400" />,     description: 'Copy top investor portfolios' },
-  { label: 'IoT Oracles',   to: '/oracles',       icon: <Cpu className="w-4 h-4 text-cyan-400" />,        description: 'Chainlink real-time property feeds' },
-  { label: 'Transactions',  to: '/transactions',  icon: <Receipt className="w-4 h-4 text-purple-400" />,  description: 'On-chain & payment ledger' },
-  { label: 'Achievements',  to: '/achievements',  icon: <Trophy className="w-4 h-4 text-indigo-400" />,   description: 'Investor badges & rewards' },
-  { label: 'Journey',       to: '/journey',       icon: <Map className="w-4 h-4 text-blue-400" />,        description: 'Investor onboarding roadmap' },
-  { label: 'Analytics',     to: '/analytics',     icon: <BarChart3 className="w-4 h-4 text-pink-400" />,  description: 'Platform metrics & volume', roles: ['admin'] },
-  { label: 'Admin',         to: '/admin',         icon: <Shield className="w-4 h-4 text-red-400" />,      description: 'Compliance & asset approval', roles: ['admin'] },
+  { label: 'Admin Control Center',      to: '/admin',       icon: <Shield className="w-4 h-4 text-red-400" />,      description: 'Platform operations & system health', roles: ['admin'] },
+  { label: 'Verifier Control Center',   to: '/verifier',    icon: <FileCheck2 className="w-4 h-4 text-emerald-400" />, description: 'Deed review & OCR scanner', roles: ['verifier', 'admin'] },
+  { label: 'Legal Control Center',      to: '/legal',       icon: <ShieldCheck className="w-4 h-4 text-blue-400" />,   description: 'Encumbrance & litigation search', roles: ['legal_reviewer', 'admin'] },
+  { label: 'Compliance Control Center', to: '/compliance',  icon: <Users className="w-4 h-4 text-amber-400" />,     description: 'KYC, AML & ERC-3643 whitelist', roles: ['compliance_officer', 'compliance', 'admin'] },
+  { label: 'Auditor Control Center',    to: '/auditor',     icon: <Receipt className="w-4 h-4 text-cyan-400" />,    description: 'Read-only security ledger', roles: ['auditor', 'admin'] },
+  { label: 'IoT Oracles',               to: '/oracles',     icon: <Cpu className="w-4 h-4 text-cyan-400" />,        description: 'Chainlink property feeds' },
+  { label: 'Transactions',              to: '/transactions',icon: <Receipt className="w-4 h-4 text-purple-400" />,  description: 'On-chain transaction ledger' },
 ];
 
 export function Header() {
@@ -46,6 +47,7 @@ export function Header() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [moreOpen, setMoreOpen]     = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -196,6 +198,17 @@ export function Header() {
               </button>
             )}
 
+            {/* Global Search Button */}
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-white/[0.1] text-slate-400 hover:text-white hover:border-indigo-500/30 text-xs transition-all"
+              title="Global Search (Ctrl+K)"
+            >
+              <Search className="w-3.5 h-3.5 text-indigo-400" />
+              <span className="hidden md:inline font-medium">Search...</span>
+              <kbd className="hidden md:inline px-1 py-0.5 rounded bg-slate-800 text-[10px] text-slate-500 font-mono">⌘K</kbd>
+            </button>
+
             {/* Notification Bell */}
             <NotificationBell />
 
@@ -313,6 +326,8 @@ export function Header() {
           </div>
         </div>
       )}
+      {/* Global Search Modal */}
+      <GlobalSearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
     </>
   );
 }

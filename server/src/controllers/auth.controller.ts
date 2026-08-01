@@ -33,11 +33,26 @@ export class AuthController {
   }
 
   /**
+   * POST /auth/refresh
+   */
+  async refresh(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { refreshToken } = req.body;
+      const result = await authService.refreshSession(refreshToken);
+      sendSuccess(res, result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * POST /auth/logout
    */
-  async logout(_req: Request, res: Response, _next: NextFunction) {
-    // JWT is stateless — client simply discards the token.
-    // For token blacklisting, implement a Redis-based blocklist.
+  async logout(req: Request, res: Response, _next: NextFunction) {
+    const { refreshToken } = req.body || {};
+    if (refreshToken) {
+      await authService.revokeRefreshToken(refreshToken);
+    }
     sendSuccess(res, { message: 'Logged out successfully' });
   }
 

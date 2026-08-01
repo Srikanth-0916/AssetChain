@@ -23,6 +23,7 @@ const SecurityCenter    = lazy(() => import('../pages/SecurityCenter').then(m =>
 // ─── Dedicated RBAC Role Workspaces ────────────────────────────────────────────
 const InvestorDashboard   = lazy(() => import('../pages/InvestorDashboard').then(m => ({ default: m.InvestorDashboard })));
 const OwnerDashboard      = lazy(() => import('../pages/OwnerDashboard').then(m => ({ default: m.OwnerDashboard })));
+const VerifierDashboard   = lazy(() => import('../pages/VerifierDashboard').then(m => ({ default: m.VerifierDashboard })));
 const LegalDashboard      = lazy(() => import('../pages/LegalDashboard').then(m => ({ default: m.LegalDashboard })));
 const ComplianceDashboard = lazy(() => import('../pages/ComplianceDashboard').then(m => ({ default: m.ComplianceDashboard })));
 const AuditorDashboard    = lazy(() => import('../pages/AuditorDashboard').then(m => ({ default: m.AuditorDashboard })));
@@ -94,6 +95,10 @@ export const router = createBrowserRouter([
       {
         path: 'owner',
         element: <ProtectedRoute requiredRoles={['asset_owner', 'admin']}><OwnerDashboard /></ProtectedRoute>,
+      },
+      {
+        path: 'verifier',
+        element: <ProtectedRoute requiredRoles={['verifier', 'admin']}><VerifierDashboard /></ProtectedRoute>,
       },
       {
         path: 'legal',

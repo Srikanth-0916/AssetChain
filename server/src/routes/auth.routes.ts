@@ -30,6 +30,12 @@ router.post(
 );
 
 router.post(
+  '/refresh',
+  authLimiter,
+  authController.refresh
+);
+
+router.post(
   '/forgot-password',
   authLimiter,
   validate(forgotPasswordSchema),

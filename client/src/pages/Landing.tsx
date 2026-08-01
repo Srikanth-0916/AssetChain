@@ -11,7 +11,11 @@ import {
   Globe2,
 } from 'lucide-react';
 
+import { useAuth } from '../contexts/AuthContext';
+import { getRoleDashboardPath } from '../utils/roleUtils';
+
 export function Landing() {
+  const { user, isAuthenticated } = useAuth();
   return (
     <div className="space-y-24 pb-20">
       {/* Hero Section */}
@@ -31,12 +35,20 @@ export function Landing() {
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link to="/marketplace" className="btn-primary w-full sm:w-auto text-base py-3 px-8">
-            Explore Marketplace <ArrowRight className="w-4 h-4" />
-          </Link>
-          <Link to="/register" className="btn-secondary w-full sm:w-auto text-base py-3 px-8">
-            Tokenize Your Asset
-          </Link>
+          {isAuthenticated ? (
+            <Link to={getRoleDashboardPath(user?.role)} className="btn-primary w-full sm:w-auto text-base py-3 px-8">
+              Go to Dashboard <ArrowRight className="w-4 h-4" />
+            </Link>
+          ) : (
+            <>
+              <Link to="/login" className="btn-primary w-full sm:w-auto text-base py-3 px-8">
+                Login <ArrowRight className="w-4 h-4" />
+              </Link>
+              <Link to="/register" className="btn-secondary w-full sm:w-auto text-base py-3 px-8">
+                Create Account
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Stats preview */}

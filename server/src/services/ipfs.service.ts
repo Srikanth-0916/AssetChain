@@ -77,7 +77,7 @@ export class IPFSService {
         };
       }
 
-      const data = await response.json();
+      const data: any = await response.json();
       return {
         success: true,
         message: data.message || 'Successfully authenticated with Pinata IPFS API',
@@ -123,7 +123,7 @@ export class IPFSService {
         throw new Error(`Pinata pinJSON HTTP ${response.status}: ${errText}`);
       }
 
-      const resData = await response.json();
+      const resData: any = await response.json();
       const cid = resData.IpfsHash;
 
       return {

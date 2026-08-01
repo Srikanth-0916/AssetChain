@@ -18,6 +18,11 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { TrustScorePanel } from '../components/explainability/TrustScorePanel';
 import { ROIBreakdownPanel } from '../components/explainability/ROIBreakdownPanel';
 import { RiskBreakdownPanel } from '../components/explainability/RiskBreakdownPanel';
+import { AssetComparisonModal } from '../components/trust/AssetComparisonModal';
+import { ExitSimulatorModal } from '../components/trust/ExitSimulatorModal';
+import { DigitalDataRoom } from '../components/trust/DigitalDataRoom';
+import { DueDiligenceReportModal } from '../components/trust/DueDiligenceReportModal';
+import { Star, Scale, Calculator, FileText, Lock } from 'lucide-react';
 
 // ─── Category filter config ───────────────────────────────────────────────────
 const CATEGORY_COLORS: Record<string, string> = {
@@ -157,17 +162,21 @@ function AssetCard({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function Marketplace() {
-  const { isAuthenticated } = useAuth();
-  const { isConnected, connect } = useWallet();
-
-  const [assets, setAssets]             = useState<Asset[]>([]);
-  const [isLoading, setIsLoading]       = useState(true);
-  const [searchTerm, setSearchTerm]     = useState('');
+  const { user }          = useAuth();
+  const { isConnected }   = useWallet();
+  const [assets, setAssets]               = useState<Asset[]>([]);
+  const [isLoading, setIsLoading]         = useState(true);
+  const [searchTerm, setSearchTerm]       = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
-  const [quantity, setQuantity]           = useState<number>(10);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+  // Modals state
+  const [isCompareOpen, setIsCompareOpen]   = useState(false);
+  const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
+  const [isDueDiligenceOpen, setIsDueDiligenceOpen] = useState(false);
+  
+  const [quantity, setQuantity]           = useState<number>(10);
   const [paymentSuccess, setPaymentSuccess]     = useState<string | null>(null);
 
   useEffect(() => {
@@ -210,17 +219,31 @@ export function Marketplace() {
             <TrendingUp className="w-5 h-5 text-indigo-400" />
           </div>
           <div>
-            <h1 className="page-title">Asset Marketplace</h1>
+            <h1 className="page-title">Institutional Asset Marketplace</h1>
             <p className="text-xs text-slate-500 mt-0.5">
               Fractional real-world assets · Verified on Polygon Amoy
             </p>
           </div>
         </div>
-        <div className="page-header-actions">
-          <span className="pill-badge pill-info">
-            <Sparkles className="w-3 h-3" />
-            {assets.length} Active Assets
-          </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsCompareOpen(true)}
+            className="px-3.5 py-2 rounded-xl bg-slate-900 border border-white/[0.1] text-slate-300 hover:text-white hover:border-indigo-500/30 text-xs font-semibold transition-all flex items-center gap-1.5"
+          >
+            <Scale className="w-4 h-4 text-indigo-400" /> Compare Assets
+          </button>
+          <button
+            onClick={() => setIsSimulatorOpen(true)}
+            className="px-3.5 py-2 rounded-xl bg-slate-900 border border-white/[0.1] text-slate-300 hover:text-white hover:border-indigo-500/30 text-xs font-semibold transition-all flex items-center gap-1.5"
+          >
+            <Calculator className="w-4 h-4 text-emerald-400" /> Exit Simulator
+          </button>
+          <button
+            onClick={() => setIsDueDiligenceOpen(true)}
+            className="px-3.5 py-2 rounded-xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-200 hover:text-white text-xs font-semibold transition-all flex items-center gap-1.5"
+          >
+            <Sparkles className="w-4 h-4 text-purple-400" /> AI Due Diligence
+          </button>
         </div>
       </div>
 
@@ -328,6 +351,11 @@ export function Marketplace() {
           }}
         />
       )}
+
+      {/* Institutional Modals */}
+      <AssetComparisonModal isOpen={isCompareOpen} onClose={() => setIsCompareOpen(false)} />
+      <ExitSimulatorModal isOpen={isSimulatorOpen} onClose={() => setIsSimulatorOpen(false)} />
+      <DueDiligenceReportModal isOpen={isDueDiligenceOpen} onClose={() => setIsDueDiligenceOpen(false)} />
     </div>
   );
 }

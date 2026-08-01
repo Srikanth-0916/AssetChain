@@ -8,8 +8,10 @@ import {
   Wallet, Zap, ShieldCheck,
 } from 'lucide-react';
 
+import { getRoleDashboardPath } from '../utils/roleUtils';
+
 export function Register() {
-  const { register, loginWithWallet } = useAuth();
+  const { register, loginWithWallet, user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { connect, address, isConnected } = useWallet();
   const navigate = useNavigate();
 
@@ -20,6 +22,13 @@ export function Register() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isWalletAuth, setIsWalletAuth] = useState(false);
+
+  // ─── AUTO-REDIRECT IF ALREADY LOGGED IN ──────────────────────────────────────
+  React.useEffect(() => {
+    if (isAuthenticated && !isAuthLoading && user) {
+      navigate(getRoleDashboardPath(user.role), { replace: true });
+    }
+  }, [isAuthenticated, isAuthLoading, user, navigate]);
 
   // ─── 1. REGISTER / LOGIN WITH WALLET (PRIMARY) ────────────────────────────
   const handleWalletRegister = async () => {
@@ -48,7 +57,7 @@ export function Register() {
       });
 
       await loginWithWallet(targetAddress, signature, role);
-      navigate('/dashboard');
+      navigate(getRoleDashboardPath(role));
     } catch (err: any) {
       console.error('[WalletRegister] Error:', err);
       setError(err.message || 'Wallet registration failed. Please try again.');
@@ -70,9 +79,14 @@ export function Register() {
         password,
         role,
       });
-      navigate('/dashboard');
+      navigate(getRoleDashboardPath(role));
     } catch (err: any) {
-      setError(err.message || 'Failed to create account. Please check input requirements.');
+      const msg = err.message || 'Failed to create account. Please check input requirements.';
+      if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('already exists')) {
+        setError('This email is already registered. Please log in.');
+      } else {
+        setError(msg);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -87,9 +101,16 @@ export function Register() {
         </div>
 
         {error && (
-          <div className="info-panel danger text-xs">
-            <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-            <span className="text-red-300">{error}</span>
+          <div className="info-panel danger text-xs flex flex-col gap-1.5">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+              <span className="text-red-300 font-medium">{error}</span>
+            </div>
+            {error.includes('already registered') && (
+              <Link to="/login" className="text-indigo-400 hover:text-indigo-300 font-semibold underline underline-offset-2 text-xs">
+                Click here to Go to Login Page →
+              </Link>
+            )}
           </div>
         )}
 
