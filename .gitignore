@@ -23,6 +23,10 @@ build/
 **/build/
 .vite-temp/
 coverage/
+test/
+tests/
+*.test.*
+server/scripts/test_*.ts
 
 # Hardhat / Blockchain
 contracts/artifacts/

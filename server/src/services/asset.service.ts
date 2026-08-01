@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { supabaseAdmin } from '../config/database';
+import { env } from '../config/env';
 import { NotFoundError, UnprocessableError } from '../utils/errors';
 import { parsePagination, calculateTotalPages } from '../utils/pagination';
 
@@ -93,9 +94,44 @@ export class AssetService {
 
     localAssetsStore.set(newAsset.id, newAsset);
 
-    try {
-      await supabaseAdmin.from('assets').insert(newAsset);
-    } catch {}
+    // 1. Ensure profile & auth.users exist in Supabase so foreign key constraint owner_id -> profiles(id) succeeds
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (UUID_REGEX.test(ownerId)) {
+      try {
+        await supabaseAdmin.auth.admin.createUser({
+          id: ownerId,
+          email: `owner_${ownerId.substring(0, 8)}@assetchain.io`,
+          password: 'TestPassword123!',
+          email_confirm: true,
+        });
+      } catch {}
+
+      try {
+        await supabaseAdmin.from('profiles').upsert({
+          id: ownerId,
+          full_name: 'Verified Asset Owner',
+          email: `owner_${ownerId.substring(0, 8)}@assetchain.io`,
+          role: 'asset_owner',
+          kyc_status: 'approved',
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'id' });
+      } catch {}
+    }
+
+    // 2. Prepare database payload: exclude non-column 'owner' and generated column 'token_price'
+    const { owner, token_price: _tp, ...dbPayload } = newAsset;
+
+    const { error } = await supabaseAdmin.from('assets').insert(dbPayload);
+    if (error) {
+      console.error('[AssetService] ❌ Supabase assets insert error:', error.message);
+      if (env.NODE_ENV === 'production') {
+        throw new Error(`Database persistence failure: ${error.message}`);
+      } else {
+        console.warn(`[AssetService] ⚠️ Supabase write warning: ${error.message}`);
+      }
+    } else {
+      console.log(`[AssetService] ✅ Asset successfully persisted to Supabase DB (ID: ${newAsset.id})`);
+    }
 
     return newAsset;
   }

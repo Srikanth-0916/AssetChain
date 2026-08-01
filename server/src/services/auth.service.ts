@@ -173,6 +173,15 @@ export class AuthService {
 
     // 4. Persist to Supabase public.profiles, portfolio_cache, and compliance_profiles tables
     try {
+      // Create user in auth.users first so profiles FK constraint (REFERENCES auth.users(id)) passes
+      await supabaseAdmin.auth.admin.createUser({
+        id: newUser.id,
+        email: newUser.email,
+        password: data.password,
+        email_confirm: true,
+        user_metadata: { full_name: newUser.full_name },
+      }).catch(() => {});
+
       const { error: profileErr } = await supabaseAdmin.from('profiles').upsert({
         id: newUser.id,
         full_name: newUser.full_name,

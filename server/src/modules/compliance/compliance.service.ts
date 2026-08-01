@@ -189,23 +189,35 @@ export class ComplianceService {
         return updated;
       }
 
+      // 1. Ensure profile exists in profiles table for FK constraint
+      await supabaseAdmin.from('profiles').upsert({
+        id: updated.userId,
+        full_name: 'Compliance User',
+        email: `user_${updated.userId.substring(0, 8)}@assetchain.io`,
+        role: 'investor',
+        kyc_status: normalizedKycStatus,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' });
+
+      // 2. Upsert compliance profile record
       const { error } = await supabaseAdmin.from('compliance_profiles').upsert({
         user_id: updated.userId,
         kyc_status: normalizedKycStatus,
         compliance_status: complianceStatusFromKyc,
         risk_score: riskScoreMap[updated.riskTier] ?? 15,
-        // erc3643_compatible: column may not exist in older DB deployments (DEFAULT TRUE in schema)
         jurisdiction_code: updated.jurisdictionCode,
         updated_at: updated.updatedAt,
       }, { onConflict: 'user_id' });
 
       if (error) {
+        console.error(`[ComplianceService] ❌ Supabase write failed for compliance profile:`, error.message);
         if (env.NODE_ENV === 'production') {
-          console.error(`[ComplianceService] 🚨 CRITICAL PROD FAILURE: Compliance write failed for ${userId}:`, error.message);
           throw new ServiceUnavailableError(`Compliance persistence failure: ${error.message}`);
         } else {
-          console.warn(`[ComplianceService] ⚠️ Dev Mode Warning: Supabase write failed for compliance profile:`, error.message);
+          console.warn(`[ComplianceService] ⚠️ Supabase write warning: ${error.message}`);
         }
+      } else {
+        console.log(`[ComplianceService] ✅ Compliance profile successfully persisted to Supabase DB for ${updated.userId}`);
       }
     } catch (err: any) {
       if (env.NODE_ENV === 'production') {
