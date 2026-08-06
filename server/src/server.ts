@@ -11,7 +11,8 @@ const server = http.createServer(app);
 // Initialize WebSocket server on /ws
 webSocketService.initialize(server);
 
-server.listen(PORT, async () => {
+// '0.0.0.0' binds to all network interfaces — accepts localhost AND LAN connections
+server.listen(PORT, '0.0.0.0', async () => {
   console.log(`
   ╔═══════════════════════════════════════════════╗
   ║       TrustChain AI API Server                ║

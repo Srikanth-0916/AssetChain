@@ -8,9 +8,11 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { auditService } from '../audit/audit.service';
+import { notificationService } from '../notifications/notification.service';
 import { supabaseAdmin } from '../../config/database';
 import { env } from '../../config/env';
 import { ServiceUnavailableError } from '../../utils/errors';
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -105,47 +107,11 @@ export class ApprovalService {
   private readonly safeAdapter = new GnosisSafeAdapter();
 
   constructor() {
-    // Seed initial approval request for demo asset 1
-    const demoReq: ApprovalRequest = {
-      id: 'approval-demo-001',
-      assetId: 'asset-demo-uuid-001',
-      assetTitle: 'Manhattan Commercial Plaza',
-      status: 'approved',
-      createdAt: new Date(Date.now() - 30 * 86400000).toISOString(),
-      updatedAt: new Date(Date.now() - 29 * 86400000).toISOString(),
-      requiredVotes: 2,
-      totalRoles: 3,
-      approvedCount: 2,
-      rejectedCount: 0,
-      votes: [
-        {
-          role: 'verifier',
-          userId: 'verifier-uuid-001',
-          decision: 'approved',
-          comments: 'Technical audit & asset documentation verified on IPFS.',
-          timestamp: new Date(Date.now() - 29.5 * 86400000).toISOString(),
-        },
-        {
-          role: 'legal_reviewer',
-          userId: 'legal-uuid-002',
-          decision: 'approved',
-          comments: 'SPV title deed and legal structure confirmed in Delaware jurisdiction.',
-          timestamp: new Date(Date.now() - 29 * 86400000).toISOString(),
-        },
-      ],
-      gnosisSafeTxHash: '0xgnosis_7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d',
-      verificationSummary: {
-        riskScore: 12,
-        recommendation: 'Approve',
-        confidence: 0.95,
-      },
-    };
-    this.store.set(demoReq.id, demoReq);
+    // Constructor no longer seeds hardcoded/mock request list
   }
 
   /** Helper to persist approval request to Supabase with environment-based behavior */
   private async persistToSupabase(request: ApprovalRequest): Promise<void> {
-    // Skip Supabase write if IDs are not valid UUIDs (test fixture IDs)
     const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!UUID_REGEX.test(request.id) || !UUID_REGEX.test(request.assetId)) {
       return; // Memory store is sufficient for non-UUID IDs
@@ -155,17 +121,14 @@ export class ApprovalService {
       const { error } = await supabaseAdmin.from('approval_requests').upsert({
         id: request.id,
         asset_id: request.assetId,
-        // asset_title: column may not exist in older DB deployments — excluded for compatibility
         status: request.status,
         created_at: request.createdAt,
         updated_at: request.updatedAt,
         required_votes: request.requiredVotes,
-        // total_roles: column may not exist in older DB deployments — excluded for compatibility
         approved_count: request.approvedCount,
         rejected_count: request.rejectedCount,
         gnosis_safe_tx_hash: request.gnosisSafeTxHash,
-        // verification_summary: column may not exist in older DB deployments — excluded for compatibility
-      });
+      }, { onConflict: 'id' });
 
       if (error) {
         if (env.NODE_ENV === 'production') {
@@ -182,12 +145,93 @@ export class ApprovalService {
     }
   }
 
+  /** Helper to persist vote to Supabase */
+  private async persistVoteToSupabase(vote: ApprovalVote, requestId: string): Promise<void> {
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_REGEX.test(requestId) || !UUID_REGEX.test(vote.userId)) {
+      return;
+    }
+    try {
+      const { error } = await supabaseAdmin.from('approval_votes').upsert({
+        request_id: requestId,
+        verifier_id: vote.userId,
+        role: vote.role,
+        decision: vote.decision === 'approved' ? 'approve' : 'reject',
+        comments: vote.comments || null,
+        voted_at: vote.timestamp,
+      }, { onConflict: 'request_id,verifier_id' });
+
+      if (error) {
+        console.warn(`[ApprovalService] ⚠️ Supabase vote write warning:`, error.message);
+      }
+    } catch (err: any) {
+      console.warn(`[ApprovalService] ⚠️ Supabase vote write catch:`, err.message);
+    }
+  }
+
+  /** Sync memory cache from Supabase requests and votes */
+  private async syncFromSupabase(singleId?: string): Promise<void> {
+    try {
+      let query = supabaseAdmin
+        .from('approval_requests')
+        .select(`
+          id, asset_id, status, required_votes, approved_count, rejected_count, 
+          gnosis_safe_tx_hash, created_at, updated_at
+        `);
+      
+      if (singleId) {
+        query = query.eq('id', singleId);
+      }
+
+      const { data: dbRequests, error } = await query;
+      if (error) {
+        console.warn('[ApprovalService] ⚠️ failed to fetch approval requests:', error.message);
+        return;
+      }
+
+      for (const r of (dbRequests || [])) {
+        const { data: dbVotes } = await supabaseAdmin
+          .from('approval_votes')
+          .select('verifier_id, role, decision, comments, voted_at')
+          .eq('request_id', r.id);
+
+        const votes: ApprovalVote[] = (dbVotes || []).map((v: any) => ({
+          role: v.role as ApprovalRole,
+          userId: v.verifier_id,
+          decision: v.decision === 'approve' ? 'approved' : 'rejected',
+          comments: v.comments || '',
+          timestamp: v.voted_at,
+        }));
+
+        const existing = this.store.get(r.id);
+        this.store.set(r.id, {
+          id: r.id,
+          assetId: r.asset_id,
+          assetTitle: existing?.assetTitle || `Asset ${r.asset_id.slice(0, 8)}`,
+          status: r.status as any,
+          createdAt: r.created_at,
+          updatedAt: r.updated_at,
+          requiredVotes: r.required_votes || 2,
+          totalRoles: existing?.totalRoles || 3,
+          votes,
+          approvedCount: r.approved_count || 0,
+          rejectedCount: r.rejected_count || 0,
+          gnosisSafeTxHash: r.gnosis_safe_tx_hash,
+          verificationSummary: existing?.verificationSummary,
+        });
+      }
+    } catch (err: any) {
+      console.warn('[ApprovalService] ⚠️ syncFromSupabase error:', err.message);
+    }
+  }
+
   /** Create a new multi-sig approval request after AI verification. */
   async createRequest(
     assetId: string,
     assetTitle: string,
     verificationSummary?: ApprovalRequest['verificationSummary']
   ): Promise<ApprovalRequest> {
+    await this.syncFromSupabase();
     const existing = this.findByAsset(assetId);
     if (existing && existing.status === 'pending') return existing;
 
@@ -225,10 +269,6 @@ export class ApprovalService {
     return request;
   }
 
-  /**
-   * Indexer Event Processor: Called by ContractListener when an on-chain `ApprovalVoted` or `AssetApproved` event is detected.
-   * Approval status is decided purely by smart contract event logs.
-   */
   async processOnChainApprovalEvent(data: {
     txHash: string;
     assetId: string;
@@ -238,34 +278,35 @@ export class ApprovalService {
     comments?: string;
     status?: 'approved' | 'rejected';
   }): Promise<ApprovalRequest> {
+    await this.syncFromSupabase();
     let request = this.findByAsset(data.assetId);
 
     if (!request) {
-      // Auto-create request if indexed event arrives for an asset without a cached request
       request = await this.createRequest(data.assetId, `Asset ${data.assetId.slice(0, 8)}`);
     }
 
-    // Attach on-chain transaction hash proof
     request.gnosisSafeTxHash = data.txHash;
     request.updatedAt = new Date().toISOString();
 
-    if (data.role && data.decision) {
-      const existing = request.votes.find((v) => v.role === data.role);
-      if (!existing) {
-        request.votes.push({
-          role: data.role,
-          userId: data.voterAddress || 'on-chain-verifier',
-          decision: data.decision,
-          comments: data.comments || `On-chain event vote (tx: ${data.txHash.slice(0, 10)}...)`,
-          timestamp: new Date().toISOString(),
-        });
+    const newVote: ApprovalVote | null = (data.role && data.decision) ? {
+      role: data.role,
+      userId: data.voterAddress || 'on-chain-verifier',
+      decision: data.decision,
+      comments: data.comments || `On-chain event vote (tx: ${data.txHash.slice(0, 10)}...)`,
+      timestamp: new Date().toISOString(),
+    } : null;
+
+    if (newVote) {
+      const existingIdx = request.votes.findIndex((v) => v.role === newVote.role);
+      if (existingIdx === -1) {
+        request.votes.push(newVote);
+        await this.persistVoteToSupabase(newVote, request.id);
       }
     }
 
     request.approvedCount = request.votes.filter((v) => v.decision === 'approved').length;
     request.rejectedCount = request.votes.filter((v) => v.decision === 'rejected').length;
 
-    // Smart contract event decision check
     if (data.status) {
       request.status = data.status;
     } else if (request.approvedCount >= this.REQUIRED_VOTES) {
@@ -277,7 +318,44 @@ export class ApprovalService {
     this.store.set(request.id, request);
     await this.persistToSupabase(request);
 
-    // Audit log proof of indexed smart contract event
+    let ownerId: string | null = null;
+    try {
+      const { data: assetData } = await supabaseAdmin
+        .from('assets')
+        .select('owner_id')
+        .eq('id', request.assetId)
+        .single();
+      if (assetData) ownerId = assetData.owner_id;
+    } catch {}
+
+    if (ownerId) {
+      if (request.status === 'approved') {
+        await notificationService.notify(
+          ownerId,
+          'asset_approved',
+          'Multi-Sig Approval Complete',
+          `Your asset "${request.assetTitle}" has passed multi-signature verifier approval (2-of-3 votes)!`,
+          { assetId: request.assetId, requestId: request.id }
+        );
+      } else if (request.status === 'rejected') {
+        await notificationService.notify(
+          ownerId,
+          'asset_rejected',
+          'Multi-Sig Approval Rejected',
+          `Your asset "${request.assetTitle}" was rejected during multi-signature review.`,
+          { assetId: request.assetId, requestId: request.id }
+        );
+      } else if (newVote) {
+        await notificationService.notify(
+          ownerId,
+          'asset_approved',
+          'Verifier Review Submitted',
+          `A ${newVote.role} submitted a ${newVote.decision} vote on your asset "${request.assetTitle}".`,
+          { assetId: request.assetId, requestId: request.id, role: newVote.role, decision: newVote.decision }
+        );
+      }
+    }
+
     auditService.log(
       request.status === 'approved' ? 'asset_approved' : 'asset_rejected',
       data.voterAddress || 'smart-contract',
@@ -296,7 +374,6 @@ export class ApprovalService {
     return request;
   }
 
-  /** Submit an approval/rejection vote (Simulates / triggers smart contract vote & event indexer). */
   async submitVote(
     requestId: string,
     role: ApprovalRole,
@@ -309,6 +386,7 @@ export class ApprovalService {
       throw new Error(`Invalid approval role '${role}'. Allowed roles: ${VALID_ROLES.join(', ')}`);
     }
 
+    await this.syncFromSupabase();
     const request = this.store.get(requestId);
     if (!request) throw new Error(`Approval request ${requestId} not found`);
     if (request.status !== 'pending') throw new Error(`Request is already ${request.status}`);
@@ -316,10 +394,8 @@ export class ApprovalService {
     const existingVote = request.votes.find((v) => v.role === role);
     if (existingVote) throw new Error(`Role '${role}' has already voted on this request`);
 
-    // Simulate smart contract event transaction hash (Blockchain-First)
     const onChainTxHash = `0xvote_${uuidv4().replace(/-/g, '')}`;
 
-    // Delegate status update to on-chain event processor (Indexer-driven)
     return this.processOnChainApprovalEvent({
       txHash: onChainTxHash,
       assetId: request.assetId,
@@ -331,23 +407,27 @@ export class ApprovalService {
   }
 
   async getPending(): Promise<ApprovalRequest[]> {
+    await this.syncFromSupabase();
     return Array.from(this.store.values())
       .filter((r) => r.status === 'pending')
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
   async getAll(): Promise<ApprovalRequest[]> {
+    await this.syncFromSupabase();
     return Array.from(this.store.values())
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
   async getById(id: string): Promise<ApprovalRequest> {
+    await this.syncFromSupabase(id);
     const req = this.store.get(id);
     if (!req) throw new Error(`Approval request ${id} not found`);
     return req;
   }
 
   async getByAsset(assetId: string): Promise<ApprovalRequest | null> {
+    await this.syncFromSupabase();
     return this.findByAsset(assetId);
   }
 

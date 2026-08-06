@@ -12,7 +12,7 @@ router.get('/proposals', authenticate, daoController.getProposals);
 router.post(
   '/proposals',
   authenticate,
-  roleGuard('admin'),
+  roleGuard('admin', 'investor', 'asset_owner'),
   validate(createProposalSchema),
   daoController.createProposal
 );

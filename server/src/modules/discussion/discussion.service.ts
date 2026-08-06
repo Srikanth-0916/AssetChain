@@ -15,7 +15,9 @@ export class DiscussionService {
   private reputationMap: Map<string, InvestorReputation> = new Map();
 
   constructor() {
-    this.initializeDefaultData();
+    if (process.env.VITEST || process.env.NODE_ENV === 'test') {
+      this.initializeDefaultData();
+    }
   }
 
   private initializeDefaultData() {

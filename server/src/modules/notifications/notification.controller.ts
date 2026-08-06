@@ -5,8 +5,9 @@ import { sendSuccess } from '../../utils/response';
 export class NotificationController {
   async getNotifications(req: Request, res: Response, next: NextFunction) {
     try {
-      const notifications = notificationService.getNotifications(req.user!.userId);
-      const unreadCount = notificationService.getUnreadCount(req.user!.userId);
+      const userId = req.user!.userId;
+      const notifications = await notificationService.getNotificationsForUser(userId);
+      const unreadCount = notifications.filter((n) => !n.read).length;
       sendSuccess(res, { notifications, unreadCount });
     } catch (error) {
       next(error);

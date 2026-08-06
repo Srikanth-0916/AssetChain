@@ -13,13 +13,13 @@ export function errorHandler(
   res: Response,
   _next: NextFunction
 ): void {
-  // Log error in development
-  if (env.NODE_ENV === 'development') {
-    console.error('Error:', err);
-  }
-
   // Handle known application errors
   if (err instanceof AppError) {
+    if (env.NODE_ENV === 'development' && err.statusCode >= 500) {
+      console.error('[ServerError]', err);
+    } else if (env.NODE_ENV === 'development') {
+      console.warn(`[${err.statusCode}] ${_req.method} ${_req.originalUrl} - ${err.message}`);
+    }
     sendError(res, err.statusCode, err.code, err.message, err.details);
     return;
   }

@@ -41,8 +41,8 @@ export function FundingBreakdownWidget({
           />
         </div>
         <div className="flex justify-between text-xs text-slate-400 font-mono">
-          <span>Raised: <strong className="text-white">${raisedAmount.toLocaleString()}</strong></span>
-          <span>Target: <strong className="text-white">${targetAmount.toLocaleString()}</strong></span>
+          <span>Raised: <strong className="text-white">₹{raisedAmount.toLocaleString('en-IN')}</strong></span>
+          <span>Target: <strong className="text-white">₹{targetAmount.toLocaleString('en-IN')}</strong></span>
         </div>
       </div>
 
@@ -50,7 +50,7 @@ export function FundingBreakdownWidget({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
         <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1">
           <div className="text-slate-400 text-[10px]">Remaining Target</div>
-          <div className="text-base font-bold text-amber-400">${remainingAmount.toLocaleString()}</div>
+          <div className="text-base font-bold text-amber-400">₹{remainingAmount.toLocaleString('en-IN')}</div>
         </div>
         <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1">
           <div className="text-slate-400 text-[10px]">Institutional Investors</div>
@@ -58,7 +58,7 @@ export function FundingBreakdownWidget({
         </div>
         <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1">
           <div className="text-slate-400 text-[10px]">Average Check Size</div>
-          <div className="text-base font-bold text-indigo-300">${avgInvestment.toLocaleString()}</div>
+          <div className="text-base font-bold text-indigo-300">₹{avgInvestment.toLocaleString('en-IN')}</div>
         </div>
         <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1">
           <div className="text-slate-400 text-[10px]">Token Sale Close</div>

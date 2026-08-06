@@ -98,7 +98,8 @@ const BREAKDOWN_LABELS: Record<string, string> = {
   daoGovernance: 'DAO',
 };
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
+import { API_BASE_URL as API_BASE } from '../../config/network';
+
 
 export function TrustSignalCard({ assetId, compact = false }: TrustSignalCardProps) {
   const [report, setReport] = useState<TrustReport | null>(null);

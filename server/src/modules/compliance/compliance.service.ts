@@ -18,42 +18,7 @@ export interface ComplianceProfile {
   updatedAt: string;
 }
 
-const complianceStore: Map<string, ComplianceProfile> = new Map([
-  [
-    'investor-demo-uuid-001',
-    {
-      userId: 'investor-demo-uuid-001',
-      walletAddress: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
-      kycStatus: 'approved',
-      kycStatusCode: 1,
-      jurisdiction: 'United States',
-      jurisdictionCode: 840,
-      riskTier: 'low',
-      riskTierCode: 1,
-      transferPermission: true,
-      isWhitelisted: true,
-      erc3643Compatible: true,
-      updatedAt: new Date().toISOString(),
-    },
-  ],
-  [
-    'owner-demo-uuid-002',
-    {
-      userId: 'owner-demo-uuid-002',
-      walletAddress: '0x2546BcD3c84621e976D8185a91A922aE77ECEc30',
-      kycStatus: 'approved',
-      kycStatusCode: 1,
-      jurisdiction: 'United Arab Emirates',
-      jurisdictionCode: 784,
-      riskTier: 'low',
-      riskTierCode: 1,
-      transferPermission: true,
-      isWhitelisted: true,
-      erc3643Compatible: true,
-      updatedAt: new Date().toISOString(),
-    },
-  ],
-]);
+const complianceStore: Map<string, ComplianceProfile> = new Map();
 
 // In-memory query cache for ComplianceProfile lookups
 const complianceCache = new Map<string, { profile: ComplianceProfile; cachedAt: number }>();

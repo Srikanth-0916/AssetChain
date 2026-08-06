@@ -1,0 +1,14 @@
+{
+  "network": "polygon-amoy",
+  "chainId": 80002,
+  "deployer": "0x5dFACC9Baf30C2d3a77f7dB67612c946e74604E3",
+  "lastUpdated": "2026-08-05T03:45:47.594Z",
+  "contracts": {
+    "MockUSDC": "0x197367CB43beEF2f123731Ca4DE5C55B81Ae3d86",
+    "Treasury": "0xF4C5a9d12779D7FaA5933A7De041332151570c68",
+    "AssetTokenFactory": "0xe1384a5b215b1D4B43D6A650bF867ea58E6Fbc4D",
+    "AssetRegistry": "0x5C6241aEf58367E5D485D5eBAa8D9997e231F508",
+    "Marketplace": "0x835aaF7DAF1A323b42bF7367d037e55659EB3BcB",
+    "Governance": "0xb5cb2DA91Dc774EE587301f63eb7fb020e11Bc87"
+  }
+}

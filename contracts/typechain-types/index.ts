@@ -10,6 +10,8 @@ export type { AccessControl } from "./@openzeppelin/contracts/access/AccessContr
 export { AccessControl__factory } from "./factories/@openzeppelin/contracts/access/AccessControl__factory";
 export type { IAccessControl } from "./@openzeppelin/contracts/access/IAccessControl";
 export { IAccessControl__factory } from "./factories/@openzeppelin/contracts/access/IAccessControl__factory";
+export type { Ownable } from "./@openzeppelin/contracts/access/Ownable";
+export { Ownable__factory } from "./factories/@openzeppelin/contracts/access/Ownable__factory";
 export type { IERC1155Errors } from "./@openzeppelin/contracts/interfaces/draft-IERC6093.sol/IERC1155Errors";
 export { IERC1155Errors__factory } from "./factories/@openzeppelin/contracts/interfaces/draft-IERC6093.sol/IERC1155Errors__factory";
 export type { IERC20Errors } from "./@openzeppelin/contracts/interfaces/draft-IERC6093.sol/IERC20Errors";
@@ -40,6 +42,8 @@ export type { AssetTokenFactory } from "./contracts/core/AssetTokenFactory";
 export { AssetTokenFactory__factory } from "./factories/contracts/core/AssetTokenFactory__factory";
 export type { Governance } from "./contracts/governance/Governance";
 export { Governance__factory } from "./factories/contracts/governance/Governance__factory";
+export type { FractionalMarketplace } from "./contracts/marketplace/FractionalMarketplace";
+export { FractionalMarketplace__factory } from "./factories/contracts/marketplace/FractionalMarketplace__factory";
 export type { Marketplace } from "./contracts/marketplace/Marketplace";
 export { Marketplace__factory } from "./factories/contracts/marketplace/Marketplace__factory";
 export type { Treasury } from "./contracts/treasury/Treasury";

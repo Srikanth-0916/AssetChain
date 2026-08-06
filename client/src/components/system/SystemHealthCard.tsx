@@ -29,7 +29,8 @@ interface SystemHealthData {
   timestamp: string;
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
+import { API_BASE_URL as API_BASE } from '../../config/network';
+
 
 function formatUptime(seconds: number): string {
   const hrs = Math.floor(seconds / 3600);

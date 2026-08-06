@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import {
   Shield, Lock, Eye, EyeOff, Trash2, Download, AlertCircle,
@@ -16,59 +16,6 @@ interface DataAccessEvent {
   category: 'system' | 'admin' | 'reviewer' | 'self';
 }
 
-const MOCK_ACCESS_HISTORY: DataAccessEvent[] = [
-  {
-    id: '1',
-    action: 'KYC Profile & Verification Read',
-    actor: 'Compliance Engine (ERC-3643)',
-    reason: 'ERC-3643 transfer eligibility & jurisdiction check for marketplace order',
-    timestamp: new Date(Date.now() - 45 * 60000).toISOString(),
-    category: 'system',
-  },
-  {
-    id: '2',
-    action: 'Legal Document Decryption',
-    actor: 'Legal Reviewer (user-legal-002)',
-    reviewerRole: 'Legal Reviewer',
-    reason: 'Multi-sig approval review for Manhattan Commercial Plaza (REQ-001)',
-    timestamp: new Date(Date.now() - 2 * 3600000).toISOString(),
-    category: 'reviewer',
-  },
-  {
-    id: '3',
-    action: 'Technical Audit Verification',
-    actor: 'Technical Verifier (user-verifier-001)',
-    reviewerRole: 'Technical Verifier',
-    reason: 'OCR document validation and title deed authenticity review',
-    timestamp: new Date(Date.now() - 5 * 3600000).toISOString(),
-    category: 'reviewer',
-  },
-  {
-    id: '4',
-    action: 'Wallet Signature Authentication',
-    actor: 'Authentication System',
-    reason: 'EIP-191 signature challenge verification for wallet login',
-    timestamp: new Date(Date.now() - 24 * 3600000).toISOString(),
-    category: 'system',
-  },
-  {
-    id: '5',
-    action: 'Nominee Record Decrypted',
-    actor: 'Admin (admin-demo-uuid-001)',
-    reviewerRole: 'Platform Admin',
-    reason: 'Inheritance claim audit verification for claim INH-2024-003',
-    timestamp: new Date(Date.now() - 3 * 86400000).toISOString(),
-    category: 'admin',
-  },
-  {
-    id: '6',
-    action: 'Profile Settings Accessed',
-    actor: 'You (Self)',
-    reason: 'Privacy & Security settings viewed',
-    timestamp: new Date(Date.now() - 5 * 86400000).toISOString(),
-    category: 'self',
-  },
-];
 
 function AccessCategoryBadge({ category }: { category: DataAccessEvent['category'] }) {
   const styles: Record<DataAccessEvent['category'], string> = {
@@ -104,11 +51,48 @@ export function PrivacyCenter() {
     ? `${user.email.substring(0, 3)}***@${user.email.split('@')[1] || '***'}`
     : '***';
 
-  const kycStatus = 'approved'; // From compliance profile
+  const [accessHistory, setAccessHistory] = useState<DataAccessEvent[]>([]);
+  const [accessLoading, setAccessLoading] = useState(true);
 
-  const displayedHistory = expandedAccess
-    ? MOCK_ACCESS_HISTORY
-    : MOCK_ACCESS_HISTORY.slice(0, 3);
+  useEffect(() => {
+    async function loadAuditLog() {
+      setAccessLoading(true);
+      try {
+        // Fetch audit log entries for the authenticated user from the API
+        const token = localStorage.getItem('assetchain_token');
+        const res = await fetch('/api/v1/audit-log?limit=20', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const logs = json?.data?.logs ?? json?.data ?? [];
+          const mapped: DataAccessEvent[] = logs.map((log: any) => ({
+            id: log.id,
+            action: log.action || 'System Action',
+            actor: log.actor_id || 'System',
+            reviewerRole: log.actor_role,
+            reason: log.description || log.action || 'No description',
+            timestamp: log.created_at,
+            category: (log.actor_role === 'admin' ? 'admin'
+              : log.actor_role === 'system' ? 'system'
+              : log.actor_id === user?.id ? 'self'
+              : 'reviewer') as DataAccessEvent['category'],
+          }));
+          setAccessHistory(mapped);
+        }
+      } catch (e) {
+        // On error — show empty state (no fake data)
+        setAccessHistory([]);
+      } finally {
+        setAccessLoading(false);
+      }
+    }
+    if (user?.id) loadAuditLog();
+    else setAccessLoading(false);
+  }, [user?.id]);
+
+  const displayedHistory = expandedAccess ? accessHistory : accessHistory.slice(0, 3);
+
 
   return (
     <div className="min-h-screen bg-gray-950 text-white px-4 py-8">
@@ -196,8 +180,8 @@ export function PrivacyCenter() {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-500">KYC Status</span>
-                  <span className={`font-medium capitalize ${kycStatus === 'approved' ? 'text-emerald-400' : kycStatus === 'pending' ? 'text-amber-400' : 'text-red-400'}`}>
-                    {kycStatus}
+                  <span className={`font-medium capitalize ${user?.kyc_status === 'approved' ? 'text-emerald-400' : user?.kyc_status === 'pending' ? 'text-amber-400' : 'text-red-400'}`}>
+                    {user?.kyc_status || 'Not Submitted'}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -306,23 +290,32 @@ export function PrivacyCenter() {
           <h2 className="text-lg font-semibold text-white mb-4">Data Access History</h2>
           <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
             <div className="divide-y divide-gray-800">
-              {displayedHistory.map((event) => (
-                <div key={event.id} className="p-4 flex items-start gap-3">
-                  <Clock className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <span className="text-sm font-medium text-gray-200">{event.action}</span>
-                      <AccessCategoryBadge category={event.category} />
-                    </div>
-                    <p className="text-xs text-gray-500">{event.actor} · {event.reason}</p>
-                  </div>
-                  <span className="text-xs text-gray-600 flex-shrink-0">
-                    {new Date(event.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                  </span>
+              {accessLoading ? (
+                <div className="p-6 text-center text-gray-500 text-sm">Loading access history...</div>
+              ) : displayedHistory.length === 0 ? (
+                <div className="p-6 text-center text-gray-500 text-sm">
+                  <Shield className="w-6 h-6 mx-auto mb-2 text-gray-600" />
+                  No access history yet. Your data access events will appear here.
                 </div>
-              ))}
+              ) : (
+                displayedHistory.map((event) => (
+                  <div key={event.id} className="p-4 flex items-start gap-3">
+                    <Clock className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className="text-sm font-medium text-gray-200">{event.action}</span>
+                        <AccessCategoryBadge category={event.category} />
+                      </div>
+                      <p className="text-xs text-gray-500">{event.actor} · {event.reason}</p>
+                    </div>
+                    <span className="text-xs text-gray-600 flex-shrink-0">
+                      {new Date(event.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
-            {MOCK_ACCESS_HISTORY.length > 3 && (
+            {accessHistory.length > 3 && (
               <button
                 onClick={() => setExpandedAccess(!expandedAccess)}
                 className="w-full p-3 text-sm text-violet-400 hover:text-violet-300 flex items-center justify-center gap-2 border-t border-gray-800 transition-colors"
@@ -330,7 +323,7 @@ export function PrivacyCenter() {
                 {expandedAccess ? (
                   <><ChevronUp className="w-4 h-4" /> Show less</>
                 ) : (
-                  <><ChevronDown className="w-4 h-4" /> Show {MOCK_ACCESS_HISTORY.length - 3} more events</>
+                  <><ChevronDown className="w-4 h-4" /> Show {accessHistory.length - 3} more events</>
                 )}
               </button>
             )}

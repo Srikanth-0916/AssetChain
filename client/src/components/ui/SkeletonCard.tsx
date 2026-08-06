@@ -56,3 +56,28 @@ export function SkeletonStatRow({ count = 4 }: { count?: number }) {
     </div>
   );
 }
+
+/** Skeleton for tabular data loading */
+export function SkeletonTable({ rows = 5 }: { rows?: number }) {
+  return (
+    <div className="glass-card p-4 space-y-3">
+      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div className="skeleton w-32 h-4 rounded" />
+        <div className="skeleton w-20 h-4 rounded" />
+      </div>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="flex items-center justify-between py-2 border-b border-slate-800/40">
+          <div className="flex items-center gap-3">
+            <div className="skeleton w-8 h-8 rounded-lg" />
+            <div className="space-y-1">
+              <div className="skeleton w-36 h-3.5 rounded" />
+              <div className="skeleton w-24 h-2.5 rounded" />
+            </div>
+          </div>
+          <div className="skeleton w-24 h-4 rounded" />
+        </div>
+      ))}
+    </div>
+  );
+}
+

@@ -2,46 +2,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { supabaseAdmin } from '../config/database';
 import { NotFoundError, UnprocessableError } from '../utils/errors';
 
-const localProposalsStore: Map<string, any> = new Map();
-
-// Seed initial DAO proposals
-const initialProposals = [
-  {
-    id: 'prop-demo-uuid-001',
-    asset_id: 'asset-demo-uuid-001',
-    title: 'Install Rooftop Solar Panels & EV Charging Stations',
-    description: 'Upgrade Manhattan Commercial Plaza with 200kW rooftop solar system and 12 dual-port EV chargers to increase ESG rating and tenant retention.',
-    created_by: 'admin-demo-uuid-001',
-    start_date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    end_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-    status: 'active',
-    votes_for: 1850,
-    votes_against: 120,
-    quorum_threshold: 1000,
-    created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    created_by_user: { full_name: 'Platform Admin' },
-  },
-  {
-    id: 'prop-demo-uuid-002',
-    asset_id: 'asset-demo-uuid-002',
-    title: 'Q3 Dividend Distribution Schedule Approval',
-    description: 'Approve early distribution of Q3 operational yield ($45,000 USDC) to Solar Farm Alpha 1 token holders.',
-    created_by: 'admin-demo-uuid-001',
-    start_date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    end_date: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString(),
-    status: 'active',
-    votes_for: 2400,
-    votes_against: 0,
-    quorum_threshold: 1000,
-    created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    created_by_user: { full_name: 'Platform Admin' },
-  },
-];
-
-for (const p of initialProposals) {
-  localProposalsStore.set(p.id, p);
-}
-
 export class DAOService {
   async createProposal(
     adminId: string,
@@ -56,32 +16,62 @@ export class DAOService {
     const startDate = new Date();
     const endDate = new Date(startDate.getTime() + data.duration_days * 24 * 60 * 60 * 1000);
 
-    const proposal = {
+    const proposalPayload = {
       id: uuidv4(),
       asset_id: data.asset_id || null,
       title: data.title,
       description: data.description,
       created_by: adminId,
-      start_date: startDate.toISOString(),
-      end_date: endDate.toISOString(),
+      voting_start_at: startDate.toISOString(),
+      voting_end_at: endDate.toISOString(),
       status: 'active',
       votes_for: 0,
       votes_against: 0,
       quorum_threshold: data.quorum_threshold,
       created_at: startDate.toISOString(),
-      created_by_user: { full_name: 'Platform Admin' },
     };
 
-    localProposalsStore.set(proposal.id, proposal);
-    return proposal;
+    const { data: inserted, error } = await supabaseAdmin
+      .from('dao_proposals')
+      .insert(proposalPayload)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[DAOService] ❌ createProposal Supabase error:', error.message);
+      throw new Error(`Failed to create DAO proposal: ${error.message}`);
+    }
+
+    return {
+      ...(inserted ?? proposalPayload),
+      created_by_user: { full_name: 'Platform Admin' },
+    };
   }
 
   async getProposals(assetId?: string) {
-    let list = Array.from(localProposalsStore.values());
+    let query = supabaseAdmin
+      .from('dao_proposals')
+      .select('*')
+      .order('created_at', { ascending: false });
+
     if (assetId) {
-      list = list.filter((p) => p.asset_id === assetId);
+      query = query.eq('asset_id', assetId);
     }
-    return list;
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.warn('[DAOService] ⚠️ getProposals error:', error.message);
+      return [];
+    }
+
+    return (data || []).map((p: any) => ({
+      ...p,
+      // Normalize field names to match what was previously returned
+      start_date: p.voting_start_at,
+      end_date: p.voting_end_at,
+      created_by_user: { full_name: 'Platform Admin' },
+    }));
   }
 
   async castVote(
@@ -89,27 +79,62 @@ export class DAOService {
     proposalId: string,
     data: { vote: 'for' | 'against' | 'abstain'; transaction_hash: string }
   ) {
-    const proposal = localProposalsStore.get(proposalId);
-    if (!proposal) throw new NotFoundError('Proposal');
+    // 1. Fetch proposal
+    const { data: proposal, error: fetchErr } = await supabaseAdmin
+      .from('dao_proposals')
+      .select('*')
+      .eq('id', proposalId)
+      .single();
+
+    if (fetchErr || !proposal) {
+      throw new NotFoundError('Proposal');
+    }
+
+    if (proposal.status !== 'active') {
+      throw new UnprocessableError('This proposal is no longer accepting votes.');
+    }
 
     const votingPower = 100;
 
-    if (data.vote === 'for') {
-      proposal.votes_for += votingPower;
-    } else if (data.vote === 'against') {
-      proposal.votes_against += votingPower;
-    }
-
-    localProposalsStore.set(proposalId, proposal);
-
-    return {
+    // 2. Insert vote record
+    const voteRecord = {
       id: uuidv4(),
       proposal_id: proposalId,
       voter_id: voterId,
       vote: data.vote,
       voting_power: votingPower,
       tx_hash: data.transaction_hash,
+      created_at: new Date().toISOString(),
     };
+
+    const { error: voteErr } = await supabaseAdmin
+      .from('dao_votes')
+      .insert(voteRecord);
+
+    if (voteErr) {
+      console.warn('[DAOService] ⚠️ dao_votes insert warning:', voteErr.message);
+    }
+
+    // 3. Update proposal vote tallies
+    const updatePayload: Record<string, any> = {};
+    if (data.vote === 'for') {
+      updatePayload.votes_for = (proposal.votes_for || 0) + votingPower;
+    } else if (data.vote === 'against') {
+      updatePayload.votes_against = (proposal.votes_against || 0) + votingPower;
+    }
+
+    if (Object.keys(updatePayload).length > 0) {
+      const { error: updateErr } = await supabaseAdmin
+        .from('dao_proposals')
+        .update(updatePayload)
+        .eq('id', proposalId);
+
+      if (updateErr) {
+        console.warn('[DAOService] ⚠️ proposal vote tally update warning:', updateErr.message);
+      }
+    }
+
+    return voteRecord;
   }
 }
 

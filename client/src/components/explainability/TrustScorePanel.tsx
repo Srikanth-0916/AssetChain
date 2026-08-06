@@ -13,7 +13,8 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001/api/v1';
+import { API_BASE_URL as API_BASE } from '../../config/network';
+
 
 interface TrustBreakdownItem {
   score: number;

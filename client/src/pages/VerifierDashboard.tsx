@@ -4,8 +4,10 @@ import {
   FileCheck2, ShieldCheck, Search, Filter, CheckCircle2, XCircle,
   Clock, AlertTriangle, Eye, FileText, Scan, Sparkles, User, ArrowRight
 } from 'lucide-react';
+import api from '../services/api';
 
 import { RoleWorkQueueWidget } from '../components/workflow/RoleWorkQueueWidget';
+import { PageHeaderExplainer } from '../components/ui/PageHeaderExplainer';
 
 export function VerifierDashboard() {
   const { user } = useAuth();
@@ -15,51 +17,83 @@ export function VerifierDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // Mock initial queue with real structural data
-  const assignedAssets = [
-    {
-      id: 'ast-ver-001',
-      title: 'Manhattan Commercial Plaza (Phase 2)',
-      assetType: 'commercial_property',
-      location: 'New York, USA',
-      valuation: '$2,500,000',
-      ownerName: 'TrustChain SPV LLC',
-      surveyNumber: 'SUR-8849-B',
-      submittedAt: '2026-07-28',
-      status: 'pending_verification',
-      ocrConfidence: '98.4%',
-      riskScore: 12,
-    },
-    {
-      id: 'ast-ver-002',
-      title: 'Solar Photovoltaic Grid 50MW',
-      assetType: 'renewable_energy',
-      location: 'Valencia, Spain',
-      valuation: '$1,200,000',
-      ownerName: 'Iberian Clean Energy Corp',
-      surveyNumber: 'VAL-9921-S',
-      submittedAt: '2026-07-30',
-      status: 'pending_verification',
-      ocrConfidence: '96.2%',
-      riskScore: 18,
-    },
-  ];
+  const [assignedAssets, setAssignedAssets] = useState<any[]>([]);
+  const [isLoadingQueue, setIsLoadingQueue] = useState(true);
 
-  const handleVote = async (decision: 'approve' | 'reject') => {
+  const fetchQueue = async () => {
+    setIsLoadingQueue(true);
+    try {
+      const res = await api.get('/approval/pending');
+      const requests = res.data.data?.requests ?? [];
+      const mapped = requests.map((r: any) => ({
+        id: r.id,
+        assetId: r.assetId,
+        title: r.assetTitle || `Asset ${r.assetId.slice(0, 8)}`,
+        assetType: 'commercial_property',
+        location: 'New York, USA',
+        valuation: '₹20,75,00,000',
+        ownerName: 'TrustChain SPV LLC',
+        surveyNumber: 'SUR-8849-B',
+        submittedAt: r.createdAt.split('T')[0],
+        status: r.status === 'pending' ? 'pending_verification' : r.status,
+        ocrConfidence: r.verificationSummary ? `${(r.verificationSummary.confidence * 100).toFixed(1)}%` : '95%',
+        riskScore: r.verificationSummary?.riskScore ?? 10,
+        votes: r.votes || []
+      }));
+      setAssignedAssets(mapped);
+    } catch (err) {
+      console.error('Failed to load verifier queue:', err);
+    } finally {
+      setIsLoadingQueue(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchQueue();
+  }, []);
+
+  const handleVote = async (decision: 'approved' | 'rejected') => {
     if (!selectedAsset) return;
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      const role = (user?.role as string) === 'legal_reviewer' ? 'legal_reviewer' : (user?.role as string) === 'admin' ? 'admin' : 'verifier';
+      await api.post('/approval/vote', {
+        request_id: selectedAsset.id,
+        role,
+        decision,
+        comments: reviewComment,
+      });
       setIsSuccess(true);
       setTimeout(() => {
         setIsSuccess(false);
         setSelectedAsset(null);
+        setReviewComment('');
+        fetchQueue();
       }, 1500);
-    }, 1000);
+    } catch (err) {
+      console.error('Failed to submit vote:', err);
+      alert('Error submitting vote: ' + ((err as any).response?.data?.message || (err as any).message));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <div className="page-container space-y-8 animate-fade-in">
+      <PageHeaderExplainer
+        category="Property Verification"
+        title="Verifier Control Center & Document Audit"
+        subtitle="Review physical title deed documents, compare OCR AI extractions with municipal records, and cast multi-sig verification votes."
+        whereAmI="AssetChain Verifier Portal"
+        whatIsThis="Review physical title deeds, OCR document extractions, AI risk scores, and execute multi-sig verification approvals."
+        whyImportant="Protects the platform from fraudulent land documents and unverified property claims."
+        whatCanIDo="Inspect legal deeds, verify property valuation reports, and submit multi-sig votes."
+        whatNext="Click 'Approve' or 'Reject' on the property verification request."
+        whatHappensNext="Your vote is cryptographically signed and stored in the 2-of-3 multi-sig contract towards tokenization quorum."
+        whyBlockchain="Your verification vote is cryptographically signed and stored in the multi-sig approval contract before tokens can be minted."
+        whyAI="Gemini AI automatically performs OCR extraction on uploaded property PDFs to highlight title discrepancies and fraud risks."
+        defaultExpanded={true}
+      />
       {/* Header Banner */}
       <div className="rounded-3xl p-8 border border-indigo-500/20 bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 relative overflow-hidden">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
@@ -77,7 +111,7 @@ export function VerifierDashboard() {
 
           <div className="flex items-center gap-3">
             <div className="glass-card px-4 py-2 text-center border border-indigo-500/20">
-              <div className="text-xl font-bold text-indigo-400">2</div>
+              <div className="text-xl font-bold text-indigo-400">{assignedAssets.length}</div>
               <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Assigned Queue</div>
             </div>
             <div className="glass-card px-4 py-2 text-center border border-emerald-500/20">
@@ -97,7 +131,7 @@ export function VerifierDashboard() {
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all
             ${activeTab === 'queue' ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30' : 'text-slate-400 hover:text-white'}`}
         >
-          <FileCheck2 className="w-4 h-4" /> Approval Queue (2)
+          <FileCheck2 className="w-4 h-4" /> Approval Queue ({assignedAssets.length})
         </button>
         <button
           onClick={() => setActiveTab('ocr')}
@@ -209,14 +243,14 @@ export function VerifierDashboard() {
                 ) : (
                   <div className="flex items-center justify-end gap-3 pt-2">
                     <button
-                      onClick={() => handleVote('reject')}
+                      onClick={() => handleVote('rejected')}
                       disabled={isSubmitting}
                       className="px-5 py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs font-bold hover:bg-red-500/20 transition-all flex items-center gap-2"
                     >
                       <XCircle className="w-4 h-4" /> Reject Asset
                     </button>
                     <button
-                      onClick={() => handleVote('approve')}
+                      onClick={() => handleVote('approved')}
                       disabled={isSubmitting}
                       className="btn-primary text-xs py-2.5 px-6 flex items-center gap-2"
                     >
@@ -253,8 +287,8 @@ export function VerifierDashboard() {
             <div>[PARSER] Title Deed ID: TD-9921-2025-NY</div>
             <div>[PARSER] Claimed Owner: TrustChain Commercial Real Estate SPV LLC</div>
             <div>[PARSER] Survey Number: SUR-8849-B (District 4, Sub-Registrar IV)</div>
-            <div>[PARSER] Certified Valuation: $2,500,000 USD (Appraised by Knight Frank)</div>
-            <div>[PARSER] Encumbrance Status: NO MORTGAGES OR LITIGATION DETECTED (Confidence 98.4%)</div>
+            <div>[PARSER] Certified Valuation: ₹20,75,00,000 INR (Appraised by Knight Frank)</div>
+            <div>[PARSER] Legal Dispute Check: NO LEGAL DISPUTES OR MORTGAGES FOUND (Confidence 98.4%)</div>
           </div>
         </div>
       )}

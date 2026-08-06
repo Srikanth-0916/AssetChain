@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { createHash } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
+import { ethers } from 'ethers';
 import { supabaseAdmin } from '../config/database';
 import { generateToken, JWTPayload } from '../middleware/auth';
 import {
@@ -11,60 +12,19 @@ import {
 } from '../utils/errors';
 
 // In-memory reset token store (hashed_token → userId + expiry)
-// In production: store in users.reset_token column in Supabase
 const resetTokenStore = new Map<string, { userId: string; expiresAt: Date }>();
+
+// In-memory single-use EIP-191 wallet authentication nonce store
+const walletNonceStore = new Map<string, { nonce: string; expiresAt: number; walletType: string }>();
 
 function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
-// Local in-memory user store initialized with seeded demo accounts for demo resilience
+
+// Session cache: populated from Supabase reads, NOT from hardcoded data.
+// This is a performance cache only — Supabase is the single source of truth.
 const localUsersStore: Map<string, any> = new Map();
-
-// Seed initial demo accounts
-async function seedDemoAccounts() {
-  const salt = await bcrypt.genSalt(10);
-
-  const demoAccounts = [
-    {
-      id: 'admin-demo-uuid-001',
-      full_name: 'Platform Admin',
-      email: 'admin@assetchain.io',
-      password_hash: await bcrypt.hash('Admin@123', salt),
-      role: 'admin',
-      kyc_status: 'approved',
-      is_suspended: false,
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: 'owner-demo-uuid-002',
-      full_name: 'Jane Smith (Asset Owner)',
-      email: 'owner@assetchain.io',
-      password_hash: await bcrypt.hash('Owner@123', salt),
-      role: 'asset_owner',
-      kyc_status: 'approved',
-      is_suspended: false,
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: 'investor-demo-uuid-003',
-      full_name: 'John Investor',
-      email: 'investor@assetchain.io',
-      password_hash: await bcrypt.hash('Investor@123', salt),
-      role: 'investor',
-      kyc_status: 'approved',
-      is_suspended: false,
-      created_at: new Date().toISOString(),
-    },
-  ];
-
-  for (const acc of demoAccounts) {
-    localUsersStore.set(acc.id, acc);
-  }
-}
-
-// Fire async seed
-seedDemoAccounts().catch(() => {});
 
 /**
  * Helper to issue and persist refresh token in Supabase PostgreSQL refresh_tokens table.
@@ -570,6 +530,71 @@ export class AuthService {
   }
 
   /**
+   * Single-Use EIP-191 Nonce Generator for Web3 Wallet Authentication.
+   * Prevents Replay Attacks with 5-minute expiration window.
+   */
+  async requestPublicWalletNonce(walletAddress: string, walletType = 'MetaMask') {
+    const normalizedAddress = walletAddress.toLowerCase().trim();
+    const nonce = `Sign this message to authenticate with TrustChain AI: ${uuidv4()}-${Date.now()}`;
+    const expiresAt = Date.now() + 5 * 60 * 1000; // 5 mins
+
+    walletNonceStore.set(normalizedAddress, { nonce, expiresAt, walletType });
+    return { walletAddress: normalizedAddress, nonce, expiresAt };
+  }
+
+  /**
+   * Verify EIP-191 Cryptographic Wallet Signature and update profile state.
+   */
+  async verifyWalletSignature(walletAddress: string, signature: string, walletType = 'MetaMask', role: 'investor' | 'asset_owner' = 'investor') {
+    const normalizedAddress = walletAddress.toLowerCase().trim();
+    const storedNonceObj = walletNonceStore.get(normalizedAddress);
+
+    // 1. Verify Nonce presence & expiration
+    if (!storedNonceObj || storedNonceObj.expiresAt < Date.now()) {
+      walletNonceStore.delete(normalizedAddress);
+      throw new UnauthorizedError('Authentication nonce expired or invalid. Please request a new nonce.');
+    }
+
+    // 2. Verify Cryptographic EIP-191 Signature
+    try {
+      const recoveredAddress = ethers.verifyMessage(storedNonceObj.nonce, signature);
+      if (recoveredAddress.toLowerCase() !== normalizedAddress) {
+        throw new UnauthorizedError('EIP-191 wallet signature mismatch.');
+      }
+    } catch (err: any) {
+      if (err instanceof UnauthorizedError) throw err;
+      throw new UnauthorizedError('Invalid cryptographic wallet signature format.');
+    }
+
+    // 3. Rotate nonce immediately to prevent Replay Attacks
+    walletNonceStore.delete(normalizedAddress);
+
+    // 4. Authenticate or Register User Profile
+    const loginResult = await this.loginOrCreateWithWallet(normalizedAddress, role);
+
+    // 5. Update user profile fields in Supabase
+    try {
+      await supabaseAdmin.from('profiles').update({
+        wallet_address: normalizedAddress,
+        wallet_type: walletType,
+        wallet_last_login: new Date().toISOString(),
+        wallet_connected: true,
+        chain_id: 80002,
+        wallet_verified: true,
+        last_signature_time: new Date().toISOString(),
+        network_name: 'Polygon Amoy Testnet',
+        connection_status: 'connected',
+        updated_at: new Date().toISOString(),
+      }).eq('id', loginResult.user.id);
+    } catch (e: any) {
+      console.warn('[AuthService] Supabase profile wallet metadata update warning:', e.message);
+    }
+
+    return loginResult;
+  }
+
+
+  /**
    * Get user profile by ID.
    */
   async getUserById(userId: string) {
@@ -587,18 +612,9 @@ export class AuthService {
       } catch {}
     }
 
-    // If still not found, return a default mock user instead of throwing 404 to avoid breaking active sessions on server restart
+    // If not found in cache or Supabase, throw NotFoundError — no ghost profiles
     if (!user) {
-      user = {
-        id: userId,
-        full_name: 'Verified User',
-        email: 'user@assetchain.io',
-        role: 'investor',
-        kyc_status: 'approved',
-        is_suspended: false,
-        created_at: new Date().toISOString(),
-      };
-      localUsersStore.set(userId, user);
+      throw new NotFoundError('User');
     }
 
     const { password_hash: _, ...userWithoutPassword } = user;

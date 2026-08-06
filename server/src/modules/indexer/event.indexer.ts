@@ -65,49 +65,7 @@ export class IndexedEventStore {
 
   /** Simulate synthetic events for demo when no real contract events exist. */
   seedDemoEvents(): void {
-    if (this.events.length > 0) return;
-
-    const syntheticEvents: Array<Omit<IndexedEvent, 'id' | 'processed'>> = [
-      {
-        txHash: '0x' + 'a'.repeat(64),
-        blockNumber: 12345001,
-        confirmations: 150,
-        contractAddress: '0xAssetRegistry',
-        eventName: 'AssetRegistered',
-        args: { assetId: '1', owner: '0xOwner1', ipfsCid: 'QmMockCid1' } as Record<string, string>,
-        timestamp: new Date(Date.now() - 7 * 86400000).toISOString(),
-      },
-      {
-        txHash: '0x' + 'b'.repeat(64),
-        blockNumber: 12345100,
-        confirmations: 130,
-        contractAddress: '0xAssetTokenFactory',
-        eventName: 'AssetTokenized',
-        args: { assetId: '1', tokenAddress: '0xACT001', totalSupply: '10000' } as Record<string, string>,
-        timestamp: new Date(Date.now() - 5 * 86400000).toISOString(),
-      },
-      {
-        txHash: '0x' + 'c'.repeat(64),
-        blockNumber: 12345200,
-        confirmations: 100,
-        contractAddress: '0xMarketplace',
-        eventName: 'TokensPurchased',
-        args: { assetId: '1', buyer: '0xInvestor1', amount: '500', price: '100' } as Record<string, string>,
-        timestamp: new Date(Date.now() - 2 * 86400000).toISOString(),
-      },
-      {
-        txHash: '0x' + 'd'.repeat(64),
-        blockNumber: 12345300,
-        confirmations: 80,
-        contractAddress: '0xGovernance',
-        eventName: 'ProposalCreated',
-        args: { proposalId: '1', proposer: '0xOwner1', description: 'Add solar panel maintenance fund' } as Record<string, string>,
-        timestamp: new Date(Date.now() - 1 * 86400000).toISOString(),
-      },
-    ];
-
-
-    syntheticEvents.forEach((e) => this.addEvent(e));
+    // Disabled to prevent mock event seeding
   }
 }
 

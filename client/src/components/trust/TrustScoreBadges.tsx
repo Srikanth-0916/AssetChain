@@ -11,29 +11,29 @@ interface BadgeDefinition {
 
 const STATIC_BADGE_DEFINITIONS: Record<string, Omit<BadgeDefinition, 'id' | 'status'>> = {
   legal: {
-    name: 'Legal Verification',
+    name: 'No Legal Disputes Found',
     icon: <Scale className="w-3.5 h-3.5" />,
-    explanation: 'Independent legal title audit confirming property ownership and unencumbered deed registry.',
+    explanation: 'Government records and 30-year deed searches confirm there are no outstanding mortgages or court disputes on this property.',
   },
   kyc: {
-    name: 'KYC Verified',
+    name: 'Investment Compliance Verified',
     icon: <UserCheck className="w-3.5 h-3.5" />,
-    explanation: 'ERC-3643 identity verification ensuring all token buyers/holders complete anti-money laundering checks.',
+    explanation: 'Satisfies all identity and anti-money laundering requirements (ERC-3643 standard) for secure fractional investment.',
   },
   spv: {
-    name: 'SPV Registered',
+    name: 'Legal Holding Company Registered',
     icon: <Building2 className="w-3.5 h-3.5" />,
-    explanation: 'Dedicated Special Purpose Vehicle company registered to hold 100% legal title to the underlying physical property.',
+    explanation: 'A dedicated Special Purpose Vehicle (SPV) company holds 100% legal title to the property on behalf of token investors.',
   },
   multisig: {
-    name: 'Multi-Sig Approved',
+    name: 'Multi-Party Sign-Off Completed',
     icon: <ShieldCheck className="w-3.5 h-3.5" />,
-    explanation: '2-of-3 multi-signature governance policy enforced across Verifier, Platform Administrator, and Legal Counsel roles.',
+    explanation: 'Requires consensus approvals (2-of-3 multi-sig) from Independent Auditor, Legal Counsel, and Platform Officers.',
   },
   blockchain: {
-    name: 'Blockchain Verified',
+    name: 'Ownership Record Secured',
     icon: <Link className="w-3.5 h-3.5" />,
-    explanation: 'Asset metadata hash and ERC-20 token smart contract immutably deployed on Polygon Amoy testnet.',
+    explanation: 'Government ownership documents and token shares are permanently secured on the Polygon blockchain ledger.',
   },
 };
 

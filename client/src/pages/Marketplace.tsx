@@ -54,24 +54,38 @@ function AssetCard({
   const colorClass    = CATEGORY_COLORS[item.asset_type] ?? 'text-indigo-400';
   const typeLabel     = ASSET_TYPE_LABELS[item.asset_type] ?? item.asset_type;
 
+  const totalTokens = Number(item.token_supply ?? (item as any).total_tokens ?? 1000);
+  const availTokens = Number(item.tokens_available ?? (item as any).available_tokens ?? 1000);
+  const percentFunded = Math.min(100, Math.round(((totalTokens - availTokens) / totalTokens) * 100));
+
   return (
     <div className="asset-card group">
       {/* Card Image / Hero */}
-      <div className={`relative h-44 bg-gradient-to-br ${gradientClass} flex items-end p-5 overflow-hidden`}>
+      <div className={`relative h-44 bg-gradient-to-br ${gradientClass} flex flex-col justify-between p-4 overflow-hidden`}>
         {/* Subtle grid pattern */}
-        <div className="absolute inset-0 opacity-10"
+        <div className="absolute inset-0 opacity-10 pointer-events-none"
           style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.15) 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
 
         {/* Glow orb */}
-        <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full blur-3xl opacity-20 bg-indigo-500" />
+        <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full blur-3xl opacity-20 bg-indigo-500 pointer-events-none" />
 
-        {/* Type tag */}
-        <span className="asset-type-tag z-10">{typeLabel}</span>
+        {/* Top Badges Row */}
+        <div className="flex items-center justify-between z-10">
+          <span className="asset-type-tag">{typeLabel}</span>
+          <span className="yield-badge">
+            <TrendingUp className="w-3 h-3" /> 8.5%–12% Est. APY
+          </span>
+        </div>
 
-        {/* Verified badge */}
-        <span className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-semibold">
-          <Shield className="w-3 h-3" /> Verified
-        </span>
+        {/* Bottom Hero Info */}
+        <div className="z-10 flex items-center justify-between">
+          <span className="min-invest-badge">
+            Min. ₹{Number(item.token_price).toLocaleString('en-IN')}
+          </span>
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-semibold">
+            <Shield className="w-3 h-3" /> AI Verified
+          </span>
+        </div>
       </div>
 
       {/* Body */}
@@ -112,44 +126,36 @@ function AssetCard({
         {/* Stats grid */}
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="bg-slate-900/70 rounded-xl px-3 py-2.5 border border-white/[0.05]">
-            <span className="text-slate-500 block text-[10px] mb-0.5">Valuation</span>
+            <span className="text-slate-500 block text-[10px] mb-0.5">Total Asset Valuation</span>
             <span className="font-bold text-white">{formatCurrency(Number(item.valuation))}</span>
           </div>
           <div className="bg-slate-900/70 rounded-xl px-3 py-2.5 border border-white/[0.05]">
             <span className="text-slate-500 block text-[10px] mb-0.5">Token Price</span>
-            <span className={`font-bold ${colorClass}`}>${item.token_price}</span>
+            <span className={`font-bold ${colorClass}`}>₹{Number(item.token_price).toLocaleString('en-IN')}</span>
           </div>
         </div>
 
         {/* Available tokens progress */}
-        {(item.tokens_available != null || (item as any).available_tokens != null) && (
-          <div className="space-y-1">
-            <div className="flex items-center justify-between text-[10px]">
-              <span className="text-slate-500">Tokens Available</span>
-              <span className="text-slate-400 font-semibold">
-                {Number(item.tokens_available ?? (item as any).available_tokens).toLocaleString()} / {Number(item.token_supply ?? (item as any).total_tokens).toLocaleString()}
-              </span>
-            </div>
-            <div className="progress-bar-track">
-              <div
-                className="progress-bar-fill"
-                style={{
-                  width: `${Math.min(
-                    100,
-                    (((Number(item.token_supply ?? (item as any).total_tokens) - Number(item.tokens_available ?? (item as any).available_tokens))) /
-                      Number(item.token_supply ?? (item as any).total_tokens)) *
-                      100
-                  )}%`,
-                }}
-              />
-            </div>
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-[10px]">
+            <span className="text-slate-500 font-medium">Subscription Progress</span>
+            <span className="text-indigo-300 font-semibold font-mono">
+              {percentFunded}% Funded ({availTokens.toLocaleString()} Left)
+            </span>
           </div>
-        )}
+          <div className="progress-bar-track">
+            <div
+              className="progress-bar-fill bg-gradient-to-r from-indigo-500 to-emerald-400"
+              style={{ width: `${percentFunded}%` }}
+            />
+          </div>
+        </div>
 
         {/* CTA */}
         <button
           onClick={() => onBuy(item)}
-          className="btn-primary w-full mt-auto text-sm gap-2"
+          className="btn-primary w-full mt-auto text-sm gap-2 py-2.5 focus-ring"
+          aria-label={`Invest in ${item.title}`}
         >
           <Zap className="w-4 h-4" />
           Invest via UPI / Card
@@ -160,6 +166,8 @@ function AssetCard({
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
+
+import { PageHeaderExplainer } from '../components/ui/PageHeaderExplainer';
 
 export function Marketplace() {
   const { user }          = useAuth();
@@ -210,7 +218,21 @@ export function Marketplace() {
   }
 
   return (
-    <div className="max-w-[1320px] mx-auto px-4 lg:px-8 py-10 space-y-8 animate-fade-in">
+    <div className="max-w-[1320px] mx-auto px-4 lg:px-8 py-8 space-y-6 animate-fade-in">
+      <PageHeaderExplainer
+        category="RWA Marketplace"
+        title="Tokenized Real Estate Marketplace"
+        subtitle="Browse verified real-estate properties, inspect independent legal title audits, and purchase fractional ownership shares."
+        whereAmI="AssetChain Marketplace"
+        whatIsThis="Browse tokenized real estate. Every property has been legally verified, AI evaluated, and securely stored on blockchain."
+        whyImportant="Guarantees 100% legal title protection, zero court disputes, and transparent rental yields."
+        whatCanIDo="Browse available property listings, filter by category or yield, and purchase fractional digital ownership shares."
+        whatNext="Click a property to view details or invest."
+        whatHappensNext="Your payment is processed into smart contract escrow and digital ownership tokens are transferred to your portfolio."
+        whyBlockchain="Tokens represent direct legal ownership shares in SPV property structures with automatic dividend distributions."
+        whyAI="Gemini AI rates every asset's valuation stability, rental yield sustainability, and municipal deed authenticity."
+        defaultExpanded={true}
+      />
 
       {/* ── Page Header ── */}
       <div className="page-header">

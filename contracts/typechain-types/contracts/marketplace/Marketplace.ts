@@ -23,6 +23,30 @@ import type {
   TypedContractMethod,
 } from "../../common";
 
+export declare namespace Marketplace {
+  export type POLSaleConfigStruct = {
+    pricePerTokenWei: BigNumberish;
+    totalSupply: BigNumberish;
+    availableSupply: BigNumberish;
+    active: boolean;
+    createdAt: BigNumberish;
+  };
+
+  export type POLSaleConfigStructOutput = [
+    pricePerTokenWei: bigint,
+    totalSupply: bigint,
+    availableSupply: bigint,
+    active: boolean,
+    createdAt: bigint
+  ] & {
+    pricePerTokenWei: bigint;
+    totalSupply: bigint;
+    availableSupply: bigint;
+    active: boolean;
+    createdAt: bigint;
+  };
+}
+
 export interface MarketplaceInterface extends Interface {
   getFunction(
     nameOrSignature:
@@ -30,35 +54,53 @@ export interface MarketplaceInterface extends Interface {
       | "DEFAULT_ADMIN_ROLE"
       | "buyListing"
       | "buyPrimaryTokens"
+      | "buyTokensWithPOL"
+      | "calculatePOLPrice"
       | "cancelListing"
       | "createListing"
+      | "createPOLSale"
       | "createPrimarySale"
+      | "demoMode"
+      | "getContractPOLBalance"
+      | "getPOLSaleConfig"
       | "getRoleAdmin"
       | "grantRole"
       | "hasRole"
+      | "isPOLSaleAvailable"
       | "listingCount"
       | "listings"
       | "pause"
       | "paused"
       | "paymentToken"
       | "platformFeeBps"
+      | "polSales"
       | "primarySalePrice"
       | "primarySaleSupply"
       | "primarySaleToken"
       | "renounceRole"
       | "revokeRole"
+      | "setDemoMode"
       | "setPlatformFeeBps"
       | "setTreasury"
       | "supportsInterface"
+      | "totalPOLInvestmentCount"
+      | "totalPOLRaised"
       | "treasury"
       | "unpause"
+      | "updatePOLSale"
+      | "withdrawPOL"
+      | "withdrawPOLTo"
   ): FunctionFragment;
 
   getEvent(
     nameOrSignatureOrTopic:
+      | "DemoModeChanged"
+      | "InvestmentCompleted"
       | "ListingCancelled"
       | "ListingCreated"
       | "ListingFulfilled"
+      | "POLSaleCreated"
+      | "POLWithdrawn"
       | "Paused"
       | "PrimarySaleCreated"
       | "RoleAdminChanged"
@@ -85,6 +127,14 @@ export interface MarketplaceInterface extends Interface {
     values: [BigNumberish, BigNumberish]
   ): string;
   encodeFunctionData(
+    functionFragment: "buyTokensWithPOL",
+    values: [string, BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "calculatePOLPrice",
+    values: [string, BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "cancelListing",
     values: [BigNumberish]
   ): string;
@@ -93,8 +143,21 @@ export interface MarketplaceInterface extends Interface {
     values: [AddressLike, BigNumberish, BigNumberish]
   ): string;
   encodeFunctionData(
+    functionFragment: "createPOLSale",
+    values: [string, BigNumberish, BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "createPrimarySale",
     values: [BigNumberish, AddressLike, BigNumberish, BigNumberish]
+  ): string;
+  encodeFunctionData(functionFragment: "demoMode", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "getContractPOLBalance",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getPOLSaleConfig",
+    values: [string]
   ): string;
   encodeFunctionData(
     functionFragment: "getRoleAdmin",
@@ -107,6 +170,10 @@ export interface MarketplaceInterface extends Interface {
   encodeFunctionData(
     functionFragment: "hasRole",
     values: [BytesLike, AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "isPOLSaleAvailable",
+    values: [string]
   ): string;
   encodeFunctionData(
     functionFragment: "listingCount",
@@ -126,6 +193,7 @@ export interface MarketplaceInterface extends Interface {
     functionFragment: "platformFeeBps",
     values?: undefined
   ): string;
+  encodeFunctionData(functionFragment: "polSales", values: [string]): string;
   encodeFunctionData(
     functionFragment: "primarySalePrice",
     values: [BigNumberish]
@@ -147,6 +215,10 @@ export interface MarketplaceInterface extends Interface {
     values: [BytesLike, AddressLike]
   ): string;
   encodeFunctionData(
+    functionFragment: "setDemoMode",
+    values: [boolean]
+  ): string;
+  encodeFunctionData(
     functionFragment: "setPlatformFeeBps",
     values: [BigNumberish]
   ): string;
@@ -158,8 +230,28 @@ export interface MarketplaceInterface extends Interface {
     functionFragment: "supportsInterface",
     values: [BytesLike]
   ): string;
+  encodeFunctionData(
+    functionFragment: "totalPOLInvestmentCount",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "totalPOLRaised",
+    values: [string]
+  ): string;
   encodeFunctionData(functionFragment: "treasury", values?: undefined): string;
   encodeFunctionData(functionFragment: "unpause", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "updatePOLSale",
+    values: [string, boolean, BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "withdrawPOL",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "withdrawPOLTo",
+    values: [AddressLike, BigNumberish]
+  ): string;
 
   decodeFunctionResult(functionFragment: "ADMIN_ROLE", data: BytesLike): Result;
   decodeFunctionResult(
@@ -172,6 +264,14 @@ export interface MarketplaceInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "buyTokensWithPOL",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "calculatePOLPrice",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "cancelListing",
     data: BytesLike
   ): Result;
@@ -180,7 +280,20 @@ export interface MarketplaceInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "createPOLSale",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "createPrimarySale",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(functionFragment: "demoMode", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "getContractPOLBalance",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getPOLSaleConfig",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -189,6 +302,10 @@ export interface MarketplaceInterface extends Interface {
   ): Result;
   decodeFunctionResult(functionFragment: "grantRole", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "hasRole", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "isPOLSaleAvailable",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "listingCount",
     data: BytesLike
@@ -204,6 +321,7 @@ export interface MarketplaceInterface extends Interface {
     functionFragment: "platformFeeBps",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "polSales", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "primarySalePrice",
     data: BytesLike
@@ -222,6 +340,10 @@ export interface MarketplaceInterface extends Interface {
   ): Result;
   decodeFunctionResult(functionFragment: "revokeRole", data: BytesLike): Result;
   decodeFunctionResult(
+    functionFragment: "setDemoMode",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "setPlatformFeeBps",
     data: BytesLike
   ): Result;
@@ -233,8 +355,68 @@ export interface MarketplaceInterface extends Interface {
     functionFragment: "supportsInterface",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(
+    functionFragment: "totalPOLInvestmentCount",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "totalPOLRaised",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "treasury", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "unpause", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "updatePOLSale",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "withdrawPOL",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "withdrawPOLTo",
+    data: BytesLike
+  ): Result;
+}
+
+export namespace DemoModeChangedEvent {
+  export type InputTuple = [demoMode: boolean];
+  export type OutputTuple = [demoMode: boolean];
+  export interface OutputObject {
+    demoMode: boolean;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace InvestmentCompletedEvent {
+  export type InputTuple = [
+    assetId: string,
+    buyer: AddressLike,
+    quantity: BigNumberish,
+    amountPaid: BigNumberish,
+    timestamp: BigNumberish
+  ];
+  export type OutputTuple = [
+    assetId: string,
+    buyer: string,
+    quantity: bigint,
+    amountPaid: bigint,
+    timestamp: bigint
+  ];
+  export interface OutputObject {
+    assetId: string;
+    buyer: string;
+    quantity: bigint;
+    amountPaid: bigint;
+    timestamp: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
 }
 
 export namespace ListingCancelledEvent {
@@ -288,6 +470,41 @@ export namespace ListingFulfilledEvent {
   export interface OutputObject {
     listingId: bigint;
     buyer: string;
+    amount: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace POLSaleCreatedEvent {
+  export type InputTuple = [
+    assetId: string,
+    pricePerTokenWei: BigNumberish,
+    totalSupply: BigNumberish
+  ];
+  export type OutputTuple = [
+    assetId: string,
+    pricePerTokenWei: bigint,
+    totalSupply: bigint
+  ];
+  export interface OutputObject {
+    assetId: string;
+    pricePerTokenWei: bigint;
+    totalSupply: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace POLWithdrawnEvent {
+  export type InputTuple = [to: AddressLike, amount: BigNumberish];
+  export type OutputTuple = [to: string, amount: bigint];
+  export interface OutputObject {
+    to: string;
     amount: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
@@ -487,6 +704,18 @@ export interface Marketplace extends BaseContract {
     "nonpayable"
   >;
 
+  buyTokensWithPOL: TypedContractMethod<
+    [assetId: string, quantity: BigNumberish],
+    [void],
+    "payable"
+  >;
+
+  calculatePOLPrice: TypedContractMethod<
+    [assetId: string, quantity: BigNumberish],
+    [bigint],
+    "view"
+  >;
+
   cancelListing: TypedContractMethod<
     [listingId: BigNumberish],
     [void],
@@ -503,6 +732,16 @@ export interface Marketplace extends BaseContract {
     "nonpayable"
   >;
 
+  createPOLSale: TypedContractMethod<
+    [
+      assetId: string,
+      pricePerTokenWei: BigNumberish,
+      totalSupply: BigNumberish
+    ],
+    [void],
+    "nonpayable"
+  >;
+
   createPrimarySale: TypedContractMethod<
     [
       assetId: BigNumberish,
@@ -512,6 +751,16 @@ export interface Marketplace extends BaseContract {
     ],
     [void],
     "nonpayable"
+  >;
+
+  demoMode: TypedContractMethod<[], [boolean], "view">;
+
+  getContractPOLBalance: TypedContractMethod<[], [bigint], "view">;
+
+  getPOLSaleConfig: TypedContractMethod<
+    [assetId: string],
+    [Marketplace.POLSaleConfigStructOutput],
+    "view"
   >;
 
   getRoleAdmin: TypedContractMethod<[role: BytesLike], [string], "view">;
@@ -527,6 +776,8 @@ export interface Marketplace extends BaseContract {
     [boolean],
     "view"
   >;
+
+  isPOLSaleAvailable: TypedContractMethod<[assetId: string], [boolean], "view">;
 
   listingCount: TypedContractMethod<[], [bigint], "view">;
 
@@ -553,6 +804,20 @@ export interface Marketplace extends BaseContract {
 
   platformFeeBps: TypedContractMethod<[], [bigint], "view">;
 
+  polSales: TypedContractMethod<
+    [arg0: string],
+    [
+      [bigint, bigint, bigint, boolean, bigint] & {
+        pricePerTokenWei: bigint;
+        totalSupply: bigint;
+        availableSupply: bigint;
+        active: boolean;
+        createdAt: bigint;
+      }
+    ],
+    "view"
+  >;
+
   primarySalePrice: TypedContractMethod<[arg0: BigNumberish], [bigint], "view">;
 
   primarySaleSupply: TypedContractMethod<
@@ -575,6 +840,8 @@ export interface Marketplace extends BaseContract {
     "nonpayable"
   >;
 
+  setDemoMode: TypedContractMethod<[_demoMode: boolean], [void], "nonpayable">;
+
   setPlatformFeeBps: TypedContractMethod<
     [_feeBps: BigNumberish],
     [void],
@@ -593,9 +860,27 @@ export interface Marketplace extends BaseContract {
     "view"
   >;
 
+  totalPOLInvestmentCount: TypedContractMethod<[], [bigint], "view">;
+
+  totalPOLRaised: TypedContractMethod<[arg0: string], [bigint], "view">;
+
   treasury: TypedContractMethod<[], [string], "view">;
 
   unpause: TypedContractMethod<[], [void], "nonpayable">;
+
+  updatePOLSale: TypedContractMethod<
+    [assetId: string, active: boolean, newPricePerTokenWei: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
+  withdrawPOL: TypedContractMethod<[], [void], "nonpayable">;
+
+  withdrawPOLTo: TypedContractMethod<
+    [to: AddressLike, amount: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
 
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
@@ -622,6 +907,20 @@ export interface Marketplace extends BaseContract {
     "nonpayable"
   >;
   getFunction(
+    nameOrSignature: "buyTokensWithPOL"
+  ): TypedContractMethod<
+    [assetId: string, quantity: BigNumberish],
+    [void],
+    "payable"
+  >;
+  getFunction(
+    nameOrSignature: "calculatePOLPrice"
+  ): TypedContractMethod<
+    [assetId: string, quantity: BigNumberish],
+    [bigint],
+    "view"
+  >;
+  getFunction(
     nameOrSignature: "cancelListing"
   ): TypedContractMethod<[listingId: BigNumberish], [void], "nonpayable">;
   getFunction(
@@ -636,6 +935,17 @@ export interface Marketplace extends BaseContract {
     "nonpayable"
   >;
   getFunction(
+    nameOrSignature: "createPOLSale"
+  ): TypedContractMethod<
+    [
+      assetId: string,
+      pricePerTokenWei: BigNumberish,
+      totalSupply: BigNumberish
+    ],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
     nameOrSignature: "createPrimarySale"
   ): TypedContractMethod<
     [
@@ -646,6 +956,19 @@ export interface Marketplace extends BaseContract {
     ],
     [void],
     "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "demoMode"
+  ): TypedContractMethod<[], [boolean], "view">;
+  getFunction(
+    nameOrSignature: "getContractPOLBalance"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "getPOLSaleConfig"
+  ): TypedContractMethod<
+    [assetId: string],
+    [Marketplace.POLSaleConfigStructOutput],
+    "view"
   >;
   getFunction(
     nameOrSignature: "getRoleAdmin"
@@ -664,6 +987,9 @@ export interface Marketplace extends BaseContract {
     [boolean],
     "view"
   >;
+  getFunction(
+    nameOrSignature: "isPOLSaleAvailable"
+  ): TypedContractMethod<[assetId: string], [boolean], "view">;
   getFunction(
     nameOrSignature: "listingCount"
   ): TypedContractMethod<[], [bigint], "view">;
@@ -696,6 +1022,21 @@ export interface Marketplace extends BaseContract {
     nameOrSignature: "platformFeeBps"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
+    nameOrSignature: "polSales"
+  ): TypedContractMethod<
+    [arg0: string],
+    [
+      [bigint, bigint, bigint, boolean, bigint] & {
+        pricePerTokenWei: bigint;
+        totalSupply: bigint;
+        availableSupply: bigint;
+        active: boolean;
+        createdAt: bigint;
+      }
+    ],
+    "view"
+  >;
+  getFunction(
     nameOrSignature: "primarySalePrice"
   ): TypedContractMethod<[arg0: BigNumberish], [bigint], "view">;
   getFunction(
@@ -719,6 +1060,9 @@ export interface Marketplace extends BaseContract {
     "nonpayable"
   >;
   getFunction(
+    nameOrSignature: "setDemoMode"
+  ): TypedContractMethod<[_demoMode: boolean], [void], "nonpayable">;
+  getFunction(
     nameOrSignature: "setPlatformFeeBps"
   ): TypedContractMethod<[_feeBps: BigNumberish], [void], "nonpayable">;
   getFunction(
@@ -728,12 +1072,49 @@ export interface Marketplace extends BaseContract {
     nameOrSignature: "supportsInterface"
   ): TypedContractMethod<[interfaceId: BytesLike], [boolean], "view">;
   getFunction(
+    nameOrSignature: "totalPOLInvestmentCount"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "totalPOLRaised"
+  ): TypedContractMethod<[arg0: string], [bigint], "view">;
+  getFunction(
     nameOrSignature: "treasury"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
     nameOrSignature: "unpause"
   ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "updatePOLSale"
+  ): TypedContractMethod<
+    [assetId: string, active: boolean, newPricePerTokenWei: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "withdrawPOL"
+  ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "withdrawPOLTo"
+  ): TypedContractMethod<
+    [to: AddressLike, amount: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
 
+  getEvent(
+    key: "DemoModeChanged"
+  ): TypedContractEvent<
+    DemoModeChangedEvent.InputTuple,
+    DemoModeChangedEvent.OutputTuple,
+    DemoModeChangedEvent.OutputObject
+  >;
+  getEvent(
+    key: "InvestmentCompleted"
+  ): TypedContractEvent<
+    InvestmentCompletedEvent.InputTuple,
+    InvestmentCompletedEvent.OutputTuple,
+    InvestmentCompletedEvent.OutputObject
+  >;
   getEvent(
     key: "ListingCancelled"
   ): TypedContractEvent<
@@ -754,6 +1135,20 @@ export interface Marketplace extends BaseContract {
     ListingFulfilledEvent.InputTuple,
     ListingFulfilledEvent.OutputTuple,
     ListingFulfilledEvent.OutputObject
+  >;
+  getEvent(
+    key: "POLSaleCreated"
+  ): TypedContractEvent<
+    POLSaleCreatedEvent.InputTuple,
+    POLSaleCreatedEvent.OutputTuple,
+    POLSaleCreatedEvent.OutputObject
+  >;
+  getEvent(
+    key: "POLWithdrawn"
+  ): TypedContractEvent<
+    POLWithdrawnEvent.InputTuple,
+    POLWithdrawnEvent.OutputTuple,
+    POLWithdrawnEvent.OutputObject
   >;
   getEvent(
     key: "Paused"
@@ -806,6 +1201,28 @@ export interface Marketplace extends BaseContract {
   >;
 
   filters: {
+    "DemoModeChanged(bool)": TypedContractEvent<
+      DemoModeChangedEvent.InputTuple,
+      DemoModeChangedEvent.OutputTuple,
+      DemoModeChangedEvent.OutputObject
+    >;
+    DemoModeChanged: TypedContractEvent<
+      DemoModeChangedEvent.InputTuple,
+      DemoModeChangedEvent.OutputTuple,
+      DemoModeChangedEvent.OutputObject
+    >;
+
+    "InvestmentCompleted(string,address,uint256,uint256,uint256)": TypedContractEvent<
+      InvestmentCompletedEvent.InputTuple,
+      InvestmentCompletedEvent.OutputTuple,
+      InvestmentCompletedEvent.OutputObject
+    >;
+    InvestmentCompleted: TypedContractEvent<
+      InvestmentCompletedEvent.InputTuple,
+      InvestmentCompletedEvent.OutputTuple,
+      InvestmentCompletedEvent.OutputObject
+    >;
+
     "ListingCancelled(uint256,address)": TypedContractEvent<
       ListingCancelledEvent.InputTuple,
       ListingCancelledEvent.OutputTuple,
@@ -837,6 +1254,28 @@ export interface Marketplace extends BaseContract {
       ListingFulfilledEvent.InputTuple,
       ListingFulfilledEvent.OutputTuple,
       ListingFulfilledEvent.OutputObject
+    >;
+
+    "POLSaleCreated(string,uint256,uint256)": TypedContractEvent<
+      POLSaleCreatedEvent.InputTuple,
+      POLSaleCreatedEvent.OutputTuple,
+      POLSaleCreatedEvent.OutputObject
+    >;
+    POLSaleCreated: TypedContractEvent<
+      POLSaleCreatedEvent.InputTuple,
+      POLSaleCreatedEvent.OutputTuple,
+      POLSaleCreatedEvent.OutputObject
+    >;
+
+    "POLWithdrawn(address,uint256)": TypedContractEvent<
+      POLWithdrawnEvent.InputTuple,
+      POLWithdrawnEvent.OutputTuple,
+      POLWithdrawnEvent.OutputObject
+    >;
+    POLWithdrawn: TypedContractEvent<
+      POLWithdrawnEvent.InputTuple,
+      POLWithdrawnEvent.OutputTuple,
+      POLWithdrawnEvent.OutputObject
     >;
 
     "Paused(address)": TypedContractEvent<

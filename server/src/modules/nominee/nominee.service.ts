@@ -34,24 +34,7 @@ export interface InheritanceClaim {
   updatedAt: string;
 }
 
-const nomineeStore: Map<string, Nominee> = new Map([
-  [
-    'investor-demo-uuid-001',
-    {
-      id: 'nominee-demo-001',
-      userId: 'investor-demo-uuid-001',
-      fullName: 'Robert Doe',
-      email: 'robert.doe@example.com',
-      phone: '+1 (555) 234-5678',
-      governmentId: 'US-PASSPORT-998811',
-      relationship: 'Son / Primary Heir',
-      nomineeWalletAddress: '0x9999999999999999999999999999999999999999',
-      allocationPercentage: 100,
-      status: 'active',
-      updatedAt: new Date().toISOString(),
-    },
-  ],
-]);
+const nomineeStore: Map<string, Nominee> = new Map();
 
 const claimsStore: Map<string, InheritanceClaim> = new Map();
 

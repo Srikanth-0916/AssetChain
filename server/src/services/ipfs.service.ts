@@ -4,6 +4,7 @@
  */
 
 import { env } from '../config/env';
+import { encryptDocument } from '../utils/encryption';
 
 export interface PinataPinResult {
   ipfsCid: string;
@@ -92,14 +93,88 @@ export class IPFSService {
     }
   }
 
-  /** Pin JSON metadata (e.g. Asset Metadata, Title Deed summary) to IPFS */
-  async pinJSONToIPFS(content: Record<string, any>, name: string): Promise<PinataPinResult> {
+  /**
+   * Unpin a CID from Pinata IPFS nodes (Remediation / Cleanup).
+   */
+  async unpinCID(ipfsCid: string): Promise<{ success: boolean; message: string }> {
     if (!this.isConfigured()) {
-      const mockHash = `Qm${Buffer.from(JSON.stringify(content)).toString('hex').substring(0, 44)}`;
+      return { success: true, message: `Mock mode: Marked CID ${ipfsCid} as unpinned.` };
+    }
+
+    try {
+      const response = await fetch(`https://api.pinata.cloud/pinning/unpin/${ipfsCid}`, {
+        method: 'DELETE',
+        headers: this.getAuthHeaders(),
+      });
+
+      if (response.ok || response.status === 404) {
+        return { success: true, message: `Successfully unpinned CID ${ipfsCid} from Pinata nodes.` };
+      }
+
+      const errText = await response.text();
+      return { success: false, message: `Pinata unpin HTTP ${response.status}: ${errText}` };
+    } catch (err: any) {
+      return { success: false, message: `Unpin error: ${err.message}` };
+    }
+  }
+
+  /**
+   * Pin an Encrypted Document Envelope to IPFS (AES-256-GCM).
+   * UNCONDITIONAL: Every single document/text payload is encrypted with AES-256-GCM
+   * before sending to Pinata, regardless of file type, mime-type, or string content.
+   */
+  async pinEncryptedDocumentToIPFS(
+    rawFileContent: string | Buffer,
+    fileName: string,
+    metadata?: Record<string, any>
+  ): Promise<PinataPinResult> {
+    // Encrypt raw file/text content unconditionally using AES-256-GCM server-side key
+    const encryptedDoc = encryptDocument(rawFileContent);
+
+    // Build unreadable ciphertext payload envelope
+    const encryptedPayload = {
+      name: fileName,
+      encrypted: true,
+      algorithm: 'AES-256-GCM',
+      version: 2,
+      ciphertext: encryptedDoc.encrypted,
+      iv: encryptedDoc.iv,
+      tag: encryptedDoc.tag,
+      metadata: metadata || {},
+    };
+
+    return this.pinJSONToIPFS(encryptedPayload, `Encrypted-${fileName}`);
+  }
+
+  /** Pin JSON metadata to IPFS with Mandatory Unconditional Encryption Guardrail */
+  async pinJSONToIPFS(content: Record<string, any>, name: string): Promise<PinataPinResult> {
+    // UNCONDITIONAL ENCRYPTION GUARDRAIL: If payload is not already an encrypted envelope,
+    // convert the entire payload into a AES-256-GCM ciphertext object before sending to Pinata IPFS.
+    let payloadToPin: Record<string, any>;
+
+    if (content && content.encrypted === true && content.algorithm === 'AES-256-GCM') {
+      payloadToPin = content;
+    } else {
+      // Unconditionally encrypt any raw JSON or document object
+      const rawJsonStr = JSON.stringify(content);
+      const encryptedDoc = encryptDocument(rawJsonStr);
+      payloadToPin = {
+        name,
+        encrypted: true,
+        algorithm: 'AES-256-GCM',
+        version: 2,
+        ciphertext: encryptedDoc.encrypted,
+        iv: encryptedDoc.iv,
+        tag: encryptedDoc.tag,
+      };
+    }
+
+    if (!this.isConfigured()) {
+      const mockHash = `Qm${Buffer.from(JSON.stringify(payloadToPin)).toString('hex').substring(0, 44)}`;
       return {
         ipfsCid: mockHash,
         ipfsUrl: `${this.gatewayUrl}/${mockHash}`,
-        pinSize: JSON.stringify(content).length,
+        pinSize: JSON.stringify(payloadToPin).length,
         timestamp: new Date().toISOString(),
         isMock: true,
       };
@@ -113,7 +188,7 @@ export class IPFSService {
           ...this.getAuthHeaders(),
         },
         body: JSON.stringify({
-          pinataContent: content,
+          pinataContent: payloadToPin,
           pinataMetadata: { name },
         }),
       });

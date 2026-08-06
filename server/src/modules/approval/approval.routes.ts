@@ -5,7 +5,7 @@ import { roleGuard } from '../../middleware/roleGuard';
 
 const router = Router();
 router.use(authenticate);
-router.use(roleGuard('admin'));
+router.use(roleGuard('admin', 'verifier', 'legal_reviewer'));
 
 router.post('/request', (req, res, next) => approvalController.createRequest(req, res, next));
 router.post('/vote', (req, res, next) => approvalController.submitVote(req, res, next));

@@ -10,12 +10,21 @@ export interface User {
   full_name: string;
   email: string;
   wallet_address: string | null;
+  wallet_type?: string | null;
+  wallet_last_login?: string | null;
+  wallet_connected?: boolean;
+  chain_id?: number;
+  wallet_verified?: boolean;
+  last_signature_time?: string | null;
+  network_name?: string | null;
+  connection_status?: string | null;
   role: UserRole;
   kyc_status: KYCStatus;
   is_suspended: boolean;
   created_at: string;
   updated_at?: string;
 }
+
 
 export interface AuthResponse {
   user: User;

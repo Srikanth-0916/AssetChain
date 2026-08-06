@@ -20,11 +20,11 @@ const SEARCH_CATEGORIES = [
 ];
 
 const SEARCH_DATABASE = [
-  { id: 'a1', category: 'assets', title: 'Manhattan Commercial Plaza', subtitle: 'Class-A Office • Valuation $2,500,000 • Yield 8.2%', link: '/marketplace' },
-  { id: 'a2', category: 'assets', title: 'Solar Farm Alpha 1', subtitle: 'Utility Renewable • Valuation $1,200,000 • Yield 9.5%', link: '/marketplace' },
-  { id: 'a3', category: 'assets', title: 'Luxury Villa Compound', subtitle: 'Dubai Residential • Valuation $4,500,000 • Yield 7.8%', link: '/marketplace' },
-  { id: 'p1', category: 'portfolio', title: 'Manhattan Plaza Position', subtitle: '2,500 Tokens • Value $625,000 • ROI +14.2%', link: '/portfolio' },
-  { id: 't1', category: 'transactions', title: 'Dividend Payout #4829', subtitle: '+$2,450 USDC • Confirmed on Polygon Amoy', link: '/transactions' },
+  { id: 'a1', category: 'assets', title: 'Manhattan Commercial Plaza', subtitle: 'Class-A Office • Valuation ₹20,75,00,000 • Yield 8.2%', link: '/marketplace' },
+  { id: 'a2', category: 'assets', title: 'Solar Farm Alpha 1', subtitle: 'Utility Renewable • Valuation ₹9,96,00,000 • Yield 9.5%', link: '/marketplace' },
+  { id: 'a3', category: 'assets', title: 'Luxury Villa Compound', subtitle: 'Residential Property • Valuation ₹37,35,00,000 • Yield 7.8%', link: '/marketplace' },
+  { id: 'p1', category: 'portfolio', title: 'Manhattan Plaza Position', subtitle: '2,500 Tokens • Value ₹5,18,75,000 • ROI +14.2%', link: '/portfolio' },
+  { id: 't1', category: 'transactions', title: 'Dividend Payout #4829', subtitle: '+₹2,03,350 Rental Income • Confirmed on Polygon Amoy', link: '/transactions' },
   { id: 'd1', category: 'discussions', title: 'BKC Tower Q3 Inspection', subtitle: '3 Comments • AI Sentiment: Positive', link: '/marketplace' },
   { id: 'r1', category: 'reports', title: 'ERC-3643 Audit Certificate', subtitle: 'Verified Title Deed & Compliance Approval', link: '/auditor' },
 ];

@@ -14,14 +14,14 @@ const typeIcons: Record<string, React.ReactNode> = {
 };
 
 export function NotificationBell() {
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const load = async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !user) return;
     try {
       const data = await notificationApiService.getNotifications();
       setNotifications(data.notifications || []);
@@ -32,12 +32,15 @@ export function NotificationBell() {
   };
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && user?.id) {
       load();
       const interval = setInterval(load, 30000); // Poll every 30s
       return () => clearInterval(interval);
+    } else {
+      setNotifications([]);
+      setUnreadCount(0);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?.id]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

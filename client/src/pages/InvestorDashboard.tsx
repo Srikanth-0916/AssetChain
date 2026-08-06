@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useWallet } from '../contexts/WalletContext';
 import {
   TrendingUp, Coins, ShieldCheck, Wallet, ArrowUpRight,
   PieChart, BarChart3, Clock, AlertTriangle, Layers, Building2,
@@ -20,75 +21,67 @@ import { AssetActivityFeed } from '../components/workflow/AssetActivityFeed';
 import { FundingBreakdownWidget } from '../components/workflow/FundingBreakdownWidget';
 import { ReportGeneratorModal } from '../components/workflow/ReportGeneratorModal';
 
-const INVESTMENTS_DATA = [
-  {
-    id: 'inv-001',
-    assetId: 'ast-001',
-    title: 'Manhattan Commercial Plaza',
-    assetType: 'Commercial Real Estate',
-    location: 'New York, USA',
-    investmentValue: 625000,
-    currentValue: 713750,
-    roi: 14.2,
-    tokensOwned: 2500,
-    tokenPrice: 285.50,
-    ownershipPct: 25.0,
-    dividendEarned: 48250,
-    yieldPct: 8.2,
-    trustScore: 94,
-    riskRating: 'Low Risk',
-    legalStatus: 'Title Deed Verified (ERC-3643)',
-    txHash: '0x8f9d19d0be744cb7bf20e87488da1f90',
-  },
-  {
-    id: 'inv-002',
-    assetId: 'ast-002',
-    title: 'Solar Farm Alpha 1',
-    assetType: 'Renewable Energy',
-    location: 'Valencia, Spain',
-    investmentValue: 240000,
-    currentValue: 262800,
-    roi: 9.5,
-    tokensOwned: 2000,
-    tokenPrice: 131.40,
-    ownershipPct: 20.0,
-    dividendEarned: 18900,
-    yieldPct: 9.5,
-    trustScore: 91,
-    riskRating: 'Low Risk',
-    legalStatus: 'PPA Agreement Active',
-    txHash: '0x489d0e7e68004abb8ccdd5280a7cfb10',
-  },
-  {
-    id: 'inv-003',
-    assetId: 'ast-003',
-    title: 'Luxury Beachfront Villa Compound',
-    assetType: 'Residential Real Estate',
-    location: 'Dubai Marina, UAE',
-    investmentValue: 450000,
-    currentValue: 486000,
-    roi: 8.0,
-    tokensOwned: 1000,
-    tokenPrice: 486.00,
-    ownershipPct: 10.0,
-    dividendEarned: 32400,
-    yieldPct: 7.8,
-    trustScore: 89,
-    riskRating: 'Medium Risk',
-    legalStatus: 'Dubai Land Dept Registered',
-    txHash: '0x7e388ac818724f0ca7b11fe283c633e2',
-  },
-];
+import { PageHeaderExplainer } from '../components/ui/PageHeaderExplainer';
+import { AssetLifecycleTimeline } from '../components/workflow/AssetLifecycleTimeline';
+
+import { portfolioService } from '../services/portfolioService';
+
+
+
 
 export function InvestorDashboard() {
   const { user } = useAuth();
+  const { address } = useWallet();
   const [selectedInvestment, setSelectedInvestment] = useState<any>(null);
+  const [portfolioData, setPortfolioData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadPortfolio() {
+      if (!user) {
+        setPortfolioData(null);
+        setIsLoading(false);
+        return;
+      }
+      setIsLoading(true);
+      try {
+        const res = await portfolioService.getPortfolio();
+        setPortfolioData(res);
+      } catch (err) {
+        console.error('Failed to load portfolio:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadPortfolio();
+  }, [user?.id]);
+
   const [activeDrawerTab, setActiveDrawerTab] = useState<'details' | 'history' | 'documents' | 'governance'>('details');
   const [isPassportOpen, setIsPassportOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
 
+  const holdings = portfolioData?.holdings || [];
+  const summary = portfolioData?.summary;
+
+  const totalValue = summary ? summary.current_value : (portfolioData ? 0 : 0);
+  const cumulativeDividends = summary ? summary.unclaimed_dividends : (portfolioData ? 0 : 0);
+  const activeHoldingsCount = summary ? holdings.length : (portfolioData ? 0 : 0);
+  const displayInvestments = holdings.length > 0 ? holdings : (portfolioData ? [] : []);
+
   return (
     <div className="page-container space-y-8 animate-fade-in pb-12">
+      <PageHeaderExplainer
+        category="Accredited Investor Portal"
+        title="Your Fractional Real Estate & RWA Investments"
+        subtitle="Manage your tokenized real estate portfolio, inspect audited title deeds, track monthly rental distributions, and participate in DAO governance."
+        whatIsThis="This dashboard displays your active fractional token holdings, quarterly dividend yields, verified SPV legal documents, and AI health scores."
+        whatNext="Explore new tokenized properties in the Marketplace or vote on active DAO governance proposals below."
+        whyBlockchain="Your token ownership is cryptographically registered on Polygon Amoy blockchain with ERC-3643 transfer restrictions and automated dividend distribution."
+        whyAI="AI continuously monitors property market valuation, rental cash flow stability, and municipal title encumbrance status."
+        defaultExpanded={true}
+      />
+
+      <AssetLifecycleTimeline currentStageNumber={7} />
       {/* ── Top Header Banner ── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-8 rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border border-indigo-500/20 shadow-2xl">
         <div className="space-y-1">
@@ -137,51 +130,69 @@ export function InvestorDashboard() {
               <Wallet className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-extrabold text-white tracking-tight">$1,462,550</div>
-          <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-semibold">
-            <ArrowUpRight className="w-3.5 h-3.5" /> +11.23% Total ROI (+$147,550)
+          <div className="text-2xl font-extrabold text-white tracking-tight">${totalValue.toLocaleString()}</div>
+          <p className="text-[11px] text-slate-300">The current market value of all real-world assets you own.</p>
+          <div className="text-[10px] text-emerald-400 font-semibold border-t border-slate-800/80 pt-1.5 flex items-center gap-1">
+            <ArrowUpRight className="w-3 h-3" /> Why it matters: Tracks your total wealth growth across all properties.
           </div>
         </div>
 
         <div className="glass-card p-5 space-y-2 relative overflow-hidden border-indigo-500/20">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400">Cumulative Dividends Earned</span>
+            <span className="text-xs font-medium text-slate-400">Cumulative Rental Income</span>
             <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400">
               <Coins className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-extrabold text-white tracking-tight">$99,550</div>
-          <div className="flex items-center gap-1.5 text-xs text-amber-300 font-semibold">
-            <span>Avg Yield: 8.50% p.a.</span>
+          <div className="text-2xl font-extrabold text-white tracking-tight">${cumulativeDividends.toLocaleString()}</div>
+          <p className="text-[11px] text-slate-300">Total rental payments deposited directly to your portfolio.</p>
+          <div className="text-[10px] text-amber-300 font-semibold border-t border-slate-800/80 pt-1.5">
+            Why it matters: Generates passive income without selling your property shares.
           </div>
         </div>
 
         <div className="glass-card p-5 space-y-2 relative overflow-hidden border-indigo-500/20">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400">Active RWA Positions</span>
+            <span className="text-xs font-medium text-slate-400">Active Property Positions</span>
             <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
               <Building2 className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-extrabold text-white tracking-tight">3 Holdings</div>
-          <div className="flex items-center gap-1.5 text-xs text-slate-400">
-            <span>100% On-Chain Tokenized</span>
+          <div className="text-2xl font-extrabold text-white tracking-tight">{activeHoldingsCount} Properties</div>
+          <p className="text-[11px] text-slate-300">The number of distinct tokenized real-estate assets in your portfolio.</p>
+          <div className="text-[10px] text-indigo-300 font-semibold border-t border-slate-800/80 pt-1.5">
+            Why it matters: Diversifies risk across different commercial & residential properties.
           </div>
         </div>
 
-        <div className="glass-card p-5 space-y-2 relative overflow-hidden border-indigo-500/20">
+        {/* Web3 Wallet Layer Summary Card */}
+        <div className="glass-card p-5 space-y-2 relative overflow-hidden border-emerald-500/30 bg-emerald-950/20">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400">Trust & Compliance Status</span>
-            <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400">
+            <span className="text-xs font-medium text-emerald-300">Wallet Ownership Verified</span>
+            <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-300">
               <ShieldCheck className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-extrabold text-white tracking-tight">94 / 100</div>
-          <div className="flex items-center gap-1.5 text-xs text-purple-300 font-semibold">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> ERC-3643 Whitelisted
+          <div className="text-sm font-mono font-bold text-white truncate">
+            {address ? `${address.slice(0, 10)}...${address.slice(-6)}` : 'Ownership Verification Pending'}
+          </div>
+          <p className="text-[11px] text-slate-300">Your secure digital key proving legal ownership of property tokens.</p>
+          <div className="flex items-center justify-between text-[10px] border-t border-emerald-500/20 pt-1.5">
+            <span className="text-emerald-400 font-semibold">Polygon Amoy (80002)</span>
+            {address && (
+              <a
+                href={`https://amoy.polygonscan.com/address/${address}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-indigo-300 hover:text-indigo-200 font-semibold flex items-center gap-1"
+              >
+                Verify <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
           </div>
         </div>
       </div>
+
 
       {/* ── My Investments Grid (Individual Cards as Financial Instruments) ── */}
       <div className="space-y-4">
@@ -190,69 +201,117 @@ export function InvestorDashboard() {
             <h2 className="text-xl font-bold text-white tracking-tight">My Investments</h2>
             <p className="text-xs text-slate-400">Each holding is an independent tokenized real-world asset instrument.</p>
           </div>
-          <div className="text-xs text-slate-400">Showing {INVESTMENTS_DATA.length} Active Holdings</div>
+          <div className="text-xs text-slate-400">Showing {displayInvestments.length} Active Holdings</div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {INVESTMENTS_DATA.map((inv) => (
-            <div
-              key={inv.id}
-              className="glass-card-hover p-6 border border-white/[0.08] flex flex-col justify-between space-y-5 group"
-            >
-              <div>
-                {/* Header */}
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div>
-                    <span className="pill-badge pill-success text-[10px] mb-1.5 inline-block">{inv.assetType}</span>
-                    <h3 className="text-lg font-bold text-white group-hover:text-indigo-300 transition-colors">
-                      {inv.title}
-                    </h3>
-                    <p className="text-xs text-slate-400">{inv.location}</p>
-                  </div>
-                  <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-right shrink-0">
-                    <div className="text-xs font-bold text-emerald-400">{inv.trustScore}/100</div>
-                    <div className="text-[9px] text-slate-500 uppercase font-semibold">Trust Score</div>
-                  </div>
-                </div>
-
-                {/* Key Metrics Grid */}
-                <div className="grid grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80 my-4 text-xs">
-                  <div>
-                    <div className="text-slate-500 text-[10px]">Invested Value</div>
-                    <div className="font-bold text-white">${inv.investmentValue.toLocaleString()}</div>
-                  </div>
-                  <div>
-                    <div className="text-slate-500 text-[10px]">Current Valuation</div>
-                    <div className="font-bold text-emerald-400">${inv.currentValue.toLocaleString()}</div>
-                  </div>
-                  <div>
-                    <div className="text-slate-500 text-[10px]">Tokens / Ownership</div>
-                    <div className="font-semibold text-slate-200">{inv.tokensOwned} ({inv.ownershipPct}%)</div>
-                  </div>
-                  <div>
-                    <div className="text-slate-500 text-[10px]">Dividend Earned</div>
-                    <div className="font-semibold text-amber-400">+${inv.dividendEarned.toLocaleString()}</div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between text-xs pt-1">
-                  <span className="text-slate-400">Total ROI: <strong className="text-emerald-400">+{inv.roi}%</strong></span>
-                  <span className="text-slate-400">Yield: <strong className="text-indigo-300">{inv.yieldPct}% p.a.</strong></span>
-                </div>
-              </div>
-
-              <button
-                onClick={() => {
-                  setSelectedInvestment(inv);
-                  setActiveDrawerTab('details');
-                }}
-                className="w-full py-2.5 rounded-xl bg-indigo-600/15 hover:bg-indigo-600 border border-indigo-500/30 text-indigo-200 hover:text-white text-xs font-bold transition-all flex items-center justify-center gap-2 group-hover:shadow-lg"
-              >
-                Open Asset Workspace <ArrowRight className="w-3.5 h-3.5" />
-              </button>
+        {displayInvestments.length === 0 ? (
+          <div className="p-12 text-center glass-card border border-indigo-500/20 space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto">
+              <Building2 className="w-6 h-6" />
             </div>
-          ))}
-        </div>
+            <h3 className="text-xl font-bold text-white">Welcome to AssetChain.</h3>
+            <p className="text-slate-300 text-sm max-w-md mx-auto leading-relaxed">
+              You haven't invested in any properties yet. Browse the Marketplace to purchase your first fractional property investment.
+            </p>
+            <div className="pt-2">
+              <Link to="/marketplace" className="btn-primary text-xs py-2.5 px-6 inline-flex items-center gap-2">
+                <Building2 className="w-4 h-4" /> Browse Marketplace <ArrowUpRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {displayInvestments.map((inv: any) => {
+              const assetTitle = inv.asset?.title || 'Asset Listing';
+              const assetLocation = inv.asset?.location || 'Global Location';
+              const assetType = inv.asset?.asset_type || 'RWA';
+              const trustScore = inv.asset?.verification_status === 'tokenized' ? 95 : 75;
+              const investmentValue = inv.investment_amount || 0;
+              const currentValue = inv.current_value || investmentValue;
+              const tokensOwned = inv.tokens_owned || 0;
+              const averageBuyPrice = inv.average_buy_price || 0;
+              const tokenPrice = inv.asset?.token_price || averageBuyPrice;
+              const ownershipPct = ((investmentValue / 1000000) * 100).toFixed(2);
+              const claimedDividends = inv.claimed_dividends || 0;
+              const totalRoiPercent = inv.total_roi_percent || 0;
+              const yieldPct = 8.5;
+              const txHash = inv.txHash || '0x' + (inv.id || 'abc').slice(0, 8) + '...';
+
+              return (
+                <div
+                  key={inv.id || inv.asset_id}
+                  className="glass-card-hover p-6 border border-white/[0.08] flex flex-col justify-between space-y-5 group"
+                >
+                  <div>
+                    {/* Header */}
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div>
+                        <span className="pill-badge pill-success text-[10px] mb-1.5 inline-block capitalize">{assetType.replace(/_/g, ' ')}</span>
+                        <h3 className="text-lg font-bold text-white group-hover:text-indigo-300 transition-colors">
+                          {assetTitle}
+                        </h3>
+                        <p className="text-xs text-slate-400">{assetLocation}</p>
+                      </div>
+                      <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-right shrink-0">
+                        <div className="text-xs font-bold text-emerald-400">{trustScore}/100</div>
+                        <div className="text-[9px] text-slate-500 uppercase font-semibold">Trust Score</div>
+                      </div>
+                    </div>
+
+                    {/* Key Metrics Grid */}
+                    <div className="grid grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80 my-4 text-xs">
+                      <div>
+                        <div className="text-slate-500 text-[10px]">Invested Value</div>
+                        <div className="font-bold text-white">${investmentValue.toLocaleString()}</div>
+                      </div>
+                      <div>
+                        <div className="text-slate-500 text-[10px]">Current Valuation</div>
+                        <div className="font-bold text-emerald-400">${currentValue.toLocaleString()}</div>
+                      </div>
+                      <div>
+                        <div className="text-slate-500 text-[10px]">Tokens / Ownership</div>
+                        <div className="font-semibold text-slate-200">{tokensOwned} ({ownershipPct}%)</div>
+                      </div>
+                      <div>
+                        <div className="text-slate-500 text-[10px]">Dividend Earned</div>
+                        <div className="font-semibold text-amber-400">+${claimedDividends.toLocaleString()}</div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs pt-1">
+                      <span className="text-slate-400">Total ROI: <strong className="text-emerald-400">+{totalRoiPercent}%</strong></span>
+                      <span className="text-slate-400">Yield: <strong className="text-indigo-300">{yieldPct}% p.a.</strong></span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setSelectedInvestment({
+                        ...inv,
+                        title: assetTitle,
+                        location: assetLocation,
+                        assetType,
+                        trustScore,
+                        investmentValue,
+                        currentValue,
+                        tokensOwned,
+                        tokenPrice,
+                        dividendEarned: claimedDividends,
+                        yieldPct,
+                        roi: totalRoiPercent,
+                        txHash,
+                      });
+                      setActiveDrawerTab('details');
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-indigo-600/15 hover:bg-indigo-600 border border-indigo-500/30 text-indigo-200 hover:text-white text-xs font-bold transition-all flex items-center justify-center gap-2 group-hover:shadow-lg"
+                  >
+                    Open Asset Workspace <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── Asset Workspace Drawer Modal ── */}

@@ -30,38 +30,7 @@ export interface AuditEvent {
   timestamp: string;
 }
 
-const auditLog: AuditEvent[] = [
-  {
-    id: uuidv4(),
-    type: 'asset_approved',
-    actorId: 'admin-demo-uuid-001',
-    actorRole: 'admin',
-    description: 'Admin approved Manhattan Commercial Plaza for tokenization',
-    metadata: { assetId: 'asset-demo-uuid-001', contractAddress: '0x1111...1111' },
-    severity: 'info',
-    timestamp: new Date(Date.now() - 5 * 86400000).toISOString(),
-  },
-  {
-    id: uuidv4(),
-    type: 'kyc_approved',
-    actorId: 'admin-demo-uuid-001',
-    actorRole: 'admin',
-    description: 'KYC verification approved for Jane Smith (Asset Owner)',
-    metadata: { userId: 'owner-demo-uuid-002' },
-    severity: 'info',
-    timestamp: new Date(Date.now() - 3 * 86400000).toISOString(),
-  },
-  {
-    id: uuidv4(),
-    type: 'fraud_detected',
-    actorId: 'system',
-    actorRole: 'system',
-    description: 'AI fraud detection flagged duplicate asset submission "Urban Residential Block"',
-    metadata: { assetTitle: 'Urban Residential Block', fraudScore: 72, duplicateOf: 'asset-demo-uuid-003' },
-    severity: 'warning',
-    timestamp: new Date(Date.now() - 2 * 86400000).toISOString(),
-  },
-];
+const auditLog: AuditEvent[] = [];
 
 export class AuditService {
   /**

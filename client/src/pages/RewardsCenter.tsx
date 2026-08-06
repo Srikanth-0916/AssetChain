@@ -1,26 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import {
   Star, Gift, TrendingUp, Zap, Award, ChevronRight,
   Clock, CheckCircle, ArrowUpRight, Sparkles, ShieldCheck,
   Users, BarChart3, Calendar, Crown
 } from 'lucide-react';
+import { portfolioService } from '../services/portfolioService';
+import api from '../services/api';
 
-/* ─── Static reward history (presentation layer) ─── */
-const REWARD_HISTORY = [
-  { id: 1, action: 'First Investment Completed',     points: 500, icon: '🚀', date: '2024-12-01', category: 'investment' },
-  { id: 2, action: 'KYC Verification Approved',      points: 200, icon: '✅', date: '2024-11-28', category: 'kyc' },
-  { id: 3, action: 'Profile Completed',              points: 100, icon: '👤', date: '2024-11-28', category: 'profile' },
-  { id: 4, action: '₹10,000 Invested',               points: 100, icon: '💰', date: '2024-12-05', category: 'investment' },
-  { id: 5, action: 'DAO Governance Vote',            points: 50,  icon: '🗳️', date: '2024-12-08', category: 'governance' },
-  { id: 6, action: 'Referral Bonus — Friend Joined', points: 300, icon: '🎁', date: '2024-12-10', category: 'referral' },
-  { id: 7, action: '₹50,000 Invested',               points: 500, icon: '💰', date: '2024-12-15', category: 'investment' },
-  { id: 8, action: 'DAO Governance Vote',            points: 50,  icon: '🗳️', date: '2024-12-20', category: 'governance' },
-  { id: 9, action: '₹1,00,000 Invested',             points: 1000,icon: '🏆', date: '2025-01-02', category: 'investment' },
-  { id:10, action: '2nd DAO Vote',                   points: 50,  icon: '🗳️', date: '2025-01-10', category: 'governance' },
-  { id:11, action: 'Refer a Friend',                 points: 300, icon: '🎁', date: '2025-01-15', category: 'referral' },
-  { id:12, action: 'Monthly Portfolio Review',       points: 100, icon: '📊', date: '2025-01-20', category: 'engagement' },
-];
+/* We will generate reward history dynamically from the activities API */
 
 const REDEEM_OPTIONS = [
   {
@@ -135,7 +123,6 @@ function CircleProgress({ pct, size = 120, stroke = 8, children }: {
   );
 }
 
-const TOTAL_POINTS = 3250;
 const CATEGORIES = ['All', 'Investment', 'KYC', 'Governance', 'Referral', 'Engagement', 'Profile'];
 
 export function RewardsCenter() {
@@ -143,19 +130,66 @@ export function RewardsCenter() {
   const [activeFilter, setActiveFilter] = useState('All');
   const [redeemTarget, setRedeemTarget] = useState<string | null>(null);
   const [redeemed, setRedeemed] = useState<string[]>([]);
+  const [portfolioData, setPortfolioData] = useState<any>(null);
+  const [activities, setActivities] = useState<any[]>([]);
 
-  const level    = getCurrentLevel(TOTAL_POINTS);
-  const nextLvl  = getNextLevel(TOTAL_POINTS);
+  useEffect(() => {
+    async function loadRewardsData() {
+      if (!user) return;
+      try {
+        const [portfolio, activityRes] = await Promise.all([
+          portfolioService.getPortfolio(),
+          api.get('/activity', { params: { limit: 100 } }),
+        ]);
+        setPortfolioData(portfolio);
+        setActivities(activityRes.data.data?.activities ?? []);
+      } catch (err) {
+        console.error('Failed to load rewards data:', err);
+      }
+    }
+    loadRewardsData();
+  }, [user?.id]);
+
+  const totalInvested = portfolioData?.summary?.total_invested ?? 0;
+  const kycPoints = user?.kyc_status === 'approved' ? 200 : 0;
+  const investmentPoints = Math.round(totalInvested / 100);
+  const votePoints = activities.filter(a => a.category === 'dao_vote').length * 50;
+  
+  const totalPoints = 100 + kycPoints + investmentPoints + votePoints;
+
+  const dynamicHistory = [
+    { id: 'profile', action: 'Profile Completed', points: 100, icon: '👤', date: user?.created_at?.split('T')[0] || '2026-08-01', category: 'profile' },
+    ...(user?.kyc_status === 'approved' ? [{ id: 'kyc', action: 'KYC Verification Approved', points: 200, icon: '✅', date: '2026-08-01', category: 'kyc' }] : []),
+    ...activities.filter(a => a.category === 'investment').map((a, i) => ({
+      id: `inv-${i}`,
+      action: a.title,
+      points: Math.round(Number(a.metadata?.amount || 0) / 100) || 50,
+      icon: '💰',
+      date: a.timestamp.split('T')[0],
+      category: 'investment'
+    })),
+    ...activities.filter(a => a.category === 'dao_vote').map((a, i) => ({
+      id: `gov-${i}`,
+      action: a.title,
+      points: 50,
+      icon: '🗳️',
+      date: a.timestamp.split('T')[0],
+      category: 'governance'
+    }))
+  ];
+
+  const level    = getCurrentLevel(totalPoints);
+  const nextLvl  = getNextLevel(totalPoints);
   const pctToNext = nextLvl
-    ? Math.round(((TOTAL_POINTS - level.min) / (nextLvl.min - level.min)) * 100)
+    ? Math.round(((totalPoints - level.min) / (nextLvl.min - level.min)) * 100)
     : 100;
 
   const filtered = activeFilter === 'All'
-    ? REWARD_HISTORY
-    : REWARD_HISTORY.filter(r => r.category === activeFilter.toLowerCase());
+    ? dynamicHistory
+    : dynamicHistory.filter(r => r.category === activeFilter.toLowerCase());
 
   function handleRedeem(id: string, cost: number) {
-    if (TOTAL_POINTS >= cost && !redeemed.includes(id)) {
+    if (totalPoints >= cost && !redeemed.includes(id)) {
       setRedeemed(prev => [...prev, id]);
       setRedeemTarget(null);
     }
@@ -183,7 +217,7 @@ export function RewardsCenter() {
         {/* Points Ring */}
         <div className="stat-card flex flex-col items-center gap-4 text-center">
           <CircleProgress pct={pctToNext} size={140} stroke={10}>
-            <span className="text-3xl font-black gradient-text-gold">{TOTAL_POINTS.toLocaleString()}</span>
+            <span className="text-3xl font-black gradient-text-gold">{totalPoints.toLocaleString()}</span>
             <span className="text-xs text-slate-400 font-medium mt-0.5">points</span>
           </CircleProgress>
           <div>
@@ -192,7 +226,7 @@ export function RewardsCenter() {
             </span>
             {nextLvl && (
               <p className="text-xs text-slate-500 mt-2">
-                {(nextLvl.min - TOTAL_POINTS).toLocaleString()} pts to <strong className="text-slate-300">{nextLvl.name}</strong>
+                {(nextLvl.min - totalPoints).toLocaleString()} pts to <strong className="text-slate-300">{nextLvl.name}</strong>
               </p>
             )}
           </div>
@@ -288,7 +322,7 @@ export function RewardsCenter() {
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {REDEEM_OPTIONS.map(opt => {
-            const canAfford  = TOTAL_POINTS >= opt.cost;
+            const canAfford  = totalPoints >= opt.cost;
             const isRedeemed = redeemed.includes(opt.id);
             return (
               <div key={opt.id} className="reward-option-card relative">
@@ -314,7 +348,7 @@ export function RewardsCenter() {
                         : 'bg-slate-800/50 text-slate-600 border border-slate-700/50 cursor-not-allowed'
                     }`}
                 >
-                  {isRedeemed ? '✓ Redeemed' : canAfford ? 'Redeem Now' : `Need ${(opt.cost - TOTAL_POINTS).toLocaleString()} more pts`}
+                  {isRedeemed ? '✓ Redeemed' : canAfford ? 'Redeem Now' : `Need ${(opt.cost - totalPoints).toLocaleString()} more pts`}
                 </button>
               </div>
             );

@@ -179,6 +179,9 @@ export function Profile() {
                 { label: 'Email',       value: user?.email },
                 { label: 'Role',        value: user?.role?.replace('_', ' '), capitalize: true },
                 { label: 'Member Since',value: 'November 2024' },
+                { label: 'Web3 Wallet EOA', value: user?.wallet_address || address || '0x71C7656EC8ab88F190278148b1110098487A3E21' },
+                { label: 'Wallet Type', value: user?.wallet_type || 'MetaMask / WalletConnect v2' },
+                { label: 'Active Network', value: 'Polygon Amoy Testnet (Chain 80002)' },
               ].map(f => (
                 <div key={f.label}>
                   <label className="label text-xs">{f.label}</label>
@@ -190,6 +193,7 @@ export function Profile() {
               ))}
             </div>
           </div>
+
 
           {/* Compliance Layer */}
           <div className="stat-card">

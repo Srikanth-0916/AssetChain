@@ -14,6 +14,7 @@ import {
 } from '../services/platformServices';
 
 import { RoleWorkQueueWidget } from '../components/workflow/RoleWorkQueueWidget';
+import { PageHeaderExplainer } from '../components/ui/PageHeaderExplainer';
 
 type Tab = 'kyc' | 'assets' | 'multisig' | 'inheritance' | 'audit';
 
@@ -105,11 +106,6 @@ export function AdminPanel() {
       );
     } catch (e: any) {
       setKycError('Failed to load KYC queue. Check API connection.');
-      // Fallback demo data so the panel still renders
-      setKycQueue([
-        { id: 'user-001', name: 'Robert Vance (demo)', role: 'asset_owner', docCid: 'QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco' },
-        { id: 'user-002', name: 'Elena Rostova (demo)', role: 'investor', docCid: 'QmZtr9P871X11y83L9k1j3n3m737' },
-      ]);
     } finally {
       setKycLoading(false);
     }
@@ -133,10 +129,6 @@ export function AdminPanel() {
       );
     } catch {
       setAssetsError('Failed to load pending assets. Check API connection.');
-      setPendingAssets([
-        { id: 'asset-pending-01', title: 'Solar Array Delta (demo)', category: 'Renewable Energy', valuation: 850000, tokenSupply: 8500, owner: 'Robert Vance' },
-        { id: 'asset-pending-02', title: 'Coastal Residences Goa (demo)', category: 'Residential', valuation: 1200000, tokenSupply: 10000, owner: 'Elena Rostova' },
-      ]);
     } finally {
       setAssetsLoading(false);
     }
@@ -146,29 +138,22 @@ export function AdminPanel() {
     setMultisigLoading(true);
     setMultisigError(null);
     try {
-      const requests = await adminApprovalService.getApprovalRequests();
-      setMultisigRequests(requests);
+      const response: any = await adminApprovalService.getApprovalRequests();
+      const list = Array.isArray(response)
+        ? response
+        : Array.isArray(response?.data)
+        ? response.data
+        : Array.isArray(response?.requests)
+        ? response.requests
+        : [];
+      setMultisigRequests(list);
     } catch {
       setMultisigError('Failed to load approval requests. Check API connection.');
-      setMultisigRequests([
-        {
-          id: 'req-001', assetTitle: 'Solar Array Delta', assetId: 'asset-pending-01',
-          spvName: 'Solar Farm Energy Asset Holdings S.L.', spvRegNo: 'ES-B98124501',
-          trustee: 'Deutsche Bank Trust', status: 'pending',
-          votes: [{ role: 'verifier', decision: 'approved' }], approvedCount: 1, rejectedCount: 0,
-        },
-        {
-          id: 'req-002', assetTitle: 'Coastal Residences Goa', assetId: 'asset-pending-02',
-          spvName: 'Goa Coastal Villa Properties SPV LLC', spvRegNo: 'IND-DL-991204',
-          trustee: 'Axis Trustee Services', status: 'pending',
-          votes: [{ role: 'verifier', decision: 'approved' }, { role: 'legal_reviewer', decision: 'approved' }],
-          approvedCount: 2, rejectedCount: 0,
-        },
-      ]);
     } finally {
       setMultisigLoading(false);
     }
   }, []);
+
 
   const fetchClaims = useCallback(async () => {
     setClaimsLoading(true);
@@ -178,14 +163,6 @@ export function AdminPanel() {
       setClaims(nominees);
     } catch {
       setClaimsError('Failed to load inheritance claims. Check API connection.');
-      setClaims([
-        {
-          id: 'claim-001', investorName: 'Jane Smith', investorWallet: '0x2546BcD3c84621e976D8185a91A922aE77ECEc30',
-          nomineeName: 'Robert Doe', nomineeWallet: '0x9999999999999999999999999999999999999999',
-          deathCertCID: 'QmDeathCertDoc99881122334455', probateCID: 'QmProbateCourtOrder77665544',
-          status: 'pending_verification',
-        },
-      ]);
     } finally {
       setClaimsLoading(false);
     }
@@ -200,12 +177,6 @@ export function AdminPanel() {
       setAuditLog(logs);
     } catch {
       setAuditError('Failed to load audit log. Check API connection.');
-      setAuditLog([
-        { id: 'a1', type: 'asset_approved', severity: 'info', description: 'Admin approved Manhattan Commercial Plaza for tokenization', timestamp: new Date(Date.now() - 5 * 86400000).toISOString(), actorId: 'Platform Admin' },
-        { id: 'a2', type: 'kyc_approved', severity: 'info', description: 'KYC verification approved for Jane Smith (Asset Owner)', timestamp: new Date(Date.now() - 3 * 86400000).toISOString(), actorId: 'Platform Admin' },
-        { id: 'a3', type: 'fraud_detected', severity: 'warning', description: 'AI fraud detection flagged duplicate asset submission "Urban Residential Block"', timestamp: new Date(Date.now() - 2 * 86400000).toISOString(), actorId: 'AI System' },
-        { id: 'a4', type: 'kyc_approved', severity: 'info', description: 'KYC approved for John Investor', timestamp: new Date(Date.now() - 1 * 86400000).toISOString(), actorId: 'Platform Admin' },
-      ]);
     } finally {
       setAuditLoading(false);
     }
@@ -330,6 +301,20 @@ export function AdminPanel() {
 
   return (
     <div className="page-container space-y-8 animate-fade-in pb-12">
+      <PageHeaderExplainer
+        category="Admin Governance"
+        title="Admin Control Center & Platform Health"
+        subtitle="Monitor the health of the entire platform, manage user approvals, review property originations, and audit platform activity."
+        whereAmI="AssetChain Admin Panel"
+        whatIsThis="Monitor the health of the entire platform. Manage users, assets, approvals, and platform activity."
+        whyImportant="Maintains operational safety, user identity verification, and multi-signature governance."
+        whatCanIDo="Review user KYC requests, approve asset tokenization submissions, and inspect platform system logs."
+        whatNext="Click 'Approve' or 'Reject' on pending verification requests."
+        whatHappensNext="The system updates the user's status in Supabase and triggers an automated blockchain permission update."
+        whyBlockchain="Multi-sig governance votes are immutably recorded on-chain, requiring quorum consensus before assets can be listed on the marketplace."
+        whyAI="AI assists administrators by running automated fraud score benchmarks on uploaded property deeds."
+        defaultExpanded={true}
+      />
       {/* ── Top Header Banner ── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-8 rounded-3xl bg-gradient-to-r from-slate-900 via-red-950/20 to-slate-900 border border-red-500/20 shadow-2xl">
         <div className="space-y-1">
@@ -381,6 +366,14 @@ export function AdminPanel() {
               <div className="text-[10px] text-emerald-400 font-mono">23 Tables (4/20 conn)</div>
             </div>
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-indigo-500/30 flex items-center justify-between">
+            <div>
+              <div className="font-semibold text-white">Web3 Wallet Layer</div>
+              <div className="text-[10px] text-indigo-300 font-mono">MetaMask / WalletConnect v2</div>
+            </div>
+            <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-pulse" />
           </div>
 
           <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between">
@@ -602,11 +595,12 @@ export function AdminPanel() {
             <LoadingState message="Loading approval requests..." />
           ) : multisigError ? (
             <ErrorState message={multisigError} onRetry={fetchMultisigRequests} />
-          ) : multisigRequests.length === 0 ? (
+          ) : !Array.isArray(multisigRequests) || multisigRequests.length === 0 ? (
             <EmptyState message="No pending multi-sig approval requests." />
           ) : (
             <div className="space-y-4">
-              {multisigRequests.map((r: any) => {
+              {(multisigRequests || []).map((r: any) => {
+
                 const votes: any[] = r.votes || [];
                 const verifierVote = votes.find((v: any) => v.role === 'verifier');
                 const legalVote = votes.find((v: any) => v.role === 'legal_reviewer');

@@ -13,6 +13,7 @@ export type UserRole =
 export const ROLE_WORKSPACE_PATHS: Record<string, string> = {
   investor: '/investor',
   asset_owner: '/owner',
+  verifier: '/verifier',
   legal_reviewer: '/legal',
   compliance_officer: '/compliance',
   compliance: '/compliance',

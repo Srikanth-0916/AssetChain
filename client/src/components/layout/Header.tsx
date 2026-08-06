@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWallet } from '../../contexts/WalletContext';
@@ -22,13 +22,43 @@ interface NavItem {
   badge?: string;
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { label: 'Control Center', to: '/investor',      icon: <LayoutDashboard className="w-4 h-4 text-emerald-400" /> },
-  { label: 'Marketplace',    to: '/marketplace',   icon: <Store className="w-4 h-4" /> },
-  { label: 'Portfolio',      to: '/portfolio',     icon: <PieChart className="w-4 h-4 text-indigo-400" />, roles: ['investor', 'asset_owner', 'admin'] },
-  { label: 'AI Advisor',     to: '/ai-copilot',    icon: <Sparkles className="w-4 h-4 text-purple-400" />, badge: 'AI' },
-  { label: 'Activity',       to: '/activity',      icon: <Activity className="w-4 h-4 text-amber-400" /> },
-];
+import { WalletConnectModal } from '../wallet/WalletConnectModal';
+
+export function Header() {
+  const { user, isAuthenticated, logout } = useAuth();
+  const { address, isConnected, connect, isCorrectNetwork, switchToPolygonAmoy } = useWallet();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [moreOpen, setMoreOpen]     = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [walletModalOpen, setWalletModalOpen] = useState(false);
+
+  const controlCenterPath = getRoleDashboardPath(user?.role);
+  const controlCenterTitle = getRoleWorkspaceTitle(user?.role);
+
+  // Ctrl+K / Cmd+K keyboard shortcut listener for global search
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(prev => !prev);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+
+
+  const NAV_ITEMS: NavItem[] = [
+    { label: 'Control Center', to: controlCenterPath, icon: <LayoutDashboard className="w-4 h-4 text-emerald-400" /> },
+    { label: 'Marketplace',    to: '/marketplace',   icon: <Store className="w-4 h-4" /> },
+    { label: 'Portfolio',      to: '/portfolio',     icon: <PieChart className="w-4 h-4 text-indigo-400" />, roles: ['investor', 'asset_owner', 'admin'] },
+    { label: 'AI Advisor',     to: '/ai-copilot',    icon: <Sparkles className="w-4 h-4 text-purple-400" />, badge: 'AI' },
+    { label: 'Activity',       to: '/activity',      icon: <Activity className="w-4 h-4 text-amber-400" /> },
+  ];
+
 
 const MORE_ITEMS: NavItem[] = [
   { label: 'Admin Control Center',      to: '/admin',       icon: <Shield className="w-4 h-4 text-red-400" />,      description: 'Platform operations & system health', roles: ['admin'] },
@@ -40,20 +70,12 @@ const MORE_ITEMS: NavItem[] = [
   { label: 'Transactions',              to: '/transactions',icon: <Receipt className="w-4 h-4 text-purple-400" />,  description: 'On-chain transaction ledger' },
 ];
 
-export function Header() {
-  const { user, isAuthenticated, logout } = useAuth();
-  const { address, isConnected, connect, isCorrectNetwork, switchToPolygonAmoy } = useWallet();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [moreOpen, setMoreOpen]     = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-
   const handleLogout = async () => {
     await logout();
     navigate('/login');
     setMobileOpen(false);
   };
+
 
   function isActive(to: string) {
     return location.pathname === to || location.pathname.startsWith(to + '/');
@@ -184,19 +206,23 @@ export function Header() {
 
             {/* Wallet */}
             {isConnected ? (
-              <div className="hidden sm:flex items-center gap-2 bg-slate-900 border border-indigo-500/20 px-2.5 py-1.5 rounded-xl text-xs text-indigo-300 font-mono">
+              <button
+                onClick={() => setWalletModalOpen(true)}
+                className="hidden sm:flex items-center gap-2 bg-slate-900 border border-indigo-500/30 hover:border-indigo-500/60 px-2.5 py-1.5 rounded-xl text-xs text-indigo-300 font-mono transition-all"
+              >
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
                 {truncateAddress(address)}
-              </div>
+              </button>
             ) : (
               <button
-                onClick={() => connect()}
+                onClick={() => setWalletModalOpen(true)}
                 className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-600/20 border border-indigo-500/40 text-indigo-300 rounded-xl text-xs font-semibold hover:bg-indigo-600/30 transition-all"
               >
                 <Wallet className="w-3.5 h-3.5" />
-                Connect
+                Connect Wallet
               </button>
             )}
+
 
             {/* Global Search Button */}
             <button
@@ -236,8 +262,9 @@ export function Header() {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <Link to="/login"    className="text-slate-300 hover:text-white text-sm font-medium transition-colors px-2 py-1.5">Sign In</Link>
-                <Link to="/register" className="btn-primary text-xs !py-1.5 !px-3">Get Started</Link>
+                <Link to="/login" className="btn-primary text-xs py-1.5 px-3.5 flex items-center gap-1.5 shadow-md shadow-indigo-600/20">
+                  <Wallet className="w-3.5 h-3.5" /> Sign In
+                </Link>
               </div>
             )}
 
@@ -326,8 +353,12 @@ export function Header() {
           </div>
         </div>
       )}
-      {/* Global Search Modal */}
+      {/* Global Search & Wallet Connect Modals */}
       <GlobalSearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+      {walletModalOpen && (
+        <WalletConnectModal isOpen={walletModalOpen} onClose={() => setWalletModalOpen(false)} />
+      )}
     </>
   );
+
 }

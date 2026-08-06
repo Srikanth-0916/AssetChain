@@ -24,38 +24,61 @@ export class AppError extends Error {
 export class ValidationError extends AppError {
   constructor(message: string, details?: Record<string, string>[]) {
     super(message, 400, 'VALIDATION_ERROR', details);
+    Object.setPrototypeOf(this, ValidationError.prototype);
   }
 }
+
+export class BadRequestError extends ValidationError {
+  constructor(message: string, details?: Record<string, string>[]) {
+    super(message, details);
+    Object.setPrototypeOf(this, BadRequestError.prototype);
+  }
+}
+
+
+export class InternalServerError extends AppError {
+  constructor(message = 'Internal server error') {
+    super(message, 500, 'INTERNAL_SERVER_ERROR');
+    Object.setPrototypeOf(this, InternalServerError.prototype);
+  }
+}
+
 
 export class UnauthorizedError extends AppError {
   constructor(message = 'Authentication required') {
     super(message, 401, 'UNAUTHORIZED');
+    Object.setPrototypeOf(this, UnauthorizedError.prototype);
   }
 }
 
 export class ForbiddenError extends AppError {
   constructor(message = 'Insufficient permissions') {
     super(message, 403, 'FORBIDDEN');
+    Object.setPrototypeOf(this, ForbiddenError.prototype);
   }
 }
 
 export class NotFoundError extends AppError {
   constructor(resource = 'Resource') {
     super(`${resource} not found`, 404, 'NOT_FOUND');
+    Object.setPrototypeOf(this, NotFoundError.prototype);
   }
 }
 
 export class ConflictError extends AppError {
   constructor(message: string) {
     super(message, 409, 'CONFLICT');
+    Object.setPrototypeOf(this, ConflictError.prototype);
   }
 }
 
 export class UnprocessableError extends AppError {
   constructor(message: string) {
     super(message, 422, 'UNPROCESSABLE');
+    Object.setPrototypeOf(this, UnprocessableError.prototype);
   }
 }
+
 
 export class RateLimitError extends AppError {
   constructor(message = 'Too many requests, please try again later') {

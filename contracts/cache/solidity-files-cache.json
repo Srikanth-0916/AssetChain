@@ -652,8 +652,8 @@
       ]
     },
     "D:\\Desktop\\Hackathon\\Intern-Project\\AssetChain\\contracts\\contracts\\marketplace\\Marketplace.sol": {
-      "lastModificationDate": 1785163560753,
-      "contentHash": "63dfb65ccb8c952fa20d3d7e14517bfa",
+      "lastModificationDate": 1785830764165,
+      "contentHash": "18837fd55be4d3547d6092c2d9f26f4a",
       "sourceName": "contracts/marketplace/Marketplace.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -730,6 +730,44 @@
       ],
       "artifacts": [
         "Governance"
+      ]
+    },
+    "D:\\Desktop\\Hackathon\\Intern-Project\\AssetChain\\node_modules\\@openzeppelin\\contracts\\access\\Ownable.sol": {
+      "lastModificationDate": 1785311908537,
+      "contentHash": "d3c790edc9ccf808a17c5a6cd13614fd",
+      "sourceName": "@openzeppelin/contracts/access/Ownable.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../utils/Context.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "Ownable"
       ]
     }
   }

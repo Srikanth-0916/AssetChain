@@ -20,8 +20,11 @@ import recommendationRoutes from '../modules/recommendation/recommendation.route
 import trustRoutes from '../modules/trust/trust.routes';
 import activityRoutes from '../modules/activity/activity.routes';
 import discussionRoutes from '../modules/discussion/discussion.routes';
+import storageRoutes from './storage.routes';
+import investmentRoutes from '../modules/investment/investment.routes';
 
 const router = Router();
+
 
 // ─── V1 Core Modules ──────────────────────────────────────────────────────────
 router.use('/auth', authRoutes);
@@ -46,6 +49,8 @@ router.use('/recommendation', recommendationRoutes);
 router.use('/trust', trustRoutes);
 router.use('/activity', activityRoutes);
 router.use('/discussion', discussionRoutes);
+router.use('/storage', storageRoutes);
+router.use('/investments', investmentRoutes);
 
 // ─── System Health Public Status Endpoint ──────────────────────────────────
 router.get('/system/health', (_req: Request, res) => {

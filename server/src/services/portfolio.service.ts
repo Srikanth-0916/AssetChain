@@ -1,3 +1,4 @@
+import { supabaseAdmin } from '../config/database';
 import { indexedEventStore } from '../modules/indexer/event.indexer';
 
 export interface SectorConcentrationInfo {
@@ -9,22 +10,14 @@ export interface SectorConcentrationInfo {
 
 export class PortfolioService {
   async getPortfolio(userId: string, walletAddress?: string) {
+    // ── 1. Load on-chain events for wallet-derived data ──────────────────────
     const { events } = indexedEventStore.getAll(1, 100);
-
-    // 1. Marketplace Ownership (TokensPurchased)
     const tokenPurchaseEvents = events.filter((e) => e.eventName === 'TokensPurchased');
     const treasuryClaimEvents = events.filter((e) => e.eventName === 'DividendClaimed');
     const governanceVoteEvents = events.filter((e) => e.eventName === 'VoteCast');
 
-    let walletTokensPurchased = 0;
     let walletDividendsClaimed = 0;
-    let governanceVotesCount = governanceVoteEvents.length;
-
-    tokenPurchaseEvents.forEach((e) => {
-      if (!walletAddress || e.args['buyer']?.toLowerCase() === walletAddress.toLowerCase()) {
-        walletTokensPurchased += Number(e.args['amount'] || 0);
-      }
-    });
+    const governanceVotesCount = governanceVoteEvents.length;
 
     treasuryClaimEvents.forEach((e) => {
       if (!walletAddress || e.args['claimant']?.toLowerCase() === walletAddress.toLowerCase()) {
@@ -32,60 +25,85 @@ export class PortfolioService {
       }
     });
 
-    const holdings = [
-      {
-        id: 'inv-demo-001',
-        user_id: userId,
-        asset_id: 'asset-demo-uuid-001',
-        tokens_owned: 40 + (walletTokensPurchased > 0 ? Math.floor(walletTokensPurchased / 2) : 0),
-        investment_amount: 10000,
-        average_buy_price: 250,
-        current_value: 11000,
-        profit_loss: 1000,
-        unclaimed_dividends: 350,
-        claimed_dividends: walletDividendsClaimed,
-        governance_votes_participated: governanceVotesCount,
-        blockchain_source: 'Polygon Amoy Indexed Smart Contract Token Balances',
-        asset: {
-          id: 'asset-demo-uuid-001',
-          title: 'Manhattan Commercial Plaza',
-          token_price: 275,
-          asset_type: 'Commercial Real Estate',
-          contract_address: '0x1111111111111111111111111111111111111111',
-        },
-      },
-      {
-        id: 'inv-demo-002',
-        user_id: userId,
-        asset_id: 'asset-demo-uuid-002',
-        tokens_owned: 35 + (walletTokensPurchased > 0 ? Math.ceil(walletTokensPurchased / 2) : 0),
-        investment_amount: 4200,
-        average_buy_price: 120,
-        current_value: 4550,
-        profit_loss: 350,
-        unclaimed_dividends: 120,
-        claimed_dividends: 0,
-        governance_votes_participated: governanceVotesCount > 0 ? 1 : 0,
-        blockchain_source: 'Polygon Amoy Indexed Smart Contract Token Balances',
-        asset: {
-          id: 'asset-demo-uuid-002',
-          title: 'Solar Farm Alpha 1',
-          token_price: 130,
-          asset_type: 'Renewable Energy',
-          contract_address: '0x2222222222222222222222222222222222222222',
-        },
-      },
-    ];
+    // ── 2. Load real investments from Supabase for this user ─────────────────
+    let holdings: any[] = [];
+    try {
+      const { data: investmentRows, error } = await supabaseAdmin
+        .from('investments')
+        .select(`
+          id,
+          user_id,
+          asset_id,
+          tokens_owned,
+          average_buy_price,
+          investment_amount,
+          current_value,
+          total_roi_percent,
+          profit_earned,
+          status,
+          created_at,
+          updated_at
+        `)
+        .eq('user_id', userId)
+        .eq('status', 'active');
 
-    const totalInvested = holdings.reduce((sum, item) => sum + item.investment_amount, 0);
-    const currentValue = holdings.reduce((sum, item) => sum + item.current_value, 0);
-    const totalDividends = holdings.reduce((sum, item) => sum + item.unclaimed_dividends, 0);
+      if (error) {
+        console.warn('[PortfolioService] ⚠️ Supabase investments query warning:', error.message);
+      } else if (investmentRows && investmentRows.length > 0) {
+        // Enrich each investment with asset data
+        for (const inv of investmentRows) {
+          const { data: asset } = await supabaseAdmin
+            .from('assets')
+            .select('id, title, token_price, asset_type, contract_address, location, verification_status')
+            .eq('id', inv.asset_id)
+            .single();
 
-    // Compute sector concentration logic
+          holdings.push({
+            id: inv.id,
+            user_id: inv.user_id,
+            asset_id: inv.asset_id,
+            tokens_owned: inv.tokens_owned,
+            investment_amount: inv.investment_amount,
+            average_buy_price: inv.average_buy_price,
+            current_value: inv.current_value || inv.investment_amount,
+            profit_loss: inv.profit_earned || 0,
+            total_roi_percent: inv.total_roi_percent || 0,
+            unclaimed_dividends: 0, // Will be enriched from on-chain data when available
+            claimed_dividends: walletDividendsClaimed,
+            governance_votes_participated: governanceVotesCount,
+            blockchain_source: 'Polygon Amoy Smart Contract via Supabase',
+            asset: asset ? {
+              id: asset.id,
+              title: asset.title,
+              token_price: asset.token_price,
+              asset_type: asset.asset_type,
+              location: asset.location,
+              contract_address: asset.contract_address,
+            } : {
+              id: inv.asset_id,
+              title: 'Asset',
+              token_price: inv.average_buy_price,
+              asset_type: 'Real World Asset',
+              contract_address: null,
+            },
+          });
+        }
+      }
+    } catch (e: any) {
+      console.warn('[PortfolioService] ⚠️ Portfolio load catch:', e.message);
+    }
+
+    // ── 3. Compute summary metrics ────────────────────────────────────────────
+    const totalInvested = holdings.reduce((sum, item) => sum + (item.investment_amount || 0), 0);
+    const currentValue = holdings.reduce((sum, item) => sum + (item.current_value || 0), 0);
+    const totalDividends = holdings.reduce((sum, item) => sum + (item.unclaimed_dividends || 0), 0);
+    const totalProfitLoss = holdings.reduce((sum, item) => sum + (item.profit_loss || 0), 0);
+
+    // ── 4. Compute sector concentration ──────────────────────────────────────
     const sectorValues: Record<string, number> = {};
     for (const h of holdings) {
-      const type = h.asset.asset_type || 'Other';
-      sectorValues[type] = (sectorValues[type] || 0) + h.current_value;
+      const type = h.asset?.asset_type || 'Other';
+      sectorValues[type] = (sectorValues[type] || 0) + (h.current_value || 0);
     }
 
     let concentration: SectorConcentrationInfo = {
@@ -113,12 +131,14 @@ export class PortfolioService {
       summary: {
         total_invested: totalInvested,
         current_value: currentValue,
-        total_profit_loss: currentValue - totalInvested,
+        total_profit_loss: totalProfitLoss,
         unclaimed_dividends: totalDividends,
         claimed_dividends: walletDividendsClaimed,
         total_assets: holdings.length,
         governance_votes: governanceVotesCount,
-        data_source: 'Wallet-Derived Blockchain On-Chain Events & Smart Contract Balances',
+        data_source: holdings.length > 0
+          ? 'Supabase Investments + Polygon Amoy On-Chain Events'
+          : 'No investments found — start investing in the Marketplace',
       },
       sector_concentration: concentration,
       holdings,

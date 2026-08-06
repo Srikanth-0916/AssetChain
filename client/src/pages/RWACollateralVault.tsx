@@ -136,7 +136,7 @@ export function RWACollateralVault() {
                 </span>
               </div>
               <div className="text-xs text-slate-500">
-                Collateral Value: <span className="text-slate-200 font-bold font-mono">₹{collateralValue.toLocaleString()} ($${(collateralValue / 83).toFixed(2)})</span>
+                Collateral Value: <span className="text-slate-200 font-bold font-mono">₹{collateralValue.toLocaleString()}</span>
               </div>
             </div>
 

@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import {
   TrendingUp, Coins, CheckCircle2, Sparkles, RefreshCw,
   ShieldCheck, ArrowUpRight, AlertTriangle, BarChart3,
-  Receipt, ChevronRight, Zap, Target, PieChart,
+  Receipt, ChevronRight, Zap, Target, PieChart, Building2, ArrowRight
 } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
 import { WhyPanel } from '../components/trust/WhyPanel';
@@ -13,6 +13,10 @@ import { ContextualAITip } from '../components/trust/ContextualAITip';
 import { TrustScorePanel } from '../components/explainability/TrustScorePanel';
 import { ROIBreakdownPanel } from '../components/explainability/ROIBreakdownPanel';
 import { RiskBreakdownPanel } from '../components/explainability/RiskBreakdownPanel';
+
+import { PageHeaderExplainer } from '../components/ui/PageHeaderExplainer';
+import { AssetLifecycleTimeline } from '../components/workflow/AssetLifecycleTimeline';
+import { SkeletonStatRow, SkeletonCard } from '../components/ui/SkeletonCard';
 
 const ASSET_TYPE_COLORS: Record<string, string> = {
   commercial_property:    '#6366f1',
@@ -76,7 +80,10 @@ const HEALTH_METRICS = [
   { label: 'Income Stability',  score: 90, color: 'from-purple-600 to-purple-400' },
 ];
 
+import { useAuth } from '../contexts/AuthContext';
+
 export function Portfolio() {
+  const { user } = useAuth();
   const [data, setData]               = useState<any>(null);
   const [isLoading, setIsLoading]     = useState(true);
   const [claimedMsg, setClaimedMsg]   = useState<string | null>(null);
@@ -86,6 +93,12 @@ export function Portfolio() {
 
   useEffect(() => {
     async function loadPortfolio() {
+      if (!user) {
+        setData(null);
+        setIsLoading(false);
+        return;
+      }
+      setIsLoading(true);
       try {
         const res = await portfolioService.getPortfolio();
         setData(res);
@@ -96,12 +109,21 @@ export function Portfolio() {
       }
     }
     loadPortfolio();
-  }, []);
+  }, [user?.id]);
 
   const handleClaim = (assetTitle: string, amount: number) => {
     setClaimedMsg(`Successfully claimed ${formatCurrency(amount)} yield for ${assetTitle}!`);
     setTimeout(() => setClaimedMsg(null), 5000);
   };
+
+  const summary = data?.summary || {
+    total_invested: 0,
+    current_value:  0,
+    total_profit_loss: 0,
+    unclaimed_dividends: 0,
+  };
+  const holdings           = data?.holdings || [];
+  const sectorConcentration = data?.sector_concentration;
 
   const handleGetAISuggestions = async () => {
     setIsAiLoading(true);
@@ -110,35 +132,60 @@ export function Portfolio() {
       setAiSugg(result);
     } catch {
       setAiSugg({
-        summary: 'Portfolio looks well-structured with good diversification across 3 asset types.',
-        riskRating: 'Medium',
-        projectedAnnualIncome: '₹17,150 (7% blended yield)',
-        suggestions: [
-          { action: 'Claim pending dividends', reason: '₹470 in unclaimed yield is idle capital', priority: 'High' },
-          { action: 'Add healthcare REIT exposure', reason: 'Healthcare assets offer inflation-hedged yield', priority: 'Medium' },
+        summary: holdings.length === 0
+          ? 'No active property investments found. Browse the Marketplace to deploy capital into high-yield tokenized real estate.'
+          : `Portfolio consists of ${holdings.length} holding(s) with total valuation of ${formatCurrency(summary.current_value)}.`,
+        riskRating: holdings.length === 0 ? 'N/A' : (holdings.length >= 3 ? 'Low' : 'Medium'),
+        projectedAnnualIncome: holdings.length === 0 ? '₹0 (0% yield)' : `${formatCurrency(Math.round(summary.current_value * 0.07))} (7.0% yield)`,
+        suggestions: holdings.length === 0 ? [
+          { action: 'Explore Property Marketplace', reason: 'Start your property investment portfolio', priority: 'High' },
+        ] : [
+          { action: 'Monitor Rental Yields', reason: `Current pending yield is ${formatCurrency(summary.unclaimed_dividends)}`, priority: 'Medium' },
         ],
-        rebalancingAdvice: 'Consider diversifying into a third asset type to reduce concentration risk.',
+        rebalancingAdvice: holdings.length === 0
+          ? 'Acquire fractional tokens across residential and commercial sectors for optimal diversification.'
+          : 'Consider maintaining a balanced mix across multiple real estate asset types.',
       });
     } finally {
       setIsAiLoading(false);
     }
   };
-
-  const summary = data?.summary || {
-    total_invested: 225000,
-    current_value:  245000,
-    total_profit_loss: 20000,
-    unclaimed_dividends: 6450,
-  };
-  const holdings           = data?.holdings || [];
-  const sectorConcentration = data?.sector_concentration;
   const roi = summary.total_invested > 0
     ? (((summary.current_value - summary.total_invested) / summary.total_invested) * 100).toFixed(2)
     : '0.00';
-  const overallHealth = Math.round(HEALTH_METRICS.reduce((s, m) => s + m.score, 0) / HEALTH_METRICS.length);
+
+  const diversificationScore = holdings.length === 0 ? 0 : Math.min(100, holdings.length * 35);
+  const riskBalanceScore = holdings.length === 0 ? 0 : Math.round(holdings.reduce((sum: number, h: any) => sum + (h.total_roi_percent >= 0 ? 85 : 60), 0) / holdings.length);
+  const liquidityScore = holdings.length === 0 ? 0 : Math.min(100, holdings.reduce((sum: number, h: any) => sum + (h.tokens_owned > 0 ? 80 : 50), 0) / holdings.length);
+  const incomeStabilityScore = holdings.length === 0 ? 0 : (summary.unclaimed_dividends > 0 || summary.total_invested > 0 ? 90 : 60);
+
+  const HEALTH_METRICS = [
+    { label: 'Diversification',   score: diversificationScore,   color: 'from-indigo-600 to-indigo-400' },
+    { label: 'Risk Balance',      score: riskBalanceScore,      color: 'from-emerald-600 to-emerald-400' },
+    { label: 'Liquidity',         score: liquidityScore,         color: 'from-amber-600 to-amber-400' },
+    { label: 'Income Stability',  score: incomeStabilityScore,  color: 'from-purple-600 to-purple-400' },
+  ];
+
+  const overallHealth = holdings.length === 0 ? 0 : Math.round(HEALTH_METRICS.reduce((s, m) => s + m.score, 0) / HEALTH_METRICS.length);
 
   return (
     <div className="page-container space-y-6 animate-fade-in">
+      <PageHeaderExplainer
+        category="RWA Portfolio"
+        title="Your Property Investment Portfolio"
+        subtitle="Real-time performance analytics, passive rental yield tracking, and AI portfolio risk analysis."
+        whereAmI="AssetChain Portfolio"
+        whatIsThis="This page tracks your investments. As your assets grow, your portfolio value and rental income update automatically."
+        whyImportant="Monitors your wealth accumulation, passive rental income deposits, and asset risk health."
+        whatCanIDo="View your property holdings, claim available rental yields, and inspect AI risk analysis."
+        whatNext="Click 'Claim Yield' to transfer available rental income directly to your wallet."
+        whatHappensNext="Smart contracts process your payout request and deposit yield funds into your connected account."
+        whyBlockchain="All token quantities and dividend payout history are cryptographically synchronized to Polygon Amoy smart contracts."
+        whyAI="AI computes your portfolio diversification score and alerts you if sector concentration risk exceeds safety thresholds."
+        defaultExpanded={true}
+      />
+
+      <AssetLifecycleTimeline currentStageNumber={8} />
 
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -187,24 +234,28 @@ export function Portfolio() {
       )}
 
       {/* ── 5 Stat Cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 stagger-children">
-        {[
-          { label: 'Current Value',      value: formatCurrency(summary.current_value),       sub: 'Market valuation',       color: 'text-white',       icon: <TrendingUp className="w-4 h-4 text-emerald-400" /> },
-          { label: 'Total Invested',     value: formatCurrency(summary.total_invested),      sub: 'Capital deployed',        color: 'text-slate-300',   icon: <Coins className="w-4 h-4 text-indigo-400" /> },
-          { label: 'Total Profit',       value: formatCurrency(summary.total_profit_loss),   sub: `ROI: +${roi}%`,           color: 'text-emerald-400', icon: <ArrowUpRight className="w-4 h-4 text-emerald-400" /> },
-          { label: 'Rental Income',      value: formatCurrency(summary.unclaimed_dividends), sub: 'Pending claim',           color: 'text-amber-400',   icon: <ShieldCheck className="w-4 h-4 text-amber-400" /> },
-          { label: 'Portfolio Health',   value: `${overallHealth}/100`,                       sub: overallHealth >= 80 ? 'Excellent' : overallHealth >= 60 ? 'Good' : 'Needs attention', color: 'gradient-text', icon: <Target className="w-4 h-4 text-indigo-400" /> },
-        ].map(s => (
-          <div key={s.label} className="stat-card animate-slide-up">
-            <div className="flex items-center justify-between mb-2">
-              <p className="section-subheader">{s.label}</p>
-              {s.icon}
+      {isLoading ? (
+        <SkeletonStatRow count={5} />
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 stagger-children">
+          {[
+            { label: 'Current Value',      value: formatCurrency(summary.current_value),       sub: 'Market valuation',       color: 'text-white',       icon: <TrendingUp className="w-4 h-4 text-emerald-400" /> },
+            { label: 'Total Invested',     value: formatCurrency(summary.total_invested),      sub: 'Capital deployed',        color: 'text-slate-300',   icon: <Coins className="w-4 h-4 text-indigo-400" /> },
+            { label: 'Total Profit',       value: formatCurrency(summary.total_profit_loss),   sub: `ROI: +${roi}%`,           color: 'text-emerald-400', icon: <ArrowUpRight className="w-4 h-4 text-emerald-400" /> },
+            { label: 'Unclaimed Yield',    value: formatCurrency(summary.unclaimed_dividends), sub: 'Ready to claim',          color: 'text-amber-400',   icon: <Zap className="w-4 h-4 text-amber-400" /> },
+            { label: 'Active Properties',  value: `${holdings.length} Asset${holdings.length !== 1 ? 's' : ''}`, sub: 'Token holdings', color: 'text-indigo-400',  icon: <Building2 className="w-4 h-4 text-indigo-400" /> },
+          ].map(s => (
+            <div key={s.label} className="stat-card">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-slate-500 font-medium">{s.label}</span>
+                {s.icon}
+              </div>
+              <div className={`text-xl font-extrabold ${s.color}`}>{s.value}</div>
+              <div className="text-xs text-slate-500 mt-1">{s.sub}</div>
             </div>
-            <div className={`text-xl font-black ${s.color}`}>{s.value}</div>
-            <div className="text-xs text-slate-500 mt-1">{s.sub}</div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* ── Tab bar ── */}
       <div className="tab-bar inline-flex">
@@ -343,9 +394,17 @@ export function Portfolio() {
         <div className="stat-card">
           <p className="section-header mb-5">Asset Holdings</p>
           {holdings.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-slate-400 text-sm mb-4">No holdings yet.</p>
-              <Link to="/marketplace" className="btn-primary text-sm">Browse Assets</Link>
+            <div className="text-center py-14 space-y-3 bg-slate-950/40 rounded-2xl border border-slate-800/80 p-8">
+              <Building2 className="w-12 h-12 mx-auto text-indigo-400 opacity-60" />
+              <div className="text-lg font-bold text-white">Welcome to AssetChain.</div>
+              <p className="text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
+                You haven't invested in any properties yet. Browse the Marketplace to purchase your first fractional property investment.
+              </p>
+              <div className="pt-2">
+                <Link to="/marketplace" className="btn-primary text-xs px-6 py-2.5 inline-flex items-center gap-2">
+                  Browse Marketplace <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="space-y-3">

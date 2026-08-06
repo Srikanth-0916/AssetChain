@@ -7,9 +7,15 @@ export const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, curl, server-to-server)
     if (!origin) return callback(null, true);
-    // Allow all localhost origins in development
-    if (env.NODE_ENV === 'development' && origin.startsWith('http://localhost:')) {
-      return callback(null, true);
+    // Allow localhost and local LAN IP origins in development (10.x.x.x, 192.168.x.x, 172.16-31.x.x)
+    if (env.NODE_ENV === 'development') {
+      if (
+        origin.startsWith('http://localhost:') ||
+        origin.startsWith('http://127.0.0.1:') ||
+        /^http:\/\/(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(origin)
+      ) {
+        return callback(null, true);
+      }
     }
     // Explicitly allow only configured origins in staging/production
     if (configuredOrigins.includes(origin) || configuredOrigins.includes('*')) {

@@ -42,7 +42,7 @@ const envSchema = z.object({
   PINATA_GATEWAY_URL: z.string().default('https://gateway.pinata.cloud/ipfs'),
 
   // Blockchain
-  POLYGON_AMOY_RPC_URL: z.string().url().default('https://rpc-amoy.polygon.technology'),
+  POLYGON_AMOY_RPC_URL: z.string().url().default('https://polygon-amoy.drpc.org'),
   DEPLOYER_PRIVATE_KEY: z.string().min(1).default('0x0000000000000000000000000000000000000000000000000000000000000001'),
 
   // AI Copilot — injected via GitHub Secret in CI, or set in server/.env locally.
@@ -67,6 +67,10 @@ const envSchema = z.object({
 
   // Versioning
   APP_VERSION: z.string().default('2.1.0'),
+
+  // FractionalMarketplace contract (set after running: npx hardhat run scripts/deploy.ts --network amoy)
+  MARKETPLACE_CONTRACT_ADDRESS: z.string().optional().default(''),
+  POLYGONSCAN_API_KEY: z.string().optional().default(''),
 });
 
 function validateEnv() {

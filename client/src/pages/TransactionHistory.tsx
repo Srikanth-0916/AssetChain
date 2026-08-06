@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Receipt, TrendingUp, ArrowUpRight, Vote, Star, ExternalLink,
   ChevronDown, ChevronUp, Download, Filter, Search, Copy, Check
 } from 'lucide-react';
+import api from '../services/api';
 
 type TxCategory = 'all' | 'investment' | 'income' | 'governance' | 'reward';
 
@@ -22,19 +23,6 @@ interface Transaction {
   gasUsed?: string;
   network: string;
 }
-
-const TRANSACTIONS: Transaction[] = [
-  { id:'t1',  type:'income',     icon:'💰', asset:'Green Valley Property',  description:'Q4 Rental Income Distribution',    amount:'+₹2,450',  amountPositive:true,  status:'Confirmed', date:'2025-01-20', time:'10:32 AM', txHash:'0xa3f9c1d2e4b6f8a1b3c5d7e9f0a2b4c6d8e0f2a4', block:'51,234,891', gasUsed:'21,000', network:'Polygon Amoy' },
-  { id:'t2',  type:'investment', icon:'🏗️', asset:'TechHub Commercial',      description:'Purchase of 25 TCHB tokens',        amount:'-₹25,000', amountPositive:false, status:'Confirmed', date:'2025-01-19', time:'02:10 PM', txHash:'0xc4d8e3b7f1a9d2c5e8f0b3a6c9e2f5a8b1d4e7f0', block:'51,198,342', gasUsed:'85,000', network:'Polygon Amoy' },
-  { id:'t3',  type:'governance', icon:'🗳️', asset:'DAO Governance',          description:'Proposal #47 — Vote Cast',          amount:'',         amountPositive:true,  status:'Confirmed', date:'2025-01-18', time:'06:45 PM', txHash:'0xb17ea9f2d4c8e1f3a5b7c9d2e4f6a8b0c2d4e6f8a0', block:'51,167,230', gasUsed:'42,000', network:'Polygon Amoy' },
-  { id:'t4',  type:'income',     icon:'☀️', asset:'AgriTech Solar Farm',     description:'Q4 Dividend Distribution',          amount:'+₹1,800',  amountPositive:true,  status:'Confirmed', date:'2025-01-16', time:'11:00 AM', txHash:'0xd9e2f37c8b1a4d6f9e2c5a8b3f0e7c1d4a7f2e9c6', block:'51,089,754', gasUsed:'21,000', network:'Polygon Amoy' },
-  { id:'t5',  type:'reward',     icon:'⭐', asset:'Rewards System',          description:'Referral Bonus — Friend Joined',    amount:'+300 pts', amountPositive:true,  status:'Confirmed', date:'2025-01-15', time:'09:20 AM', txHash:'0xe1f3a5b7c9d2e4f6a8b0c2d4e6f8a0b2c4d6e8f0a2', block:'51,061,445', gasUsed:'—',       network:'Off-chain' },
-  { id:'t6',  type:'investment', icon:'🌾', asset:'AgriTech Solar Farm',     description:'Purchase of 50 AGRI tokens',        amount:'-₹50,000', amountPositive:false, status:'Confirmed', date:'2025-01-10', time:'03:30 PM', txHash:'0xf2a1b3c5d7e9f0a2b4c6d8e0f2a4b6c8d0e2f4a6b8', block:'50,934,120', gasUsed:'85,000', network:'Polygon Amoy' },
-  { id:'t7',  type:'income',     icon:'🏠', asset:'Green Valley Property',   description:'December Rental Income',            amount:'+₹2,200',  amountPositive:true,  status:'Confirmed', date:'2024-12-20', time:'10:00 AM', txHash:'0xa1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1', block:'50,456,789', gasUsed:'21,000', network:'Polygon Amoy' },
-  { id:'t8',  type:'governance', icon:'🗳️', asset:'DAO Governance',          description:'Proposal #38 — Asset Addition',     amount:'',         amountPositive:true,  status:'Confirmed', date:'2024-12-08', time:'04:15 PM', txHash:'0xb2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2', block:'50,187,003', gasUsed:'42,000', network:'Polygon Amoy' },
-  { id:'t9',  type:'reward',     icon:'⭐', asset:'Rewards System',          description:'First Investment Bonus',            amount:'+500 pts', amountPositive:true,  status:'Confirmed', date:'2024-12-01', time:'11:47 AM', txHash:'0xc3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3', block:'49,987,654', gasUsed:'—',       network:'Off-chain' },
-  { id:'t10', type:'investment', icon:'🏘️', asset:'Green Valley Property',   description:'Purchase of 10 GVP tokens',         amount:'-₹10,000', amountPositive:false, status:'Confirmed', date:'2024-12-01', time:'11:45 AM', txHash:'0xf2a1c3b5d7e9f0a2b4c6d8e0f2a4b6c8d0e2f4a6b8', block:'49,987,322', gasUsed:'85,000', network:'Polygon Amoy' },
-];
 
 const CATEGORY_TABS: { label: string; value: TxCategory }[] = [
   { label: 'All Transactions', value: 'all' },
@@ -58,15 +46,82 @@ export function TransactionHistory() {
   const [category, setCategory]  = useState<TxCategory>('all');
   const [search, setSearch]      = useState('');
   const [expanded, setExpanded]  = useState<string | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const filtered = TRANSACTIONS.filter(tx => {
+  useEffect(() => {
+    async function loadTransactions() {
+      setIsLoading(true);
+      try {
+        const res = await api.get('/activity', { params: { limit: 100 } });
+        const activities = res.data.data?.activities ?? [];
+        
+        const mapped = activities.map((a: any) => {
+          const dt = new Date(a.timestamp);
+          const dateStr = dt.toISOString().split('T')[0];
+          const timeStr = dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          
+          let txType: TxCategory = 'all';
+          let icon = '📋';
+          switch (a.category) {
+            case 'investment':
+            case 'marketplace':
+              txType = 'investment';
+              icon = '🏗️';
+              break;
+            case 'dao_vote':
+              txType = 'governance';
+              icon = '🗳️';
+              break;
+            case 'treasury_claim':
+              txType = 'income';
+              icon = '💰';
+              break;
+            case 'kyc':
+            case 'profile':
+              txType = 'reward';
+              icon = '⭐';
+              break;
+            default:
+              txType = 'all';
+              icon = '📋';
+          }
+          
+          return {
+            id: a.id,
+            type: txType,
+            icon,
+            asset: a.assetName || 'Asset Registry',
+            description: `${a.title} — ${a.subtitle}`,
+            amount: a.amount || '',
+            amountPositive: a.amountPositive ?? true,
+            status: a.status === 'confirmed' ? 'Confirmed' : a.status === 'pending' ? 'Pending' : 'Failed',
+            date: dateStr,
+            time: timeStr,
+            txHash: a.txHash || 'N/A',
+            block: a.blockNumber ? String(a.blockNumber) : '—',
+            gasUsed: a.metadata?.gas_used ? String(a.metadata.gas_used) : '—',
+            network: a.txHash && a.txHash !== 'N/A' ? 'Polygon Amoy' : 'Off-chain'
+          };
+        });
+        setTransactions(mapped);
+      } catch (err) {
+        console.error('Failed to load transaction history:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadTransactions();
+  }, []);
+
+  const filtered = transactions.filter(tx => {
     const matchCat  = category === 'all' || tx.type === category;
     const matchSearch = search === '' || tx.asset.toLowerCase().includes(search.toLowerCase()) || tx.description.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSearch;
   });
 
-  const totalIn  = TRANSACTIONS.filter(t=>t.amountPositive && t.amount.startsWith('+')).reduce((s,t) => s + parseFloat(t.amount.replace(/[^0-9.]/g,'')), 0);
-  const totalOut = TRANSACTIONS.filter(t=>!t.amountPositive && t.amount.startsWith('-')).reduce((s,t) => s + parseFloat(t.amount.replace(/[^0-9.]/g,'')), 0);
+  const totalIn  = transactions.filter(t=>t.amountPositive && t.amount.startsWith('+')).reduce((s,t) => s + parseFloat(t.amount.replace(/[^0-9.]/g,'') || '0'), 0);
+  const totalOut = transactions.filter(t=>!t.amountPositive && t.amount.startsWith('-')).reduce((s,t) => s + parseFloat(t.amount.replace(/[^0-9.]/g,'') || '0'), 0);
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -126,7 +181,7 @@ Generated at: ${new Date().toISOString()}
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
         {[
-          { label: 'Total Transactions', value: TRANSACTIONS.length, color: 'text-white', badge: 'All-Time' },
+          { label: 'Total Transactions', value: transactions.length, color: 'text-white', badge: 'All-Time' },
           { label: 'Total Invested',     value: `₹${totalOut.toLocaleString()}`, color: 'text-red-400', badge: 'Capital' },
           { label: 'Total Income',       value: `₹${(totalIn).toLocaleString()}`, color: 'text-emerald-400', badge: 'Yield' },
           { label: 'Net Position',       value: `+₹${(totalIn-totalOut<0?0:totalIn-totalOut).toLocaleString()}`, color: 'text-indigo-400', badge: 'ROI' },

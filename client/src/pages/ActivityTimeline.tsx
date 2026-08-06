@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import { isRealOnChainTx, getExplorerTxLink } from '../lib/explorer';
+import { EmptyState } from '../components/ui/EmptyState';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -373,17 +374,16 @@ export function ActivityCenter() {
       setActivities(activityRes.data.data?.activities ?? []);
       setStats(statsRes.data.data ?? null);
     } catch (e: any) {
-      setError('Could not load activity feed. Using demo data.');
-      // Fallback demo data
-      setActivities(DEMO_ACTIVITIES);
+      setError('Could not load activity feed.');
+      setActivities([]);
       setStats({
-        total: DEMO_ACTIVITIES.length,
-        today: 3,
-        onChain: 4,
-        investments: 2,
-        tokenMints: 1,
-        daoVotes: 2,
-        treasuryClaims: 1,
+        total: 0,
+        today: 0,
+        onChain: 0,
+        investments: 0,
+        tokenMints: 0,
+        daoVotes: 0,
+        treasuryClaims: 0,
       });
     } finally {
       setLoading(false);
@@ -560,18 +560,21 @@ export function ActivityCenter() {
           Loading activity feed...
         </div>
       ) : grouped.length === 0 ? (
-        <div className="text-center py-20 space-y-3">
-          <Activity className="w-10 h-10 mx-auto text-slate-700" />
-          <p className="text-slate-500 text-sm">No activity found</p>
-          {(search || categoryFilter !== 'all') && (
-            <button
-              onClick={() => { setSearch(''); setCategoryFilter('all'); }}
-              className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
-            >
-              Clear filters
-            </button>
-          )}
-        </div>
+        <EmptyState
+          icon={<Activity className="w-8 h-8 text-indigo-400" />}
+          title="No activity events found"
+          description={search || categoryFilter !== 'all' ? "No activity matching your search or category filter criteria." : "No system or blockchain events have been recorded yet."}
+          action={
+            (search || categoryFilter !== 'all') ? (
+              <button
+                onClick={() => { setSearch(''); setCategoryFilter('all'); }}
+                className="btn-secondary text-xs py-1.5 px-3"
+              >
+                Clear Filters
+              </button>
+            ) : undefined
+          }
+        />
       ) : (
         <div className="space-y-10">
           {grouped.map(([group, events]) => (
@@ -613,71 +616,6 @@ export function ActivityCenter() {
     </div>
   );
 }
-
-// ─── Demo Fallback Data ───────────────────────────────────────────────────────
-
-const DEMO_ACTIVITIES: ActivityEvent[] = [
-  {
-    id: 'd1', category: 'investment', title: 'Token Purchase Confirmed',
-    subtitle: 'Bought 40 MHCP tokens — Manhattan Commercial Plaza',
-    status: 'confirmed', timestamp: new Date(Date.now() - 2 * 3600000).toISOString(),
-    txHash: '0xc4d8e3b7a1f2908c4d8e3b7a1f2908c4d8e3b7a1f2908c4d8e3b7a1f2908c4d',
-    blockNumber: 12345200, confirmations: 100,
-    amount: '-$10,000', amountPositive: false,
-    source: 'blockchain',
-    metadata: { assetId: '1', buyer: '0xInvestor1', amount: '40', price: '250' },
-  },
-  {
-    id: 'd2', category: 'token_mint', title: 'Asset Tokenized — Tokens Minted',
-    subtitle: 'Total supply: 10,000 MHCP tokens deployed on Polygon Amoy',
-    status: 'confirmed', timestamp: new Date(Date.now() - 5 * 86400000).toISOString(),
-    txHash: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
-    blockNumber: 12345100, confirmations: 130,
-    amount: '+10,000 tokens', amountPositive: true,
-    source: 'blockchain',
-    metadata: { assetId: '1', tokenAddress: '0xACT001', totalSupply: '10000' },
-  },
-  {
-    id: 'd3', category: 'dao_vote', title: 'DAO Governance Proposal Created',
-    subtitle: '"Add solar panel maintenance fund" — Proposal #1',
-    status: 'info', timestamp: new Date(Date.now() - 86400000).toISOString(),
-    txHash: '0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
-    blockNumber: 12345300, confirmations: 80,
-    source: 'blockchain',
-    metadata: { proposalId: '1', description: 'Add solar panel maintenance fund' },
-  },
-  {
-    id: 'd4', category: 'asset_approval', title: 'Asset Approved for Tokenization',
-    subtitle: 'Admin approved Manhattan Commercial Plaza for tokenization',
-    status: 'info', timestamp: new Date(Date.now() - 5 * 86400000).toISOString(),
-    source: 'audit',
-    metadata: { assetId: 'asset-demo-uuid-001', actorRole: 'admin', severity: 'info' },
-  },
-  {
-    id: 'd5', category: 'kyc', title: 'KYC Identity Verified',
-    subtitle: 'KYC verification approved for Jane Smith (Asset Owner)',
-    status: 'confirmed', timestamp: new Date(Date.now() - 3 * 86400000).toISOString(),
-    source: 'audit',
-    metadata: { userId: 'owner-demo-uuid-002', actorRole: 'admin', severity: 'info' },
-  },
-  {
-    id: 'd6', category: 'marketplace', title: 'Token Purchase Confirmed',
-    subtitle: 'Bought 500 tokens @ $100 from Marketplace',
-    status: 'confirmed', timestamp: new Date(Date.now() - 2 * 86400000).toISOString(),
-    txHash: '0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
-    blockNumber: 12345200, confirmations: 100,
-    amount: '-$50,000', amountPositive: false,
-    source: 'blockchain',
-    metadata: { assetId: '1', buyer: '0xInvestor1', amount: '500', price: '100' },
-  },
-  {
-    id: 'd7', category: 'system', title: '⚠️ Fraud Alert Detected',
-    subtitle: 'AI flagged duplicate asset submission "Urban Residential Block"',
-    status: 'failed', timestamp: new Date(Date.now() - 2 * 86400000).toISOString(),
-    source: 'audit',
-    metadata: { fraudScore: 72, duplicateOf: 'asset-demo-uuid-003', severity: 'warning' },
-  },
-];
 
 // Backward-compatible alias for router import
 export { ActivityCenter as ActivityTimeline };

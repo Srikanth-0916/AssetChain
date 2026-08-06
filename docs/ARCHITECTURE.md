@@ -21,9 +21,11 @@
 │                    Backend API Server (Express 5 + TypeScript)                  │
 │                                                                                 │
 │  Core Controllers & Middleware:                                                 │
-│   ├── Auth (JWT + EIP-191 MetaMask Nonce Verification)                          │
+│   ├── Auth (JWT + EIP-191 Multi-Wallet Nonce Verification & Replay Protection)  │
+│   ├── Web3 Multi-Wallet Layer (MetaMask, Coinbase, Rabby, Trust, Rainbow, WC v2)│
 │   ├── Rate Limiting (20 req/15min) & Helmet Security Headers                    │
 │   └── System Health Endpoint (`GET /api/v1/system/health`)                      │
+
 │                                                                                 │
 │  Intelligence & Verification Layer:                                             │
 │   ├── PromptSanitizer (`prompt.sanitizer.ts`) — 18 Injection Patterns           │

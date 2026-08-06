@@ -106,8 +106,55 @@ export class NotificationService {
   }
 
 
+  /**
+   * Get all notifications for a user.
+   * Checks in-memory store first (for SSE-pushed items), then falls back to Supabase.
+   */
+  async getNotificationsForUser(userId: string): Promise<Notification[]> {
+    // Return in-memory store if cached for this session
+    const inMemory = notificationStore.get(userId);
+    if (inMemory !== undefined) {
+      return inMemory;
+    }
+
+    // Fall back to Supabase for persisted notifications
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('notifications')
+        .select('id, user_id, type, title, body, read_status, metadata, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) {
+        notificationStore.set(userId, []);
+        return [];
+      }
+
+      const notifications: Notification[] = (data || []).map((n: any) => ({
+        id: n.id,
+        userId: n.user_id,
+        type: n.type as NotificationType,
+        title: n.title,
+        message: n.body || '',
+        read: n.read_status ?? false,
+        createdAt: n.created_at,
+        data: n.metadata,
+      }));
+
+      // Cache in memory for this session
+      notificationStore.set(userId, notifications);
+      return notifications;
+    } catch {
+      // Quietly return empty array on network fetch failure, retry on next push
+      notificationStore.set(userId, []);
+      return [];
+    }
+  }
+
+  // Keep legacy sync method for internal usage (SSE etc)
   getNotifications(userId: string): Notification[] {
-    return notificationStore.get(userId) || this.getSeedNotifications(userId);
+    return notificationStore.get(userId) || [];
   }
 
   markRead(userId: string, notificationId: string): boolean {
@@ -170,33 +217,7 @@ export class NotificationService {
     for (const d of dead) subscribers.delete(d);
   }
 
-  private getSeedNotifications(userId: string): Notification[] {
-    const seeds: Notification[] = [
-      {
-        id: uuidv4(), userId, type: 'dividend_available',
-        title: 'Dividend Ready to Claim',
-        message: 'You have $350 USDC in unclaimed dividends from Manhattan Commercial Plaza.',
-        read: false,
-        createdAt: new Date(Date.now() - 3600000).toISOString(),
-      },
-      {
-        id: uuidv4(), userId, type: 'proposal_created',
-        title: 'New DAO Proposal',
-        message: 'A new governance proposal "Install Rooftop Solar Panels" has been created. Your vote matters!',
-        read: false,
-        createdAt: new Date(Date.now() - 7200000).toISOString(),
-      },
-      {
-        id: uuidv4(), userId, type: 'kyc_approved',
-        title: 'KYC Approved',
-        message: 'Your identity verification has been approved. You can now participate in all platform activities.',
-        read: true,
-        createdAt: new Date(Date.now() - 86400000).toISOString(),
-      },
-    ];
-    notificationStore.set(userId, seeds);
-    return seeds;
-  }
+
 }
 
 export const notificationService = new NotificationService();

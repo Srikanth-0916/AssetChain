@@ -1,68 +1,15 @@
 import { v4 as uuidv4 } from 'uuid';
 import { supabaseAdmin } from '../config/database';
 import { env } from '../config/env';
-import { NotFoundError, UnprocessableError } from '../utils/errors';
+import { NotFoundError, UnauthorizedError } from '../utils/errors';
 import { parsePagination, calculateTotalPages } from '../utils/pagination';
-
-// Local memory store for assets
-const localAssetsStore: Map<string, any> = new Map();
-
-// Seed initial marketplace assets
-const initialDemoAssets = [
-  {
-    id: 'asset-demo-uuid-001',
-    owner_id: 'owner-demo-uuid-002',
-    title: 'Manhattan Commercial Plaza',
-    description: 'Prime Class-A commercial office plaza in downtown Manhattan with 98% occupancy rate and long-term enterprise tenants.',
-    asset_type: 'commercial_property',
-    location: 'New York, USA',
-    valuation: 2500000,
-    token_supply: 10000,
-    token_price: 250,
-    contract_address: '0x1111111111111111111111111111111111111111',
-    verification_status: 'tokenized',
-    created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-    owner: { id: 'owner-demo-uuid-002', full_name: 'Jane Smith (Asset Owner)' },
-  },
-  {
-    id: 'asset-demo-uuid-002',
-    owner_id: 'owner-demo-uuid-002',
-    title: 'Solar Farm Alpha 1',
-    description: '50MW solar photovoltaic utility facility generating sustainable green energy sold under 15-year power purchase agreement (PPA).',
-    asset_type: 'renewable_energy',
-    location: 'Valencia, Spain',
-    valuation: 1200000,
-    token_supply: 10000,
-    token_price: 120,
-    contract_address: '0x2222222222222222222222222222222222222222',
-    verification_status: 'tokenized',
-    created_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-    owner: { id: 'owner-demo-uuid-002', full_name: 'Jane Smith (Asset Owner)' },
-  },
-  {
-    id: 'asset-demo-uuid-003',
-    owner_id: 'owner-demo-uuid-002',
-    title: 'Luxury Villa Compound',
-    description: 'High-yield beachfront luxury villa residential complex generating rental yield in Dubai Marina.',
-    asset_type: 'residential_real_estate',
-    location: 'Dubai, UAE',
-    valuation: 4500000,
-    token_supply: 10000,
-    token_price: 450,
-    contract_address: '0x3333333333333333333333333333333333333333',
-    verification_status: 'tokenized',
-    created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    owner: { id: 'owner-demo-uuid-002', full_name: 'Jane Smith (Asset Owner)' },
-  },
-];
-
-for (const a of initialDemoAssets) {
-  localAssetsStore.set(a.id, a);
-}
+import { notificationService } from '../modules/notifications/notification.service';
+import { encryptDocument, decryptDocument, EncryptedDocument } from '../utils/encryption';
 
 export class AssetService {
   /**
-   * Create a new asset listing (Asset Owner).
+   * Create a new asset listing (Asset Owner). Writes directly to Supabase.
+   * Document attachments are ALWAYS encrypted with AES-256-GCM before storage.
    */
   async createAsset(
     ownerId: string,
@@ -73,6 +20,14 @@ export class AssetService {
       location?: string;
       valuation: number;
       token_supply: number;
+      documents?: Array<{
+        document_type: string;
+        file_name: string;
+        ipfs_cid: string;
+        mime_type: string;
+        file_size_bytes: number;
+        encrypted_data?: string;
+      }>;
     }
   ) {
     const token_price = Number((data.valuation / data.token_supply).toFixed(2));
@@ -86,58 +41,127 @@ export class AssetService {
       location: data.location || 'Global Location',
       valuation: data.valuation,
       token_supply: data.token_supply,
-      token_price,
+      // token_price is a GENERATED column in Supabase (valuation / token_supply) — do not insert
       verification_status: 'pending',
       created_at: new Date().toISOString(),
-      owner: { id: ownerId, full_name: 'Verified Asset Owner' },
+      updated_at: new Date().toISOString(),
     };
 
-    localAssetsStore.set(newAsset.id, newAsset);
+    const { data: insertedAsset, error } = await supabaseAdmin
+      .from('assets')
+      .insert(newAsset)
+      .select()
+      .single();
 
-    // 1. Ensure profile & auth.users exist in Supabase so foreign key constraint owner_id -> profiles(id) succeeds
-    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (UUID_REGEX.test(ownerId)) {
-      try {
-        await supabaseAdmin.auth.admin.createUser({
-          id: ownerId,
-          email: `owner_${ownerId.substring(0, 8)}@assetchain.io`,
-          password: 'TestPassword123!',
-          email_confirm: true,
-        });
-      } catch {}
-
-      try {
-        await supabaseAdmin.from('profiles').upsert({
-          id: ownerId,
-          full_name: 'Verified Asset Owner',
-          email: `owner_${ownerId.substring(0, 8)}@assetchain.io`,
-          role: 'asset_owner',
-          kyc_status: 'approved',
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'id' });
-      } catch {}
-    }
-
-    // 2. Prepare database payload: exclude non-column 'owner' and generated column 'token_price'
-    const { owner, token_price: _tp, ...dbPayload } = newAsset;
-
-    const { error } = await supabaseAdmin.from('assets').insert(dbPayload);
     if (error) {
-      console.error('[AssetService] ❌ Supabase assets insert error:', error.message);
-      if (env.NODE_ENV === 'production') {
-        throw new Error(`Database persistence failure: ${error.message}`);
-      } else {
-        console.warn(`[AssetService] ⚠️ Supabase write warning: ${error.message}`);
-      }
-    } else {
-      console.log(`[AssetService] ✅ Asset successfully persisted to Supabase DB (ID: ${newAsset.id})`);
+      console.error('[AssetService] ❌ Supabase asset insert error:', error.message);
+      throw new Error(`Failed to create asset: ${error.message}`);
     }
 
-    return newAsset;
+    const assetResult = insertedAsset ?? newAsset;
+
+    // Insert asset documents into asset_documents table with mandatory AES-256-GCM encryption
+    if (data.documents && data.documents.length > 0) {
+      const docRows = data.documents.map((doc) => {
+        let encryptedPayloadJson: string | null = null;
+
+        if (doc.encrypted_data) {
+          // Check if data is already encrypted JSON structure, otherwise encrypt it now
+          if (doc.encrypted_data.includes('"algorithm":"AES-256-GCM"')) {
+            encryptedPayloadJson = doc.encrypted_data;
+          } else {
+            // Encrypt raw buffer/base64 string via AES-256-GCM
+            const encryptedDoc = encryptDocument(doc.encrypted_data);
+            encryptedPayloadJson = JSON.stringify(encryptedDoc);
+          }
+        }
+
+        return {
+          id: uuidv4(),
+          asset_id: assetResult.id,
+          document_type: doc.document_type || 'title_deed',
+          file_name: doc.file_name,
+          ipfs_cid: doc.ipfs_cid,
+          mime_type: doc.mime_type || 'application/pdf',
+          file_size_bytes: doc.file_size_bytes || 1024,
+          encrypted_data: encryptedPayloadJson,
+          created_at: new Date().toISOString(),
+        };
+      });
+
+      const { error: docErr } = await supabaseAdmin.from('asset_documents').insert(docRows);
+      if (docErr) {
+        console.warn('[AssetService] ⚠️ asset_documents insert warning:', docErr.message);
+      }
+    }
+
+    // Notify the asset owner
+    await notificationService.notify(
+      ownerId,
+      'asset_approved',
+      'Asset Submitted for Verification',
+      `Your asset "${data.title}" has been successfully submitted and is under multi-sig verifier review.`,
+      { assetId: assetResult.id }
+    );
+
+    return {
+      ...assetResult,
+      owner: { id: ownerId, full_name: 'Verified Asset Owner' },
+    };
   }
 
   /**
-   * Get public marketplace assets with filtering.
+   * Secure Decryption Service Endpoint for Authorized Asset Document Access.
+   * RBAC Enforced: Only Asset Owner, Verifier, Legal Reviewer, or Admin can access.
+   */
+  async getDecryptedDocument(documentId: string, requestingUser: { id: string; role: string }) {
+    // 1. Fetch document row from Supabase
+    const { data: doc, error } = await supabaseAdmin
+      .from('asset_documents')
+      .select('id, asset_id, document_type, file_name, mime_type, encrypted_data, assets(owner_id)')
+      .eq('id', documentId)
+      .single();
+
+    if (error || !doc) {
+      throw new NotFoundError('Asset document not found.');
+    }
+
+    // 2. RBAC Access Control Check
+    const assetOwnerId = (doc as any).assets?.owner_id;
+    const allowedRoles = ['admin', 'verifier', 'legal_reviewer'];
+    const isOwner = requestingUser.id === assetOwnerId;
+    const isAuthorizedRole = allowedRoles.includes(requestingUser.role);
+
+    if (!isOwner && !isAuthorizedRole) {
+      throw new UnauthorizedError('Unauthorized: You do not have permission to view this legal property document.');
+    }
+
+    if (!doc.encrypted_data) {
+      throw new NotFoundError('No encrypted document payload found for this document ID.');
+    }
+
+    // 3. Decrypt AES-256-GCM Ciphertext
+    let encryptedObj: EncryptedDocument;
+    try {
+      encryptedObj = JSON.parse(doc.encrypted_data);
+    } catch {
+      throw new Error('Corrupted or invalid encrypted document payload format.');
+    }
+
+    const decryptedBuffer = decryptDocument(encryptedObj);
+
+    return {
+      documentId: doc.id,
+      fileName: doc.file_name,
+      mimeType: doc.mime_type,
+      decryptedContent: decryptedBuffer.toString('utf8'),
+      decryptedBuffer,
+    };
+  }
+
+
+  /**
+   * Get public marketplace assets with filtering. Reads from Supabase.
    */
   async getMarketplaceAssets(filters: {
     asset_type?: string;
@@ -149,29 +173,48 @@ export class AssetService {
     order?: string;
   }) {
     const { page, limit, offset } = parsePagination(filters.page, filters.limit);
-    let list = Array.from(localAssetsStore.values());
 
-    // Filter status
+    let query = supabaseAdmin
+      .from('assets')
+      .select(`
+        id, owner_id, title, description, asset_type, location, valuation,
+        token_supply, token_price, contract_address, ipfs_metadata_cid,
+        verification_status, rejection_reason, verified_at, tokenized_at,
+        created_at, updated_at,
+        profiles!assets_owner_id_fkey(id, full_name)
+      `, { count: 'exact' })
+      .is('deleted_at', null);
+
     if (filters.status) {
-      list = list.filter((a) => a.verification_status === filters.status);
+      query = query.eq('verification_status', filters.status);
     }
-
     if (filters.asset_type) {
-      list = list.filter((a) => a.asset_type === filters.asset_type);
+      query = query.eq('asset_type', filters.asset_type);
     }
-
     if (filters.search) {
-      const q = filters.search.toLowerCase();
-      list = list.filter(
-        (a) => a.title.toLowerCase().includes(q) || a.description.toLowerCase().includes(q)
-      );
+      query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%,location.ilike.%${filters.search}%`);
     }
 
-    const total = list.length;
-    const paginatedAssets = list.slice(offset, offset + limit);
+    const sortField = filters.sort || 'created_at';
+    const sortOrder = filters.order === 'asc' ? { ascending: true } : { ascending: false };
+    query = query.order(sortField, sortOrder);
+    query = query.range(offset, offset + limit - 1);
 
+    const { data: assets, error, count } = await query;
+
+    if (error) {
+      console.error('[AssetService] ❌ getMarketplaceAssets error:', error.message);
+      return { assets: [], meta: { page, limit, total: 0, totalPages: 0 } };
+    }
+
+    const normalizedAssets = (assets || []).map((a: any) => ({
+      ...a,
+      owner: a.profiles || { id: a.owner_id, full_name: 'Asset Owner' },
+    }));
+
+    const total = count ?? normalizedAssets.length;
     return {
-      assets: paginatedAssets,
+      assets: normalizedAssets,
       meta: {
         page,
         limit,
@@ -182,55 +225,122 @@ export class AssetService {
   }
 
   /**
-   * Get assets owned by a user.
+   * Get assets owned by a specific user. Reads from Supabase.
    */
   async getMyAssets(ownerId: string) {
-    return Array.from(localAssetsStore.values()).filter((a) => a.owner_id === ownerId);
+    const { data, error } = await supabaseAdmin
+      .from('assets')
+      .select('*')
+      .eq('owner_id', ownerId)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.warn('[AssetService] ⚠️ getMyAssets error:', error.message);
+      return [];
+    }
+    return data || [];
   }
 
   /**
-   * Get asset detail by ID.
+   * Get asset detail by ID from Supabase.
    */
   async getAssetById(assetId: string) {
-    const asset = localAssetsStore.get(assetId);
-    if (!asset) throw new NotFoundError('Asset');
-    return asset;
+    const { data, error } = await supabaseAdmin
+      .from('assets')
+      .select(`
+        *,
+        profiles!assets_owner_id_fkey(id, full_name)
+      `)
+      .eq('id', assetId)
+      .is('deleted_at', null)
+      .single();
+
+    if (error || !data) {
+      throw new NotFoundError('Asset');
+    }
+    return {
+      ...data,
+      owner: data.profiles || { id: data.owner_id, full_name: 'Asset Owner' },
+    };
   }
 
   /**
-   * Review asset status (Admin).
+   * Review asset status (Admin). Updates Supabase.
    */
   async updateAssetStatus(
     assetId: string,
     data: { status: 'under_review' | 'approved' | 'rejected'; rejection_reason?: string },
     adminId: string
   ) {
-    const asset = localAssetsStore.get(assetId);
-    if (!asset) throw new NotFoundError('Asset');
+    const updatePayload: Record<string, any> = {
+      verification_status: data.status,
+      updated_at: new Date().toISOString(),
+    };
 
-    asset.verification_status = data.status;
-    asset.updated_at = new Date().toISOString();
-    if (data.status === 'approved') asset.verified_at = new Date().toISOString();
-    if (data.status === 'rejected') asset.rejection_reason = data.rejection_reason;
+    if (data.status === 'approved') {
+      updatePayload.verified_at = new Date().toISOString();
+      updatePayload.verified_by = adminId;
+    }
+    if (data.status === 'rejected') {
+      updatePayload.rejection_reason = data.rejection_reason || null;
+    }
 
-    localAssetsStore.set(assetId, asset);
-    return asset;
+    const { data: updated, error } = await supabaseAdmin
+      .from('assets')
+      .update(updatePayload)
+      .eq('id', assetId)
+      .select()
+      .single();
+
+    if (error || !updated) {
+      throw new NotFoundError('Asset');
+    }
+
+    // Notify Owner
+    if (data.status === 'approved') {
+      await notificationService.notify(
+        updated.owner_id,
+        'asset_approved',
+        'Asset Verification Approved',
+        `Your asset "${updated.title}" has been approved for tokenization!`,
+        { assetId: updated.id }
+      );
+    } else if (data.status === 'rejected') {
+      await notificationService.notify(
+        updated.owner_id,
+        'asset_rejected',
+        'Asset Verification Rejected',
+        `Your asset "${updated.title}" was rejected. ${data.rejection_reason ? 'Reason: ' + data.rejection_reason : ''}`,
+        { assetId: updated.id, rejection_reason: data.rejection_reason }
+      );
+    }
+
+    return updated;
   }
 
+
   /**
-   * Tokenize approved asset (Admin).
+   * Tokenize approved asset (Admin). Updates Supabase.
    */
   async tokenizeAsset(assetId: string, contractAddress: string, adminId: string) {
-    const asset = localAssetsStore.get(assetId);
-    if (!asset) throw new NotFoundError('Asset');
+    const { data: updated, error } = await supabaseAdmin
+      .from('assets')
+      .update({
+        contract_address: contractAddress,
+        verification_status: 'tokenized',
+        tokenized_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', assetId)
+      .select()
+      .single();
 
-    asset.contract_address = contractAddress;
-    asset.verification_status = 'tokenized';
-    asset.tokenized_at = new Date().toISOString();
-    asset.updated_at = new Date().toISOString();
-
-    localAssetsStore.set(assetId, asset);
-    return asset;
+    if (error || !updated) {
+      console.error('[AssetService] ❌ tokenizeAsset error:', error?.message || 'No updated data returned');
+      throw new NotFoundError('Asset');
+    }
+    return updated;
   }
 }
 

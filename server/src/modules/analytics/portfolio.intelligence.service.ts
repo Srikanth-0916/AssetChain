@@ -1,15 +1,4 @@
-/**
- * Zerodha Console-Style Investor Portfolio Intelligence Engine
- * 
- * Provides deep financial portfolio analytics for institutional & retail investors:
- * - Total Net Worth & Total Invested Capital
- * - Weighted Average Rental Yield & Dividend Prediction
- * - Expected Portfolio CAGR
- * - Portfolio Risk Tier & Asset Concentration Index (HHI)
- * - Sector Distribution Breakdown (Commercial, Residential, Renewable)
- * - Geographic Heatmap Exposure
- * - Tax Estimation (TDS / Dividend Tax withholding calculation)
- */
+import { supabaseAdmin } from '../../config/database';
 
 export interface AssetPosition {
   assetId: string;
@@ -57,46 +46,54 @@ export interface PortfolioIntelligenceReport {
 export class PortfolioIntelligenceService {
   async getPortfolioIntelligence(investorId: string): Promise<PortfolioIntelligenceReport> {
     const calculatedAt = new Date().toISOString();
+    const positions: AssetPosition[] = [];
 
-    // Default mock positions if investor has no active DB records
-    const positions: AssetPosition[] = [
-      {
-        assetId: 'ast-com-01',
-        assetTitle: 'BKC Prime Commercial Tower',
-        assetType: 'commercial_property',
-        location: 'Mumbai, MH',
-        tokensOwned: 100,
-        purchasePricePerToken: 10000,
-        currentPricePerToken: 11400,
-        annualYieldPercentage: 8.5,
-        expectedCagr: 12.4,
-        riskTier: 'LOW',
-      },
-      {
-        assetId: 'ast-sol-02',
-        assetTitle: 'Pavagada 50MW Solar Array',
-        assetType: 'renewable_energy',
-        location: 'Tumkur, KA',
-        tokensOwned: 50,
-        purchasePricePerToken: 5000,
-        currentPricePerToken: 5350,
-        annualYieldPercentage: 9.8,
-        expectedCagr: 10.2,
-        riskTier: 'LOW',
-      },
-      {
-        assetId: 'ast-res-03',
-        assetTitle: 'Koramangala Luxury Residences',
-        assetType: 'residential_real_estate',
-        location: 'Bengaluru, KA',
-        tokensOwned: 40,
-        purchasePricePerToken: 15000,
-        currentPricePerToken: 16200,
-        annualYieldPercentage: 6.8,
-        expectedCagr: 14.5,
-        riskTier: 'MODERATE',
-      },
-    ];
+    try {
+      const { data: userInvestments } = await supabaseAdmin
+        .from('investments')
+        .select(`
+          id,
+          tokens_owned,
+          investment_amount,
+          asset_id,
+          assets (
+            id,
+            title,
+            asset_type,
+            location,
+            valuation,
+            token_price,
+            token_supply
+          )
+        `)
+        .eq('investor_id', investorId);
+
+      if (userInvestments && userInvestments.length > 0) {
+        for (const inv of userInvestments) {
+          const asset = inv.assets as any;
+          if (!asset) continue;
+
+          const tokensOwned = Number(inv.tokens_owned || 1);
+          const purchasePrice = Number(asset.token_price || 1000);
+          const currentPrice = purchasePrice * 1.08; // 8% appreciation simulation
+
+          positions.push({
+            assetId: asset.id,
+            assetTitle: asset.title || 'Property Asset',
+            assetType: asset.asset_type || 'real_estate',
+            location: asset.location || 'India',
+            tokensOwned,
+            purchasePricePerToken: purchasePrice,
+            currentPricePerToken: currentPrice,
+            annualYieldPercentage: 8.5,
+            expectedCagr: 12.0,
+            riskTier: 'LOW',
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('[PortfolioIntelligenceService] Live query fallback:', err);
+    }
 
     let totalInvested = 0;
     let currentNetWorth = 0;
@@ -129,20 +126,26 @@ export class PortfolioIntelligenceService {
       geoMap[pos.location] = (geoMap[pos.location] || 0) + val;
     }
 
-    const sectorAllocations: SectorAllocation[] = Object.entries(sectorMap).map(([sector, val]) => ({
-      sector,
-      percentage: Number(((val / currentNetWorth) * 100).toFixed(1)),
-      valueINR: val,
-    }));
+    const sectorAllocations: SectorAllocation[] = currentNetWorth > 0
+      ? Object.entries(sectorMap).map(([sector, val]) => ({
+          sector,
+          percentage: Number(((val / currentNetWorth) * 100).toFixed(1)),
+          valueINR: val,
+        }))
+      : [];
 
-    const geographicAllocations: GeographicAllocation[] = Object.entries(geoMap).map(([region, val]) => ({
-      region,
-      percentage: Number(((val / currentNetWorth) * 100).toFixed(1)),
-      valueINR: val,
-    }));
+    const geographicAllocations: GeographicAllocation[] = currentNetWorth > 0
+      ? Object.entries(geoMap).map(([region, val]) => ({
+          region,
+          percentage: Number(((val / currentNetWorth) * 100).toFixed(1)),
+          valueINR: val,
+        }))
+      : [];
 
     // Estimated Tax Withholding (TDS 10% on dividends under Section 194K)
     const estimatedTaxLiability = annualIncome * 0.10;
+    const divScore = positions.length === 0 ? 0 : Math.min(100, positions.length * 35);
+    const riskTier = positions.length === 0 ? 'CONSERVATIVE' : (positions.length >= 3 ? 'BALANCED' : 'GROWTH');
 
     return {
       investorId,
@@ -153,8 +156,8 @@ export class PortfolioIntelligenceService {
       weightedYieldPercentage: Number(weightedYield.toFixed(2)),
       expectedAnnualIncomeINR: Math.round(annualIncome),
       expectedPortfolioCAGR: Number(weightedCagr.toFixed(2)),
-      overallRiskTier: 'BALANCED',
-      diversificationScore: 88,
+      overallRiskTier: riskTier,
+      diversificationScore: divScore,
       sectorAllocations,
       geographicAllocations,
       estimatedTaxLiabilityINR: Math.round(estimatedTaxLiability),
@@ -165,3 +168,4 @@ export class PortfolioIntelligenceService {
 }
 
 export const portfolioIntelligenceService = new PortfolioIntelligenceService();
+

@@ -1,7 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import type { ApiError } from '../types/api';
+import { API_BASE_URL } from '../config/network';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
 
 /**
  * Axios instance with JWT interceptors.
@@ -33,14 +33,17 @@ api.interceptors.response.use(
     if (error.response) {
       const { status, data } = error.response;
 
-      // Token expired or invalid — redirect to login
+      // Token expired or invalid
       if (status === 401) {
+        const hadToken = !!localStorage.getItem('assetchain_token');
         localStorage.removeItem('assetchain_token');
         localStorage.removeItem('assetchain_user');
 
-        // Only redirect if not already on auth pages
-        if (!window.location.pathname.startsWith('/login') &&
-            !window.location.pathname.startsWith('/register')) {
+        const publicPaths = ['/', '/marketplace', '/login', '/register', '/privacy', '/security'];
+        const isPublicPath = publicPaths.some(p => window.location.pathname === p || window.location.pathname.startsWith(`${p}/`));
+
+        // Only redirect if user was previously logged in and is on a protected route
+        if (hadToken && !isPublicPath) {
           window.location.href = '/login?expired=true';
         }
       }

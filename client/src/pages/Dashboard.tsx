@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useWallet } from '../contexts/WalletContext';
 import { Link } from 'react-router-dom';
@@ -9,17 +10,21 @@ import {
 import { formatCurrency, truncateAddress } from '../lib/utils';
 import { ContextualAITip } from '../components/trust/ContextualAITip';
 import { TrustJourney } from '../components/trust/TrustJourney';
+import { portfolioService } from '../services/portfolioService';
+import api from '../services/api';
 
-/* Recent Activity feed data */
-const RECENT_ACTIVITY = [
-  { id: 1, icon: '💸', title: 'Rental Income Received',  subtitle: 'Green Valley Property Token',  amount: '+₹2,450',  positive: true,  time: 'Today, 10:32 AM' },
-  { id: 2, icon: '🗳️', title: 'DAO Vote Completed',       subtitle: 'Proposal #47 — Fee Structure', amount: '',          positive: true,  time: 'Yesterday' },
-  { id: 3, icon: '✅', title: 'Investment Confirmed',     subtitle: 'TechHub Commercial Complex',    amount: '-₹25,000', positive: false, time: 'Yesterday, 2:10 PM' },
-];
-
-const TRUST_SCORE = 92;
-const REWARDS_PTS = 3250;
-const PORTFOLIO_HEALTH = 88;
+const getIconForCategory = (cat: string) => {
+  switch (cat) {
+    case 'investment': return '💸';
+    case 'dao_vote': return '🗳️';
+    case 'token_mint': return '🪙';
+    case 'kyc': return '👤';
+    case 'asset_approval': return '✅';
+    case 'treasury_claim': return '💰';
+    case 'marketplace': return '🛒';
+    default: return '📋';
+  }
+};
 
 function HealthBar({ value, color = 'from-indigo-600 to-emerald-500' }: { value: number; color?: string }) {
   return (
@@ -36,11 +41,48 @@ export function Dashboard() {
   const { user } = useAuth();
   const { isConnected, address, connect } = useWallet();
 
+  const [portfolioData, setPortfolioData] = useState<any>(null);
+  const [activities, setActivities] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadDashboardData() {
+      if (!user) return;
+      setIsLoading(true);
+      try {
+        const [portfolio, activityRes] = await Promise.all([
+          portfolioService.getPortfolio(),
+          api.get('/activity', { params: { limit: 3 } }),
+        ]);
+        setPortfolioData(portfolio);
+        setActivities(activityRes.data.data?.activities ?? []);
+      } catch (err) {
+        console.error('Failed to load dashboard data:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadDashboardData();
+  }, [user?.id]);
+
   const isInvestor = user?.role === 'investor';
   const isOwner    = user?.role === 'asset_owner';
   const isAdmin    = user?.role === 'admin';
 
   const firstName = user?.full_name?.split(' ')[0] ?? 'Investor';
+
+  const summary = portfolioData?.summary;
+  const currentVal = summary ? summary.current_value : 0;
+  const totalInvested = summary ? summary.total_invested : 0;
+  const profitLoss = summary ? summary.total_profit_loss : 0;
+  const roiPct = summary ? summary.total_roi_percent : 0;
+  
+  // Dynamic metrics
+  const rewardsPts = Math.round(totalInvested / 100);
+  const trustScore = user?.kyc_status === 'approved' ? 95 : 45;
+  const portfolioHealth = totalInvested > 0 ? 90 : 0;
+  const trustLevel = user?.kyc_status === 'approved' ? 'Gold Investor' : 'Unverified';
+  const levelEmoji = user?.kyc_status === 'approved' ? '🥇' : '🛡️';
 
   return (
     <div className="page-container space-y-6 animate-fade-in">
@@ -57,7 +99,9 @@ export function Dashboard() {
         <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <span className="level-badge level-gold text-sm">🥇 Gold Investor</span>
+              <span className={`level-badge text-sm ${user?.kyc_status === 'approved' ? 'level-gold' : 'bg-slate-800 text-slate-400'}`}>
+                {levelEmoji} {trustLevel}
+              </span>
               <span className="pill-badge pill-success">Active</span>
             </div>
             <h1 className="text-3xl lg:text-4xl font-black text-white tracking-tight mb-2">
@@ -113,32 +157,34 @@ export function Dashboard() {
         {/* Portfolio Value */}
         <div className="stat-card col-span-2 lg:col-span-2 animate-slide-up">
           <p className="section-subheader mb-2">Portfolio Value</p>
-          <div className="text-3xl font-black text-white mb-1">{formatCurrency(isOwner ? 1250000 : 245000)}</div>
+          <div className="text-3xl font-black text-white mb-1">{formatCurrency(currentVal)}</div>
           <div className="flex items-center gap-1.5 text-emerald-400 text-sm font-semibold">
             <ArrowUpRight className="w-4 h-4" />
-            <span>+₹2,450 (+1.01%) today</span>
+            <span>{profitLoss >= 0 ? '+' : ''}{formatCurrency(profitLoss)} ({roiPct.toFixed(2)}%) total</span>
           </div>
           <div className="mt-3">
-            <HealthBar value={PORTFOLIO_HEALTH} />
-            <div className="text-xs text-slate-500 mt-1">Portfolio Health: {PORTFOLIO_HEALTH}/100</div>
+            <HealthBar value={portfolioHealth} />
+            <div className="text-xs text-slate-500 mt-1">Portfolio Health: {portfolioHealth}/100</div>
           </div>
         </div>
 
         {/* Trust Level */}
         <div className="stat-card animate-slide-up">
           <p className="section-subheader mb-2">Trust Level</p>
-          <div className="text-2xl mb-1">🥇</div>
-          <div className="font-bold text-amber-400 text-sm">Gold Investor</div>
-          <div className="text-xs text-slate-500 mt-1">1,750 pts to Platinum</div>
+          <div className="text-2xl mb-1">{levelEmoji}</div>
+          <div className="font-bold text-amber-400 text-sm">{trustLevel}</div>
+          <div className="text-xs text-slate-500 mt-1">
+            {user?.kyc_status === 'approved' ? 'Milestone achieved' : 'Verify KYC to upgrade'}
+          </div>
           <div className="mt-3">
-            <HealthBar value={54} color="from-amber-500 to-amber-400" />
+            <HealthBar value={user?.kyc_status === 'approved' ? 100 : 0} color="from-amber-500 to-amber-400" />
           </div>
         </div>
 
         {/* Rewards */}
         <div className="stat-card animate-slide-up">
           <p className="section-subheader mb-2">Reward Points</p>
-          <div className="text-3xl font-black gradient-text-gold">{REWARDS_PTS.toLocaleString()}</div>
+          <div className="text-3xl font-black gradient-text-gold">{rewardsPts.toLocaleString()}</div>
           <div className="text-xs text-slate-500 mt-1">Available to redeem</div>
           <Link to="/rewards" className="text-xs text-indigo-400 font-semibold flex items-center gap-1 mt-3 hover:text-indigo-300 transition-colors">
             Redeem <ChevronRight className="w-3 h-3" />
@@ -148,10 +194,12 @@ export function Dashboard() {
         {/* Trust Score */}
         <div className="stat-card animate-slide-up">
           <p className="section-subheader mb-2">Trust Score</p>
-          <div className="text-3xl font-black gradient-text">{TRUST_SCORE}</div>
-          <div className="text-xs text-emerald-400 font-medium mt-1">Excellent</div>
+          <div className="text-3xl font-black gradient-text">{trustScore}</div>
+          <div className="text-xs text-emerald-400 font-medium mt-1">
+            {user?.kyc_status === 'approved' ? 'Excellent' : 'Awaiting verification'}
+          </div>
           <div className="mt-3">
-            <HealthBar value={TRUST_SCORE} />
+            <HealthBar value={trustScore} />
           </div>
         </div>
       </div>
@@ -263,23 +311,31 @@ export function Dashboard() {
             </Link>
           </div>
           <div className="space-y-1">
-            {RECENT_ACTIVITY.map(ev => (
-              <div key={ev.id} className="flex items-center gap-4 py-3 border-b border-slate-800/60 last:border-0 group cursor-default">
-                <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700/50 flex items-center justify-center text-lg shrink-0">
-                  {ev.icon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-white group-hover:text-indigo-300 transition-colors">{ev.title}</div>
-                  <div className="text-xs text-slate-500 truncate">{ev.subtitle}</div>
-                </div>
-                <div className="text-right shrink-0">
-                  {ev.amount && (
-                    <div className={`text-sm font-bold ${ev.positive ? 'text-emerald-400' : 'text-red-400'}`}>{ev.amount}</div>
-                  )}
-                  <div className="text-xs text-slate-600">{ev.time}</div>
-                </div>
+            {activities.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-500">
+                No recent activity. Start by browsing properties in the Marketplace.
               </div>
-            ))}
+            ) : (
+              activities.map(ev => (
+                <div key={ev.id} className="flex items-center gap-4 py-3 border-b border-slate-800/60 last:border-0 group cursor-default">
+                  <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700/50 flex items-center justify-center text-lg shrink-0">
+                    {getIconForCategory(ev.category)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-white group-hover:text-indigo-300 transition-colors">{ev.title}</div>
+                    <div className="text-xs text-slate-500 truncate">{ev.subtitle}</div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    {ev.amount && (
+                      <div className={`text-sm font-bold ${ev.amountPositive ? 'text-emerald-400' : 'text-red-400'}`}>{ev.amount}</div>
+                    )}
+                    <div className="text-xs text-slate-600">
+                      {new Date(ev.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
           <Link to="/activity" className="mt-4 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-slate-800/60 hover:border-indigo-500/30 hover:bg-indigo-500/5 text-xs text-slate-500 hover:text-indigo-400 transition-all">
             View complete activity timeline <ArrowRight className="w-3.5 h-3.5" />

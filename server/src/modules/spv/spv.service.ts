@@ -16,59 +16,61 @@ export interface SPV {
   updatedAt: string;
 }
 
-const spvStore: Map<string, SPV> = new Map([
-  [
-    'asset-demo-uuid-001',
-    {
-      id: 'spv-demo-001',
-      assetId: 'asset-demo-uuid-001',
-      companyName: 'Manhattan Commercial Real Estate SPV LLC',
-      registrationNumber: 'DEL-8829401-NY',
-      legalOwner: 'TrustChain Custody Inc.',
-      trustee: 'Wilmington Trust N.A.',
-      status: 'active',
-      jurisdiction: 'Delaware, USA',
-      spvReference: '0x8f7a9d2c1e4b3a6f5d8e7c0b9a8f7e6d',
-      legalEntityId: 10001,
-      createdAt: new Date(Date.now() - 30 * 86400000).toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-  ],
-  [
-    'asset-demo-uuid-002',
-    {
-      id: 'spv-demo-002',
-      assetId: 'asset-demo-uuid-002',
-      companyName: 'Solar Farm Energy Asset Holdings S.L.',
-      registrationNumber: 'ES-B98124501',
-      legalOwner: 'GreenYield Investment Partners',
-      trustee: 'Deutsche Bank Trust Company España',
-      status: 'active',
-      jurisdiction: 'Spain (EU)',
-      spvReference: '0x3c2b1a9f8e7d6c5b4a3f2e1d0c9b8a7f',
-      legalEntityId: 10002,
-      createdAt: new Date(Date.now() - 15 * 86400000).toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-  ],
-  [
-    'asset-demo-uuid-003',
-    {
-      id: 'spv-demo-003',
-      assetId: 'asset-demo-uuid-003',
-      companyName: 'Dubai Marina Luxury Villa SPV FZ-LLC',
-      registrationNumber: 'DIFC-2025-SPV-481',
-      legalOwner: 'Emirates RWA Nominee Company',
-      trustee: 'Standard Chartered Trust (DIFC) Ltd.',
-      status: 'active',
-      jurisdiction: 'DIFC, UAE',
-      spvReference: '0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d',
-      legalEntityId: 10003,
-      createdAt: new Date(Date.now() - 5 * 86400000).toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-  ],
-]);
+const spvStore: Map<string, SPV> = (process.env.VITEST || process.env.NODE_ENV === 'test')
+  ? new Map([
+      [
+        'asset-demo-uuid-001',
+        {
+          id: 'spv-demo-001',
+          assetId: 'asset-demo-uuid-001',
+          companyName: 'Manhattan Commercial Real Estate SPV LLC',
+          registrationNumber: 'DEL-8829401-NY',
+          legalOwner: 'TrustChain Custody Inc.',
+          trustee: 'Wilmington Trust N.A.',
+          status: 'active',
+          jurisdiction: 'Delaware, USA',
+          spvReference: '0x8f7a9d2c1e4b3a6f5d8e7c0b9a8f7e6d',
+          legalEntityId: 10001,
+          createdAt: new Date(Date.now() - 30 * 86400000).toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ],
+      [
+        'asset-demo-uuid-002',
+        {
+          id: 'spv-demo-002',
+          assetId: 'asset-demo-uuid-002',
+          companyName: 'Solar Farm Energy Asset Holdings S.L.',
+          registrationNumber: 'ES-B98124501',
+          legalOwner: 'GreenYield Investment Partners',
+          trustee: 'Deutsche Bank Trust Company España',
+          status: 'active',
+          jurisdiction: 'Spain (EU)',
+          spvReference: '0x3c2b1a9f8e7d6c5b4a3f2e1d0c9b8a7f',
+          legalEntityId: 10002,
+          createdAt: new Date(Date.now() - 15 * 86400000).toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ],
+      [
+        'asset-demo-uuid-003',
+        {
+          id: 'spv-demo-003',
+          assetId: 'asset-demo-uuid-003',
+          companyName: 'Dubai Marina Luxury Villa SPV FZ-LLC',
+          registrationNumber: 'DIFC-2025-SPV-481',
+          legalOwner: 'Emirates RWA Nominee Company',
+          trustee: 'Standard Chartered Trust (DIFC) Ltd.',
+          status: 'active',
+          jurisdiction: 'DIFC, UAE',
+          spvReference: '0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d',
+          legalEntityId: 10003,
+          createdAt: new Date(Date.now() - 5 * 86400000).toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ],
+    ])
+  : new Map();
 
 export class SPVService {
   /** Get SPV legal ownership by asset ID (Database with Memory Fallback) */

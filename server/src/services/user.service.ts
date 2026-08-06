@@ -1,9 +1,11 @@
+import { v4 as uuidv4 } from 'uuid';
 import { supabaseAdmin } from '../config/database';
 import { NotFoundError, UnprocessableError } from '../utils/errors';
 import { parsePagination, calculateTotalPages } from '../utils/pagination';
 import { walletService } from './wallet.service';
 import { assetService } from './asset.service';
 import { auditService } from '../modules/audit/audit.service';
+
 
 // In-memory user store (dual-write with Supabase)
 const localUsersStore = new Map<string, any>();
@@ -39,17 +41,19 @@ export class UserService {
     };
   }
 
-  async updateProfile(userId: string, data: { full_name?: string; email?: string }) {
+  async updateProfile(userId: string, data: { full_name?: string; email?: string; profile_image_url?: string }) {
     // Try Supabase
     try {
       const updates: any = { updated_at: new Date().toISOString() };
       if (data.full_name) updates.full_name = data.full_name;
       if (data.email) updates.email = data.email;
+      if (data.profile_image_url) updates.profile_image_url = data.profile_image_url;
+
       const { data: user, error } = await supabaseAdmin
         .from('profiles')
         .update(updates)
         .eq('id', userId)
-        .select('id, full_name, email, role, kyc_status, wallet_address')
+        .select('id, full_name, email, role, kyc_status, wallet_address, profile_image_url')
         .single();
       if (!error && user) return user;
     } catch { /* fall through */ }
@@ -64,12 +68,29 @@ export class UserService {
     return { id: userId, ...data, updated_at: new Date().toISOString() };
   }
 
-  async submitKYC(userId: string, documentCid: string) {
+  async submitKYC(
+    userId: string,
+    documentCid: string,
+    docDetails?: { file_name?: string; mime_type?: string; file_size_bytes?: number; document_type?: string }
+  ) {
     const now = new Date().toISOString();
     const update = { kyc_status: 'pending', updated_at: now };
 
     try {
       await supabaseAdmin.from('profiles').update(update).eq('id', userId);
+
+      // Insert record into kyc_documents table
+      await supabaseAdmin.from('kyc_documents').insert({
+        id: uuidv4(),
+        user_id: userId,
+        document_type: docDetails?.document_type || 'national_id',
+        ipfs_cid: documentCid,
+        file_name: docDetails?.file_name || `kyc_doc_${userId.slice(0, 8)}.pdf`,
+        mime_type: docDetails?.mime_type || 'application/pdf',
+        file_size_bytes: docDetails?.file_size_bytes || 2048,
+        verification_status: 'pending',
+        uploaded_at: now,
+      });
     } catch { /* memory only */ }
 
     const existing = localUsersStore.get(userId);
@@ -79,12 +100,13 @@ export class UserService {
       type: 'kyc_submitted',
       actorId: userId,
       actorRole: 'investor',
-      description: `KYC document submitted (CID: ${documentCid})`,
+      description: `KYC document submitted (CID/Path: ${documentCid})`,
       severity: 'info',
     });
 
     return { id: userId, kyc_status: 'pending', kyc_document_cid: documentCid, kyc_submitted_at: now };
   }
+
 
   async reviewKYC(userId: string, action: { status: 'approved' | 'rejected'; rejection_reason?: string }, adminId: string) {
     const now = new Date().toISOString();

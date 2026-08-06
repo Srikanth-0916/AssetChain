@@ -20,43 +20,13 @@ interface RoleWorkQueueWidgetProps {
 }
 
 const ROLE_QUEUES: Record<string, WorkQueueItem[]> = {
-  investor: [
-    { id: 'wq-i1', title: 'DAO Governance Vote: Q3 Maintenance Fund Approval', category: 'Governance', priority: 'high', timeAgo: '2h ago', actionText: 'Cast DAO Vote' },
-    { id: 'wq-i2', title: 'Q2 Rental Dividend Available for Claim ($1,250)', category: 'Dividends', priority: 'medium', timeAgo: '5h ago', actionText: 'Claim Payout' },
-    { id: 'wq-i3', title: 'Annual Re-KYC Certification Due in 7 Days', category: 'Compliance', priority: 'high', timeAgo: '1d ago', actionText: 'Complete KYC' },
-    { id: 'wq-i4', title: 'Watchlist Alert: Manhattan Plaza Yield Increased +0.4%', category: 'Watchlist', priority: 'low', timeAgo: '2d ago', actionText: 'View Asset' },
-    { id: 'wq-i5', title: 'Q2 Investor Tax Statement Available for Download', category: 'Reports', priority: 'low', timeAgo: '3d ago', actionText: 'Download PDF' },
-  ],
-  asset_owner: [
-    { id: 'wq-o1', title: 'Disburse Q3 Rental Dividends for Commercial Tower Alpha', category: 'Finance', priority: 'critical', timeAgo: '1h ago', actionText: 'Disburse Payout' },
-    { id: 'wq-o2', title: 'Annual Fire Safety & Insurance Renewal Due', category: 'Maintenance', priority: 'high', timeAgo: '4h ago', actionText: 'Upload Policy' },
-    { id: 'wq-o3', title: 'Upload Renewed Master Lease Agreement (Tenant Suite 402)', category: 'Leases', priority: 'medium', timeAgo: '1d ago', actionText: 'Upload Deed' },
-    { id: 'wq-o4', title: 'Respond to 3 Investor Inquiries in Discussion Forum', category: 'Community', priority: 'low', timeAgo: '2d ago', actionText: 'Open Forum' },
-  ],
-  verifier: [
-    { id: 'wq-v1', title: 'Commercial Plaza Deed Verification & OCR Scan Review', category: 'Deed Review', priority: 'critical', timeAgo: '30m ago', actionText: 'Inspect Deed' },
-    { id: 'wq-v2', title: 'Knight Frank Appraisal Report Verification', category: 'Valuation', priority: 'high', timeAgo: '3h ago', actionText: 'Review Report' },
-    { id: 'wq-v3', title: 'Multi-Sig Approval Vote: Solar Farm Grid Onboarding', category: 'Multi-Sig', priority: 'critical', timeAgo: '6h ago', actionText: 'Execute Vote' },
-  ],
-  legal_reviewer: [
-    { id: 'wq-l1', title: '30-Year Nil-Encumbrance Certificate Search Audit', category: 'Title Audit', priority: 'critical', timeAgo: '1h ago', actionText: 'Audit Title' },
-    { id: 'wq-l2', title: 'E-Courts Civil Litigation Clearance Review', category: 'Court Search', priority: 'high', timeAgo: '4h ago', actionText: 'Run Check' },
-    { id: 'wq-l3', title: 'Issue SPV Legal Clearance Certificate', category: 'Clearance', priority: 'high', timeAgo: '1d ago', actionText: 'Issue Clearance' },
-  ],
-  compliance_officer: [
-    { id: 'wq-c1', title: 'Flagged PEP AML Identity Screening Review', category: 'AML Alert', priority: 'critical', timeAgo: '15m ago', actionText: 'Inspect Screening' },
-    { id: 'wq-c2', title: '3D Liveness Verification Review (Investor INV-8849)', category: 'KYC Verification', priority: 'high', timeAgo: '2h ago', actionText: 'Review Liveness' },
-    { id: 'wq-c3', title: 'ERC-3643 Polygon Amoy Wallet Whitelist Approval', category: 'Whitelist', priority: 'high', timeAgo: '5h ago', actionText: 'Whitelist Wallet' },
-  ],
-  admin: [
-    { id: 'wq-a1', title: '2-of-3 Multi-Sig Execution Required: Treasury Withdrawal', category: 'Multi-Sig', priority: 'critical', timeAgo: '10m ago', actionText: 'Sign On-Chain' },
-    { id: 'wq-a2', title: 'Polygon Amoy Node Latency Warning (210ms)', category: 'System Health', priority: 'medium', timeAgo: '1h ago', actionText: 'Inspect Node' },
-    { id: 'wq-a3', title: 'Review Failed Payment Webhook Retry Queue', category: 'Payments', priority: 'high', timeAgo: '3h ago', actionText: 'Retry Webhook' },
-  ],
-  auditor: [
-    { id: 'wq-au1', title: 'Verify Q2 Treasury Vault Snapshot Ledger Integrity', category: 'Audit Log', priority: 'high', timeAgo: '2h ago', actionText: 'Verify Snapshot' },
-    { id: 'wq-au2', title: 'Export Annual Regulatory Compliance Audit Log', category: 'Reports', priority: 'medium', timeAgo: '1d ago', actionText: 'Export Audit Log' },
-  ],
+  investor: [],
+  asset_owner: [],
+  verifier: [],
+  legal_reviewer: [],
+  compliance_officer: [],
+  admin: [],
+  auditor: [],
 };
 
 export function RoleWorkQueueWidget({ role, onAction }: RoleWorkQueueWidgetProps) {
