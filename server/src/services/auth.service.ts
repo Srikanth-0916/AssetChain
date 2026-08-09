@@ -198,12 +198,69 @@ export class AuthService {
   }
 
   /**
-   * Authenticate user with email and password via Supabase Auth or DB.
+   * Authenticate user with email and password via Local Store, Supabase DB, or Supabase Auth.
    */
   async login(email: string, password: string) {
     const normalizedEmail = email.toLowerCase().trim();
 
-    // ─── 1. Try Supabase Auth (PRIMARY — production path) ──────────────────────
+    // ─── 1. Local Memory Store Check (Fast path & Registered Users) ─────────────
+    for (const u of localUsersStore.values()) {
+      if (u.email.toLowerCase() === normalizedEmail) {
+        if (u.is_suspended) {
+          throw new UnauthorizedError('Your account has been suspended. Please contact support.');
+        }
+        if (u.password_hash) {
+          const isValid = await bcrypt.compare(password, u.password_hash);
+          if (isValid) {
+            const tokenPayload: JWTPayload = {
+              userId: u.id,
+              email: u.email,
+              role: u.role,
+              walletAddress: u.wallet_address || undefined,
+            };
+            const token = generateToken(tokenPayload);
+            const refreshToken = await issueRefreshToken(u.id);
+            const { password_hash: _, ...userWithoutPassword } = u;
+            return { user: userWithoutPassword, token, refreshToken };
+          }
+        }
+      }
+    }
+
+    // ─── 2. Supabase DB `profiles` Table Check ─────────────────────────────────
+    try {
+      const { data: dbProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('*')
+        .eq('email', normalizedEmail)
+        .maybeSingle();
+
+      if (dbProfile) {
+        if (dbProfile.is_suspended) {
+          throw new UnauthorizedError('Your account has been suspended. Please contact support.');
+        }
+        if (dbProfile.password_hash) {
+          const isValid = await bcrypt.compare(password, dbProfile.password_hash);
+          if (isValid) {
+            localUsersStore.set(dbProfile.id, dbProfile);
+            const tokenPayload: JWTPayload = {
+              userId: dbProfile.id,
+              email: dbProfile.email,
+              role: dbProfile.role,
+              walletAddress: dbProfile.wallet_address || undefined,
+            };
+            const token = generateToken(tokenPayload);
+            const refreshToken = await issueRefreshToken(dbProfile.id);
+            const { password_hash: _, ...userWithoutPassword } = dbProfile as any;
+            return { user: userWithoutPassword, token, refreshToken };
+          }
+        }
+      }
+    } catch (dbErr: any) {
+      if (dbErr instanceof UnauthorizedError) throw dbErr;
+    }
+
+    // ─── 3. Supabase Auth Check (Production Auth Provider) ─────────────────────
     try {
       const { data: authData, error: authErr } = await supabaseAdmin.auth.signInWithPassword({
         email: normalizedEmail,
@@ -213,12 +270,11 @@ export class AuthService {
       if (authData?.user && !authErr) {
         const supabaseUser = authData.user;
 
-        // Fetch profile from public.profiles for role & additional fields
         const { data: profile } = await supabaseAdmin
           .from('profiles')
           .select('id, full_name, email, role, kyc_status, wallet_address, is_suspended, created_at')
           .eq('id', supabaseUser.id)
-          .single();
+          .maybeSingle();
 
         const resolvedUser = profile ?? {
           id: supabaseUser.id,
@@ -248,36 +304,8 @@ export class AuthService {
         const { password_hash: _, ...userWithoutPassword } = resolvedUser as any;
         return { user: userWithoutPassword, token, refreshToken };
       }
-
-      // If Supabase Auth returns an error that is NOT "offline", surface it
-      if (authErr && !authErr.message.toLowerCase().includes('fetch')) {
-        throw new UnauthorizedError('Invalid email or password');
-      }
     } catch (e: any) {
       if (e instanceof UnauthorizedError) throw e;
-    }
-
-    // ─── 2. Local/Seeded accounts fallback ─────────────────────────────────────
-    for (const u of localUsersStore.values()) {
-      if (u.email.toLowerCase() === normalizedEmail) {
-        if (u.is_suspended) {
-          throw new UnauthorizedError('Your account has been suspended. Please contact support.');
-        }
-        if (u.password_hash) {
-          const isValid = await bcrypt.compare(password, u.password_hash);
-          if (!isValid) throw new UnauthorizedError('Invalid email or password');
-        }
-        const tokenPayload: JWTPayload = {
-          userId: u.id,
-          email: u.email,
-          role: u.role,
-          walletAddress: u.wallet_address || undefined,
-        };
-        const token = generateToken(tokenPayload);
-        const refreshToken = await issueRefreshToken(u.id);
-        const { password_hash: _, ...userWithoutPassword } = u;
-        return { user: userWithoutPassword, token, refreshToken };
-      }
     }
 
     throw new UnauthorizedError('Invalid email or password');

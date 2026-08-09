@@ -61,6 +61,8 @@ export function Header() {
 
 
 const MORE_ITEMS: NavItem[] = [
+  { label: 'Rewards Center',            to: '/rewards',     icon: <Star className="w-4 h-4 text-amber-400" />,     description: 'Earn points, level up & unlock perks' },
+  { label: 'Achievements',              to: '/achievements',icon: <Trophy className="w-4 h-4 text-emerald-400" />,description: 'RWA badges & milestones' },
   { label: 'Admin Control Center',      to: '/admin',       icon: <Shield className="w-4 h-4 text-red-400" />,      description: 'Platform operations & system health', roles: ['admin'] },
   { label: 'Verifier Control Center',   to: '/verifier',    icon: <FileCheck2 className="w-4 h-4 text-emerald-400" />, description: 'Deed review & OCR scanner', roles: ['verifier', 'admin'] },
   { label: 'Legal Control Center',      to: '/legal',       icon: <ShieldCheck className="w-4 h-4 text-blue-400" />,   description: 'Encumbrance & litigation search', roles: ['legal_reviewer', 'admin'] },

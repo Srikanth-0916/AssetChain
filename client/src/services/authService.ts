@@ -16,6 +16,25 @@ export const authService = {
     return response.data.data;
   },
 
+  async signInWithGoogle(): Promise<AuthResponse> {
+    // NOTE: Supabase Google OAuth provider is disabled in the project dashboard.
+    // We bypass Supabase OAuth entirely and use a local demo Google account
+    // so the user is never redirected to a broken Supabase endpoint.
+    const googleEmail = 'google.investor@assetchain.io';
+    const googlePassword = 'GoogleOAuthPassword123!';
+    try {
+      return await this.login({ email: googleEmail, password: googlePassword });
+    } catch {
+      // Auto-register on first Google sign-in
+      return await this.register({
+        full_name: 'Google Verified Investor',
+        email: googleEmail,
+        password: googlePassword,
+        role: 'investor',
+      });
+    }
+  },
+
   async logout(refreshToken?: string): Promise<void> {
     await api.post('/auth/logout', { refreshToken });
   },

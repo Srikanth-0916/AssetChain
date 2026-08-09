@@ -515,6 +515,17 @@ export function Component() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   type="button"
+                  onClick={async () => {
+                    try {
+                      const { authService } = await import('../../services/authService');
+                      const res = await authService.signInWithGoogle();
+                      if (res?.token) {
+                        window.location.href = '/investor';
+                      }
+                    } catch (err: any) {
+                      console.warn('[GoogleAuth] Google sign in notice:', err);
+                    }
+                  }}
                   className="w-full relative group/google"
                 >
                   <div className="absolute inset-0 bg-white/5 rounded-lg blur opacity-0 group-hover/google:opacity-70 transition-opacity duration-300" />

@@ -52,9 +52,10 @@ router.get('/exit-prediction/:assetId', async (req, res, next) => {
   }
 });
 
+// Public Platform Overview Stats (Landing Page)
+router.get('/overview', (req, res, next) => analyticsController.getOverview(req, res, next));
+
 router.use(authenticate);
 router.use(roleGuard('admin'));
-
-router.get('/overview', (req, res, next) => analyticsController.getOverview(req, res, next));
 
 export default router;

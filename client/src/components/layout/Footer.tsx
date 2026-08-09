@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Coins, Globe, Disc as Discord, ExternalLink, ShieldCheck,
-  CheckCircle2, FileText, Lock, Copy, Check, Send, Award, Activity
+  Coins, Globe, Disc as Discord, ShieldCheck,
+  CheckCircle2, FileText, Lock, Send, Award, Activity,
+  HelpCircle, Building2, Check, Sparkles
 } from 'lucide-react';
 
 export function Footer() {
   const [modalType, setModalType] = useState<'kyc' | 'audit' | 'terms' | null>(null);
   const [emailInput, setEmailInput] = useState('');
   const [subscribed, setSubscribed] = useState(false);
-  const [copiedContract, setCopiedContract] = useState<string | null>(null);
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,52 +21,68 @@ export function Footer() {
     }, 4000);
   };
 
-  const handleCopyContract = (address: string, name: string) => {
-    navigator.clipboard.writeText(address);
-    setCopiedContract(name);
-    setTimeout(() => setCopiedContract(null), 2500);
-  };
-
-  const CONTRACTS = [
-    { name: 'Marketplace Contract', address: '0x72a5C1d07c089D1C90e0e0aF42dB3A7E303A4e99' },
-    { name: 'Treasury Vault',       address: '0x81b7eF29eD722F0e4d7a8C4C61706a12B4711867' },
-    { name: 'DAO Governance',       address: '0x45f42c3C886B8C24F0e227092305590918c5e622' },
-    { name: 'Asset Registry',       address: '0x3aB481023cC82A7D2C04e8bC87332cEDa86c6a4F' },
-  ];
-
   return (
-    <footer className="relative bg-slate-950 border-t border-indigo-500/20 pt-16 pb-12 px-4 lg:px-8 text-slate-400 text-sm overflow-hidden">
-      
-      {/* Background ambient lighting */}
+    <footer className="relative bg-slate-950 border-t border-indigo-500/20 pt-14 pb-10 px-4 lg:px-8 text-slate-400 text-sm overflow-hidden">
+
+      {/* Ambient Glow */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="max-w-7xl mx-auto space-y-12 relative z-10">
+      <div className="max-w-7xl mx-auto space-y-10 relative z-10">
 
-        {/* ── Top Section: Brand & Newsletter ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pb-10 border-b border-slate-800/80 items-center">
-          
-          <div className="lg:col-span-6 space-y-3">
+        {/* ── Friendly "Why AssetChain is Safe & Trusted" Banner ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-5 rounded-2xl bg-indigo-950/40 border border-indigo-500/20">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-emerald-400 shrink-0">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-white">100% Deed-Backed Assets</div>
+              <div className="text-[11px] text-slate-400">Every token represents verified physical property ownership.</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/25 flex items-center justify-center text-indigo-400 shrink-0">
+              <Lock className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-white">Smart Contract Escrow</div>
+              <div className="text-[11px] text-slate-400">Your investment funds are held safely until property targets are met.</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center text-amber-400 shrink-0">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-white">Zero Gas Fees</div>
+              <div className="text-[11px] text-slate-400">Sign in &amp; manage your portfolio with zero transaction cost.</div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Brand & Newsletter Strip ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pb-8 border-b border-slate-800/80 items-center">
+          <div className="lg:col-span-6 space-y-2">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-emerald-400 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-emerald-400 flex items-center justify-center shadow-lg shadow-indigo-500/20">
                 <Coins className="w-5 h-5 text-white" />
               </div>
-              <span className="text-2xl font-bold tracking-tight text-white">
+              <span className="text-xl font-bold tracking-tight text-white">
                 Asset<span className="text-indigo-400">Chain</span>
               </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-bold flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Live v2.0
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Verified Platform
               </span>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed max-w-lg">
-              Institutional-grade Real-World Asset (RWA) tokenization ecosystem. Powered by Polygon Amoy blockchain, smart contract automation, and ERC-3643 compliance protocols.
+              Invest in shares of commercial real estate and real-world properties. Earn monthly rental yields and trade digital property tokens securely on Polygon.
             </p>
           </div>
 
-          {/* Newsletter Input */}
           <div className="lg:col-span-6 bg-slate-900/60 border border-slate-800 p-4 rounded-2xl">
             <div className="text-xs font-semibold text-white mb-1.5 flex items-center gap-2">
-              <Send className="w-3.5 h-3.5 text-indigo-400" /> Subscribe to RWA Yield & Market Reports
+              <Send className="w-3.5 h-3.5 text-indigo-400" /> Subscribe to Property Yield &amp; Market Updates
             </div>
             {subscribed ? (
               <div className="bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 animate-fade-in">
@@ -76,7 +92,7 @@ export function Footer() {
               <form onSubmit={handleSubscribe} className="flex gap-2">
                 <input
                   type="email"
-                  placeholder="Enter institutional or personal email..."
+                  placeholder="Enter your email address..."
                   value={emailInput}
                   onChange={e => setEmailInput(e.target.value)}
                   className="input-field py-2 text-xs flex-1"
@@ -90,172 +106,134 @@ export function Footer() {
           </div>
         </div>
 
-        {/* ── Main Footer Columns ── */}
+        {/* ── Main Footer Columns (Clear & Simple Jargon-Free Titles) ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
 
-          {/* Column 1: Platform Links */}
-          <div className="space-y-4">
+          {/* Column 1: Platform Navigation */}
+          <div className="space-y-3">
             <h4 className="text-white font-bold text-xs tracking-wider uppercase flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" /> Platform Services
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" /> Explore Platform
             </h4>
-            <ul className="space-y-2.5 text-xs">
+            <ul className="space-y-2 text-xs">
               <li>
-                <Link to="/marketplace" className="hover:text-indigo-300 transition-colors flex items-center gap-1.5 group">
-                  <span className="group-hover:translate-x-0.5 transition-transform">→</span> Tokenized Marketplace
+                <Link to="/marketplace" className="hover:text-indigo-300 transition-colors flex items-center gap-1.5">
+                  <span>→</span> Browse Property Marketplace
                 </Link>
               </li>
               <li>
-                <Link to="/portfolio" className="hover:text-indigo-300 transition-colors flex items-center gap-1.5 group">
-                  <span className="group-hover:translate-x-0.5 transition-transform">→</span> Investor Portfolio
+                <Link to="/portfolio" className="hover:text-indigo-300 transition-colors flex items-center gap-1.5">
+                  <span>→</span> Track My Investments
                 </Link>
               </li>
               <li>
-                <Link to="/ai-copilot" className="hover:text-indigo-300 transition-colors flex items-center gap-1.5 group">
-                  <span className="group-hover:translate-x-0.5 transition-transform">→</span> AI Investment Copilot
+                <Link to="/ai-copilot" className="hover:text-indigo-300 transition-colors flex items-center gap-1.5">
+                  <span>→</span> AI Investment Advisor
                 </Link>
               </li>
               <li>
-                <Link to="/rewards" className="hover:text-indigo-300 transition-colors flex items-center gap-1.5 group">
-                  <span className="group-hover:translate-x-0.5 transition-transform">→</span> Rewards & Staking
+                <Link to="/rewards" className="hover:text-indigo-300 transition-colors flex items-center gap-1.5">
+                  <span>→</span> Rewards &amp; Investor Loyalty
                 </Link>
               </li>
               <li>
-                <Link to="/activity" className="hover:text-indigo-300 transition-colors flex items-center gap-1.5 group">
-                  <span className="group-hover:translate-x-0.5 transition-transform">→</span> Governance & Audit Trail
+                <Link to="/activity" className="hover:text-indigo-300 transition-colors flex items-center gap-1.5">
+                  <span>→</span> Platform Activity Feed
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Column 2: Legal & Compliance Modals */}
-          <div className="space-y-4">
+          {/* Column 2: Legal & Safety */}
+          <div className="space-y-3">
             <h4 className="text-white font-bold text-xs tracking-wider uppercase flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Compliance & Trust
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Safety &amp; Legal Protection
             </h4>
-            <ul className="space-y-2.5 text-xs">
+            <ul className="space-y-2 text-xs">
               <li>
-                <button onClick={() => setModalType('kyc')} className="hover:text-emerald-300 transition-colors flex items-center gap-1.5 text-left group">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
-                  <span>KYC/AML & Identity Standard</span>
+                <button onClick={() => setModalType('kyc')} className="hover:text-emerald-300 transition-colors flex items-center gap-1.5 text-left">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Identity Verification &amp; Security</span>
                 </button>
               </li>
               <li>
-                <button onClick={() => setModalType('audit')} className="hover:text-emerald-300 transition-colors flex items-center gap-1.5 text-left group">
-                  <Award className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
-                  <span>Smart Contract Security Audit</span>
+                <button onClick={() => setModalType('audit')} className="hover:text-emerald-300 transition-colors flex items-center gap-1.5 text-left">
+                  <Award className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Smart Contract Safety Audit</span>
                 </button>
               </li>
               <li>
-                <button onClick={() => setModalType('terms')} className="hover:text-emerald-300 transition-colors flex items-center gap-1.5 text-left group">
-                  <FileText className="w-3.5 h-3.5 text-indigo-400 group-hover:scale-110 transition-transform" />
-                  <span>Terms of Service & Disclaimer</span>
+                <button onClick={() => setModalType('terms')} className="hover:text-emerald-300 transition-colors flex items-center gap-1.5 text-left">
+                  <FileText className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Terms of Service &amp; Legal Guide</span>
                 </button>
               </li>
               <li>
                 <Link to="/privacy" className="hover:text-emerald-300 transition-colors flex items-center gap-1.5">
                   <Lock className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Privacy & Encryption Center</span>
+                  <span>Investor Privacy &amp; Data Encryption</span>
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Column 3: On-Chain Contracts with 1-Click Copy */}
-          <div className="space-y-4">
+          {/* Column 3: How Blockchain Protects You (Simplified language, no raw hexes) */}
+          <div className="space-y-3">
             <h4 className="text-white font-bold text-xs tracking-wider uppercase flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-purple-400" /> Smart Contracts
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-400" /> Automated Safety Systems
             </h4>
-            <div className="space-y-2">
-              {CONTRACTS.map((contract) => (
-                <div
-                  key={contract.name}
-                  className="flex items-center justify-between p-2 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-slate-700 transition-colors group"
-                >
-                  <div className="min-w-0 pr-2">
-                    <div className="text-[11px] font-semibold text-slate-200">{contract.name}</div>
-                    <div className="text-[10px] text-slate-500 font-mono truncate">
-                      {contract.address.slice(0, 8)}...{contract.address.slice(-6)}
-                    </div>
+            <div className="space-y-2 text-xs">
+              {[
+                { title: 'Safe Vault Escrow', desc: 'Funds stored securely until legal title checks pass.' },
+                { title: 'Digital Title Deeds', desc: 'Proof of land & property ownership registered digitally.' },
+                { title: 'Automated Dividend Distribution', desc: 'Rental income deposited directly to investor wallets.' },
+                { title: 'Investor DAO Voting', desc: 'Vote on property upgrades and sale proposals.' },
+              ].map((sys, i) => (
+                <div key={i} className="p-2 rounded-xl bg-slate-900/60 border border-slate-800 space-y-0.5">
+                  <div className="font-bold text-white text-[11px] flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-400" /> {sys.title}
                   </div>
-
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() => handleCopyContract(contract.address, contract.name)}
-                      className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                      title="Copy contract address"
-                    >
-                      {copiedContract === contract.name ? (
-                        <Check className="w-3.5 h-3.5 text-emerald-400" />
-                      ) : (
-                        <Copy className="w-3.5 h-3.5" />
-                      )}
-                    </button>
-                    <a
-                      href={`https://amoy.polygonscan.com/address/${contract.address}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="p-1 rounded-md text-indigo-400 hover:text-indigo-300 hover:bg-white/10 transition-colors"
-                      title="View on Polygonscan Explorer"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  </div>
+                  <div className="text-[10px] text-slate-400">{sys.desc}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Column 4: Network & Live Health Status */}
-          <div className="space-y-4">
+          {/* Column 4: Simple System Status */}
+          <div className="space-y-3">
             <h4 className="text-white font-bold text-xs tracking-wider uppercase flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> Network Status
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> System Security Status
             </h4>
 
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 space-y-3">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400 font-medium">Chain Network:</span>
-                <a
-                  href="https://amoy.polygonscan.com"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-emerald-400 font-semibold font-mono hover:underline flex items-center gap-1"
-                >
-                  Polygon Amoy <ExternalLink className="w-3 h-3" />
-                </a>
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 space-y-2.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-medium">Blockchain Network:</span>
+                <span className="text-emerald-400 font-bold">Polygon Amoy</span>
               </div>
-
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400 font-medium">Chain ID:</span>
-                <span className="text-indigo-300 font-mono font-bold px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20">
-                  80002
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-medium">Network Status:</span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> 100% Operational
                 </span>
               </div>
-
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400 font-medium">Consensus:</span>
-                <span className="text-slate-300 font-medium">PoS (Zero-Gas Dev)</span>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-medium">Wallet Auth Fee:</span>
+                <span className="text-indigo-300 font-bold">Zero Gas (Free)</span>
               </div>
-
               <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
                 <span className="text-slate-400 flex items-center gap-1.5">
                   <Activity className="w-3 h-3 text-emerald-400" /> System Uptime
                 </span>
-                <span className="text-emerald-400 font-bold">99.9% Online</span>
+                <span className="text-emerald-400 font-bold">99.9% Reliable</span>
               </div>
             </div>
           </div>
 
         </div>
 
-        {/* ── Bottom Copyright Bar ── */}
-        <div className="pt-8 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between text-xs gap-4">
-          <div className="flex items-center gap-2 text-slate-400">
-            <span>© 2026 AssetChain Protocol. All rights reserved.</span>
-            {copiedContract && (
-              <span className="text-emerald-400 font-medium animate-fade-in ml-2">
-                ✓ Copied address for {copiedContract}!
-              </span>
-            )}
+        {/* ── Copyright & Security Footer Strip ── */}
+        <div className="pt-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between text-xs gap-4">
+          <div className="text-slate-500">
+            © 2026 AssetChain Protocol. All rights reserved. Real-World Assets tokenized securely on Polygon.
           </div>
 
           <div className="flex items-center gap-5 text-slate-400">
@@ -263,7 +241,7 @@ export function Footer() {
               <ShieldCheck className="w-4 h-4 text-indigo-400" /> Security Center
             </Link>
             <Link to="/privacy" className="hover:text-white transition-colors flex items-center gap-1">
-              <Globe className="w-4 h-4 text-emerald-400" /> Global Privacy
+              <Globe className="w-4 h-4 text-emerald-400" /> Privacy Policy
             </Link>
             <a
               href="https://discord.com"
@@ -272,7 +250,7 @@ export function Footer() {
               className="hover:text-white transition-colors flex items-center gap-1"
               title="AssetChain Community Discord"
             >
-              <Discord className="w-4 h-4 text-purple-400" /> Discord
+              <Discord className="w-4 h-4 text-purple-400" /> Community Discord
             </a>
           </div>
         </div>
@@ -280,136 +258,90 @@ export function Footer() {
       </div>
 
       {/* ── Interactive Legal & Compliance Modals ── */}
-
-      {/* 1. KYC/AML Modal */}
       {modalType === 'kyc' && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md"
           onClick={() => setModalType(null)}
         >
           <div
-            className="glass-card p-8 max-w-lg w-full animate-fade-scale border border-emerald-500/30 shadow-2xl space-y-4"
+            className="glass-card p-6 max-w-lg w-full border border-emerald-500/30 shadow-2xl space-y-4"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 pb-3 border-b border-slate-800">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                <ShieldCheck className="w-6 h-6 text-emerald-400" />
-              </div>
+              <ShieldCheck className="w-6 h-6 text-emerald-400" />
               <div>
-                <h3 className="text-lg font-bold text-white">KYC/AML & Identity Protocol</h3>
-                <p className="text-xs text-slate-400">ERC-3643 Compliant Token Transfer Safeguards</p>
+                <h3 className="text-base font-bold text-white">Identity Verification &amp; Security Protocol</h3>
+                <p className="text-xs text-slate-400">How AssetChain protects your identity and investments</p>
               </div>
             </div>
-
-            <div className="text-xs text-slate-300 space-y-3 leading-relaxed">
-              <p>
-                AssetChain enforces <strong>ERC-3643 permissioned token standards</strong> across all tokenized real-world assets. Only verified identity profiles are authorized to execute on-chain transfers.
-              </p>
-              <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5">
-                <div className="font-semibold text-white">Verification Steps:</div>
-                <ul className="list-disc list-inside space-y-1 text-slate-400">
-                  <li>Government-issued ID verification (Passport / National ID)</li>
-                  <li>Sanctions & PEP (Politically Exposed Persons) automated screening</li>
-                  <li>AES-256 encrypted nominee & beneficiary registry</li>
-                </ul>
-              </div>
+            <div className="space-y-2 text-xs text-slate-300 leading-relaxed">
+              <p>AssetChain enforces government compliance standard identity checks before allowing property token purchases.</p>
+              <ul className="list-disc pl-4 space-y-1 text-slate-400">
+                <li>Government ID &amp; Address Verification</li>
+                <li>Anti-Money Laundering (AML) Screening</li>
+                <li>Encrypted Investor Privacy Shield (GDPR Compliant)</li>
+              </ul>
             </div>
-
-            <div className="flex justify-end gap-3 pt-2">
-              <button onClick={() => setModalType(null)} className="btn-primary text-xs py-2 px-5">
-                Understood
-              </button>
-            </div>
+            <button onClick={() => setModalType(null)} className="btn-primary w-full text-xs py-2">
+              Got it, Close
+            </button>
           </div>
         </div>
       )}
 
-      {/* 2. Audit Modal */}
       {modalType === 'audit' && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md"
           onClick={() => setModalType(null)}
         >
           <div
-            className="glass-card p-8 max-w-lg w-full animate-fade-scale border border-amber-500/30 shadow-2xl space-y-4"
+            className="glass-card p-6 max-w-lg w-full border border-indigo-500/30 shadow-2xl space-y-4"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 pb-3 border-b border-slate-800">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-                <Award className="w-6 h-6 text-amber-400" />
-              </div>
+              <Award className="w-6 h-6 text-amber-400" />
               <div>
-                <h3 className="text-lg font-bold text-white">Smart Contract Security Audit</h3>
-                <p className="text-xs text-slate-400">Verified On-Chain Security Score: 98/100</p>
+                <h3 className="text-base font-bold text-white">Smart Contract Security Audit</h3>
+                <p className="text-xs text-slate-400">Audited code for safe investor funds</p>
               </div>
             </div>
-
-            <div className="text-xs text-slate-300 space-y-3 leading-relaxed">
-              <div className="grid grid-cols-2 gap-3 text-center">
-                <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
-                  <div className="text-2xl font-black text-emerald-400">0</div>
-                  <div className="text-[11px] text-slate-400">Critical Vulnerabilities</div>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
-                  <div className="text-2xl font-black text-amber-400">98/100</div>
-                  <div className="text-[11px] text-slate-400">Security Score</div>
-                </div>
-              </div>
-
-              <p className="text-slate-400">
-                All AssetChain smart contracts (`AssetToken`, `Marketplace`, `TreasuryVault`, `DAOGovernance`) have undergone rigorous static analysis, formal verification, and reentrancy testing.
-              </p>
+            <div className="space-y-2 text-xs text-slate-300 leading-relaxed">
+              <p>AssetChain smart contracts undergo independent third-party security audits to ensure zero vulnerabilities.</p>
+              <ul className="list-disc pl-4 space-y-1 text-slate-400">
+                <li>Zero Critical Vulnerabilities Found</li>
+                <li>ERC-3643 Permissioned Security Standard</li>
+                <li>Automated Multi-Sig Escrow Locks</li>
+              </ul>
             </div>
-
-            <div className="flex justify-end gap-3 pt-2">
-              <button onClick={() => setModalType(null)} className="btn-primary text-xs py-2 px-5">
-                Close Audit Report
-              </button>
-            </div>
+            <button onClick={() => setModalType(null)} className="btn-primary w-full text-xs py-2">
+              Got it, Close
+            </button>
           </div>
         </div>
       )}
 
-      {/* 3. Terms Modal */}
       {modalType === 'terms' && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md"
           onClick={() => setModalType(null)}
         >
           <div
-            className="glass-card p-8 max-w-lg w-full animate-fade-scale border border-indigo-500/30 shadow-2xl space-y-4"
+            className="glass-card p-6 max-w-lg w-full border border-purple-500/30 shadow-2xl space-y-4"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 pb-3 border-b border-slate-800">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-                <FileText className="w-6 h-6 text-indigo-400" />
-              </div>
+              <FileText className="w-6 h-6 text-indigo-400" />
               <div>
-                <h3 className="text-lg font-bold text-white">Terms of Service & Disclaimer</h3>
-                <p className="text-xs text-slate-400">RWA Tokenization Legal Framework</p>
+                <h3 className="text-base font-bold text-white">Terms of Service &amp; Legal Protection</h3>
+                <p className="text-xs text-slate-400">Legal property ownership guidelines</p>
               </div>
             </div>
-
-            <div className="text-xs text-slate-300 space-y-2 leading-relaxed max-h-60 overflow-y-auto pr-2">
-              <p>
-                AssetChain tokens represent fractional legal ownership held via Special Purpose Vehicles (SPVs).
-              </p>
-              <p>
-                1. Token holdings grant proportional entitlement to yield distributions generated by underlying real-world assets.
-              </p>
-              <p>
-                2. On-chain governance votes executed via DAO proposals are legally binding under SPV operating agreements.
-              </p>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-2">
-              <button onClick={() => setModalType(null)} className="btn-primary text-xs py-2 px-5">
-                I Accept Terms
-              </button>
-            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Fractional real estate tokens purchased on AssetChain confer legal ownership rights in the Special Purpose Vehicle (SPV) holding the physical title deed. Dividends are paid from rental yields.
+            </p>
+            <button onClick={() => setModalType(null)} className="btn-primary w-full text-xs py-2">
+              Got it, Close
+            </button>
           </div>
         </div>
       )}
