@@ -16,14 +16,14 @@ describe('AssetChain AI Copilot System Tests', () => {
     expect(res.summary).toBeTypeOf('string');
     expect(res.recommendations).toBeInstanceOf(Array);
     console.log('✓ Investment advice output:', res.summary);
-  }, 15000);
+  }, 60000);
 
   it('Should analyze portfolio diversification & risk', async () => {
     const res = await aiService.analyzePortfolio('user-123');
     expect(res).toBeDefined();
     expect(res.summary).toBeTypeOf('string');
     console.log('✓ Portfolio analysis output:', res.summary);
-  }, 15000);
+  }, 60000);
 
   it('Should run AI fraud detection analysis on an asset', async () => {
     const report = await fraudService.analyzeAsset({
@@ -40,12 +40,12 @@ describe('AssetChain AI Copilot System Tests', () => {
     expect(report.fraudScore).toBeGreaterThanOrEqual(0);
     expect(report.riskLevel).toBeDefined();
     console.log(`✓ Fraud analysis completed: Risk Level = ${report.riskLevel}, Score = ${report.fraudScore}`);
-  }, 15000);
+  }, 60000);
 
   it('Should retrieve market insights via AI copilot', async () => {
     const res = await aiService.getMarketInsights('user-123');
     expect(res).toBeDefined();
     expect(res.summary).toBeTypeOf('string');
     console.log('✓ Market insights output:', res.summary);
-  }, 15000);
+  }, 60000);
 });

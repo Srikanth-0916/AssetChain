@@ -4,7 +4,9 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    testTimeout: 30000,
-    hookTimeout: 30000,
+    testTimeout: 60000, // 60s timeout for network & async tests
+    hookTimeout: 60000,
+    pool: 'forks', // Use forks for process isolation
+    setupFiles: ['./tests/setup.ts'],
   },
 });

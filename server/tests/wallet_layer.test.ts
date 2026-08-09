@@ -39,7 +39,7 @@ describe('Production-Grade Web3 Wallet Layer Test Suite', () => {
     await expect(
       authService.verifyWalletSignature(walletAddress, signature, 'MetaMask', 'investor')
     ).rejects.toThrow();
-  }, 30000);
+  }, 60000);
 
   it('3. Multi-Wallet Type Support (Coinbase, Rabby, Trust, Rainbow, WalletConnect v2)', async () => {
     const multiWallets = ['Coinbase Wallet', 'Rabby Wallet', 'Trust Wallet', 'Rainbow', 'WalletConnect v2'];
@@ -54,7 +54,7 @@ describe('Production-Grade Web3 Wallet Layer Test Suite', () => {
 
       expect(res.user.wallet_address).toBe(addr);
     }
-  }, 30000);
+  }, 60000);
 
   it('4. On-Chain Compliance Sync to Polygon Amoy Contracts', async () => {
     const sampleContracts = ['0x1111111111111111111111111111111111111111'];
