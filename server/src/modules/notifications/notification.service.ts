@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { supabaseAdmin } from '../../config/database';
 import { env } from '../../config/env';
 import { ServiceUnavailableError } from '../../utils/errors';
+import { auditService } from '../audit/audit.service';
 
 /**
  * Notification Service — notification store with Supabase write-through.
@@ -56,6 +57,16 @@ export class NotificationService {
     const existing = notificationStore.get(userId) || [];
     existing.unshift(notification);
     notificationStore.set(userId, existing.slice(0, 50));
+
+    // Log to Audit Trail for compliance & activity tracking
+    auditService.log(
+      'notification_sent',
+      userId,
+      'system',
+      `Notification dispatched: [${title}] ${message}`,
+      { notificationId: notification.id, type, data },
+      'info'
+    );
 
     // Push to active SSE subscribers (Phase 3.3)
     this.pushToSSE(userId, notification);

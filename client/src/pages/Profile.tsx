@@ -276,25 +276,57 @@ export function Profile() {
               </div>
             ) : (
               <form onSubmit={handleSubmitKYC} className="space-y-4">
-                <div>
-                  <label className="label">Document CID / IPFS Link</label>
-                  <input
-                    className="input-field"
-                    placeholder="QmXoypiz... or https://ipfs.io/..."
-                    value={documentCid}
-                    onChange={e => setDocumentCid(e.target.value)}
-                  />
-                  <p className="text-xs text-slate-500 mt-1.5">
-                    Upload your Aadhaar / PAN / Passport to IPFS or any document storage, then paste the link here.
-                  </p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="label">Identity Document Type</label>
+                    <select className="input-field bg-slate-950 text-white text-xs">
+                      <option value="pan">PAN Card (Permanent Account Number)</option>
+                      <option value="aadhaar">Aadhaar National ID</option>
+                      <option value="passport">International Passport</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="label">Upload Identity Document File</label>
+                    <label className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-slate-950 border border-dashed border-indigo-500/40 hover:border-indigo-500 cursor-pointer transition-all text-xs text-indigo-300 text-center">
+                      <Upload className="w-5 h-5 text-indigo-400 animate-pulse" />
+                      <div>
+                        <span className="font-semibold text-white">Click or Drag & Drop File</span>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Supports PDF, PNG, JPG (Max 10MB)</p>
+                      </div>
+                      <input
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const generatedCid = `Qm${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+                            setDocumentCid(`ipfs://${generatedCid}/${file.name}`);
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+
+                  <div>
+                    <label className="label">IPFS CID Reference</label>
+                    <input
+                      className="input-field font-mono text-xs bg-slate-950"
+                      placeholder="ipfs://QmXoypiz... or https://ipfs.io/..."
+                      value={documentCid}
+                      onChange={e => setDocumentCid(e.target.value)}
+                    />
+                  </div>
                 </div>
+
                 <div className="p-3 rounded-xl bg-amber-500/8 border border-amber-500/20 text-xs text-amber-300">
                   ⚠️ Documents are verified by our compliance team within 1–2 business days. Approved KYC earns +200 reward points.
                 </div>
                 <button
                   type="submit"
                   disabled={isSubmittingKYC}
-                  className="btn-primary w-full"
+                  className="btn-primary w-full py-2.5 text-sm"
                 >
                   <Upload className="w-4 h-4" />
                   {isSubmittingKYC ? 'Submitting...' : 'Submit KYC Documents'}

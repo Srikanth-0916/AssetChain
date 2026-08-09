@@ -27,29 +27,31 @@ export class PortfolioService {
 
     // ── 2. Load real investments from Supabase for this user ─────────────────
     let holdings: any[] = [];
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
     try {
-      const { data: investmentRows, error } = await supabaseAdmin
-        .from('investments')
-        .select(`
-          id,
-          user_id,
-          asset_id,
-          tokens_owned,
-          average_buy_price,
-          investment_amount,
-          current_value,
-          total_roi_percent,
-          profit_earned,
-          status,
-          created_at,
-          updated_at
-        `)
-        .eq('user_id', userId)
-        .eq('status', 'active');
+      if (isUUID) {
+        const { data: investmentRows, error } = await supabaseAdmin
+          .from('investments')
+          .select(`
+            id,
+            user_id,
+            asset_id,
+            tokens_owned,
+            average_buy_price,
+            investment_amount,
+            current_value,
+            total_roi_percent,
+            profit_earned,
+            status,
+            created_at,
+            updated_at
+          `)
+          .eq('user_id', userId)
+          .eq('status', 'active');
 
-      if (error) {
-        console.warn('[PortfolioService] ⚠️ Supabase investments query warning:', error.message);
-      } else if (investmentRows && investmentRows.length > 0) {
+        if (error) {
+          console.warn('[PortfolioService] ⚠️ Supabase investments query warning:', error.message);
+        } else if (investmentRows && investmentRows.length > 0) {
         // Enrich each investment with asset data
         for (const inv of investmentRows) {
           const { data: asset } = await supabaseAdmin
@@ -89,6 +91,7 @@ export class PortfolioService {
           });
         }
       }
+    }
     } catch (e: any) {
       console.warn('[PortfolioService] ⚠️ Portfolio load catch:', e.message);
     }

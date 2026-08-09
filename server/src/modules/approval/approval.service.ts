@@ -105,6 +105,8 @@ export class ApprovalService {
   private readonly REQUIRED_VOTES = 2;
   private readonly store = new Map<string, ApprovalRequest>();
   private readonly safeAdapter = new GnosisSafeAdapter();
+  private lastSyncTime = 0;
+  private readonly SYNC_TTL_MS = 5000;
 
   constructor() {
     // Constructor no longer seeds hardcoded/mock request list
@@ -171,55 +173,66 @@ export class ApprovalService {
 
   /** Sync memory cache from Supabase requests and votes */
   private async syncFromSupabase(singleId?: string): Promise<void> {
+    const now = Date.now();
+    if (!singleId && now - this.lastSyncTime < this.SYNC_TTL_MS && this.store.size > 0) {
+      return;
+    }
+    this.lastSyncTime = now;
+
     try {
-      let query = supabaseAdmin
-        .from('approval_requests')
-        .select(`
-          id, asset_id, status, required_votes, approved_count, rejected_count, 
-          gnosis_safe_tx_hash, created_at, updated_at
-        `);
-      
-      if (singleId) {
-        query = query.eq('id', singleId);
-      }
+      const fetchPromise = (async () => {
+        let query = supabaseAdmin
+          .from('approval_requests')
+          .select(`
+            id, asset_id, status, required_votes, approved_count, rejected_count, 
+            gnosis_safe_tx_hash, created_at, updated_at
+          `);
+        
+        if (singleId) {
+          query = query.eq('id', singleId);
+        }
 
-      const { data: dbRequests, error } = await query;
-      if (error) {
-        console.warn('[ApprovalService] ⚠️ failed to fetch approval requests:', error.message);
-        return;
-      }
+        const { data: dbRequests, error } = await query;
+        if (error) {
+          console.warn('[ApprovalService] ⚠️ failed to fetch approval requests:', error.message);
+          return;
+        }
 
-      for (const r of (dbRequests || [])) {
-        const { data: dbVotes } = await supabaseAdmin
-          .from('approval_votes')
-          .select('verifier_id, role, decision, comments, voted_at')
-          .eq('request_id', r.id);
+        for (const r of (dbRequests || [])) {
+          const { data: dbVotes } = await supabaseAdmin
+            .from('approval_votes')
+            .select('verifier_id, role, decision, comments, voted_at')
+            .eq('request_id', r.id);
 
-        const votes: ApprovalVote[] = (dbVotes || []).map((v: any) => ({
-          role: v.role as ApprovalRole,
-          userId: v.verifier_id,
-          decision: v.decision === 'approve' ? 'approved' : 'rejected',
-          comments: v.comments || '',
-          timestamp: v.voted_at,
-        }));
+          const votes: ApprovalVote[] = (dbVotes || []).map((v: any) => ({
+            role: v.role as ApprovalRole,
+            userId: v.verifier_id,
+            decision: v.decision === 'approve' ? 'approved' : 'rejected',
+            comments: v.comments || '',
+            timestamp: v.voted_at,
+          }));
 
-        const existing = this.store.get(r.id);
-        this.store.set(r.id, {
-          id: r.id,
-          assetId: r.asset_id,
-          assetTitle: existing?.assetTitle || `Asset ${r.asset_id.slice(0, 8)}`,
-          status: r.status as any,
-          createdAt: r.created_at,
-          updatedAt: r.updated_at,
-          requiredVotes: r.required_votes || 2,
-          totalRoles: existing?.totalRoles || 3,
-          votes,
-          approvedCount: r.approved_count || 0,
-          rejectedCount: r.rejected_count || 0,
-          gnosisSafeTxHash: r.gnosis_safe_tx_hash,
-          verificationSummary: existing?.verificationSummary,
-        });
-      }
+          const existing = this.store.get(r.id);
+          this.store.set(r.id, {
+            id: r.id,
+            assetId: r.asset_id,
+            assetTitle: existing?.assetTitle || `Asset ${r.asset_id.slice(0, 8)}`,
+            status: r.status as any,
+            createdAt: r.created_at,
+            updatedAt: r.updated_at,
+            requiredVotes: r.required_votes || 2,
+            totalRoles: existing?.totalRoles || 3,
+            votes,
+            approvedCount: r.approved_count || 0,
+            rejectedCount: r.rejected_count || 0,
+            gnosisSafeTxHash: r.gnosis_safe_tx_hash,
+            verificationSummary: existing?.verificationSummary,
+          });
+        }
+      })();
+
+      const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 1500));
+      await Promise.race([fetchPromise, timeoutPromise]);
     } catch (err: any) {
       console.warn('[ApprovalService] ⚠️ syncFromSupabase error:', err.message);
     }
@@ -317,6 +330,30 @@ export class ApprovalService {
 
     this.store.set(request.id, request);
     await this.persistToSupabase(request);
+
+    // Sync verification status to Supabase assets table
+    try {
+      if (request.status === 'approved') {
+        await supabaseAdmin
+          .from('assets')
+          .update({
+            verification_status: 'approved',
+            verified_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', request.assetId);
+      } else if (request.status === 'rejected') {
+        await supabaseAdmin
+          .from('assets')
+          .update({
+            verification_status: 'rejected',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', request.assetId);
+      }
+    } catch (assetUpdateErr: any) {
+      console.warn('[ApprovalService] ⚠️ Supabase asset status sync warning:', assetUpdateErr.message);
+    }
 
     let ownerId: string | null = null;
     try {

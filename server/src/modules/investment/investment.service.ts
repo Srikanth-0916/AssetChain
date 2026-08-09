@@ -182,7 +182,7 @@ export class InvestmentService {
     }
 
     // ─── 7. Parse and verify InvestmentCompleted event ──────────────────────
-    let eventAssetId: string | null = null;
+    const expectedAssetIdTopic = ethers.keccak256(ethers.toUtf8Bytes(assetId));
     let eventBuyer: string | null = null;
     let eventQuantity: bigint | null = null;
     let eventAmountPaid: bigint | null = null;
@@ -192,14 +192,14 @@ export class InvestmentService {
       try {
         const parsed = INTERFACE.parseLog({ data: log.data, topics: log.topics as string[] });
         if (parsed && parsed.name === 'InvestmentCompleted') {
-          // Note: string indexed params are hashed in topics — check non-indexed params
+          // Verify indexed string assetId topic matches keccak256(assetId)
+          if (log.topics[1] && log.topics[1].toLowerCase() !== expectedAssetIdTopic.toLowerCase()) {
+            continue;
+          }
           eventBuyer = parsed.args.buyer as string;
           eventQuantity = parsed.args.quantity as bigint;
           eventAmountPaid = parsed.args.amountPaid as bigint;
           eventTimestamp = parsed.args.timestamp as bigint;
-          // assetId is indexed (hashed) — we can't recover the string from the topic
-          // so we verify buyer, quantity, and amount instead
-          eventAssetId = assetId; // trust the payload assetId, verify via buyer + amount
           break;
         }
       } catch {
@@ -209,8 +209,8 @@ export class InvestmentService {
 
     if (!eventBuyer || eventQuantity === null) {
       throw new BadRequestError(
-        'InvestmentCompleted event not found in transaction logs. ' +
-          'This transaction may not be a valid Marketplace investment.'
+        'InvestmentCompleted event for this asset not found in transaction logs. ' +
+          'This transaction may not be a valid Marketplace investment for asset ' + assetId
       );
     }
 
@@ -258,9 +258,9 @@ export class InvestmentService {
 
     if (existingInvestment) {
       // Top-up existing position
-      const newTokensOwned = existingInvestment.tokens_owned + quantity;
+      const newTokensOwned = Number(existingInvestment.tokens_owned) + quantity;
       const newAmount = Number(existingInvestment.investment_amount) + investmentAmountUSD;
-      const newAvgPrice = newAmount / newTokensOwned;
+      const newAvgPrice = Number((newAmount / newTokensOwned).toFixed(6));
 
       const { data: updated, error: updateErr } = await supabaseAdmin
         .from('investments')
@@ -268,27 +268,19 @@ export class InvestmentService {
           tokens_owned: newTokensOwned,
           investment_amount: newAmount,
           average_buy_price: newAvgPrice,
+          current_value: newAmount,
           updated_at: new Date().toISOString(),
-          transaction_hash: transactionHash,
-          block_number: actualBlockNumber,
-          wallet_address: walletAddress.toLowerCase(),
-          contract_address: env.MARKETPLACE_CONTRACT_ADDRESS || null,
-          gas_used: BigInt(actualGasUsed),
-          network: 'polygon-amoy',
-          polygonscan_url: polygonscanUrl,
-          confirmation_status: 'Confirmed',
-          confirmed_at: new Date().toISOString(),
         })
         .eq('id', existingInvestment.id)
-        .select()
+        .select('id')
         .single();
 
       if (updateErr) {
         console.error('[InvestmentService] Investment update error:', updateErr.message);
       }
-      investmentId = existingInvestment.id;
+      investmentId = updated?.id || existingInvestment.id;
     } else {
-      // New investment
+      // New investment position
       const { data: newInvestment, error: insertErr } = await supabaseAdmin
         .from('investments')
         .insert({
@@ -299,17 +291,10 @@ export class InvestmentService {
           investment_amount: investmentAmountUSD,
           current_value: investmentAmountUSD,
           status: 'active',
-          transaction_hash: transactionHash,
-          block_number: actualBlockNumber,
-          wallet_address: walletAddress.toLowerCase(),
-          contract_address: env.MARKETPLACE_CONTRACT_ADDRESS || null,
-          gas_used: BigInt(actualGasUsed),
-          network: 'polygon-amoy',
-          polygonscan_url: polygonscanUrl,
-          confirmation_status: 'Confirmed',
-          confirmed_at: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         })
-        .select()
+        .select('id')
         .single();
 
       if (insertErr) {

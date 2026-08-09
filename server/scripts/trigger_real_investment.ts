@@ -2,6 +2,8 @@ import { ethers } from 'ethers';
 import * as dotenv from 'dotenv';
 import path from 'path';
 import { supabaseAdmin } from '../src/config/database';
+import { investmentService } from '../src/modules/investment/investment.service';
+import { portfolioService } from '../src/services/portfolio.service';
 
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
@@ -9,7 +11,6 @@ const ALCHEMY_AMOY_URL = process.env.POLYGON_AMOY_RPC_URL || 'https://polygon-am
 const DEPLOYER_PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY;
 const MARKETPLACE_ADDRESS = process.env.MARKETPLACE_CONTRACT_ADDRESS || '0x835aaF7DAF1A323b42bF7367d037e55659EB3BcB';
 
-// Unified Marketplace ABI for POL purchase
 const MARKETPLACE_ABI = [
   'function buyTokensWithPOL(string calldata assetId, uint256 quantity) external payable',
   'function createPOLSale(string calldata assetId, uint256 pricePerTokenWei, uint256 totalSupply) external',
@@ -26,70 +27,93 @@ async function main() {
     process.exit(1);
   }
 
-  // 1. Get/Create a test asset in the database
-  console.log('\nStep 1: Get or create a test asset...');
-  const { data: asset, error: assetErr } = await supabaseAdmin
-    .from('assets')
-    .select('*')
-    .limit(1)
-    .single();
-
-  let assetId = '';
-  let assetTitle = '';
-  if (assetErr || !asset) {
-    // Insert a new dummy asset for testing
-    const testAssetId = 'e2e2e2e2-e2e2-e2e2-e2e2-e2e2e2e2e2e2';
-    const { error: insErr } = await supabaseAdmin.from('assets').insert({
-      id: testAssetId,
-      title: 'E2E Verification Premium Hub',
-      description: 'On-Chain Pipeline Verification Asset',
-      asset_type: 'commercial',
-      token_price: 10,
-      valuation: 100000,
-      tokens_available: 10000,
-      token_supply: 10000,
-      location: 'Bangalore, India',
-    });
-    if (insErr) {
-      console.error('❌ Failed to insert test asset:', insErr.message);
-      process.exit(1);
-    }
-    assetId = testAssetId;
-    assetTitle = 'E2E Verification Premium Hub';
-    console.log(`✅ Created test asset: ${assetTitle} (${assetId})`);
-  } else {
-    assetId = asset.id;
-    assetTitle = asset.title;
-    console.log(`✅ Found existing asset: ${assetTitle} (${assetId})`);
-  }
-
-  // 2. Connect to Polygon Amoy network
-  console.log('\nStep 2: Connect to Polygon Amoy RPC...');
+  // 1. Connect to Polygon Amoy network
+  console.log('\nStep 1: Connect to Polygon Amoy RPC...');
   const provider = new ethers.JsonRpcProvider(ALCHEMY_AMOY_URL, undefined, { staticNetwork: true });
   const wallet = new ethers.Wallet(DEPLOYER_PRIVATE_KEY, provider);
   console.log(`✅ Connected. Sender Address: ${wallet.address}`);
   const balance = await provider.getBalance(wallet.address);
   console.log(`   Balance: ${ethers.formatEther(balance)} POL`);
 
-  if (balance < ethers.parseEther('0.01')) {
+  if (balance < ethers.parseEther('0.005')) {
     console.error('❌ Insufficient POL balance in deployer wallet for gas/fees.');
     process.exit(1);
   }
 
-  const contract = new ethers.Contract(MARKETPLACE_ADDRESS, MARKETPLACE_ABI, wallet);
+  // 2. Ensure test user profile exists with matching wallet
+  console.log('\nStep 2: Ensure test user profile exists in Supabase...');
+  let testUserId = 'a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1';
+  
+  const { data: existingProfile } = await supabaseAdmin
+    .from('profiles')
+    .select('*')
+    .eq('wallet_address', wallet.address.toLowerCase())
+    .maybeSingle();
 
-  // 3. Register POL sale on-chain if not already registered
-  console.log('\nStep 3: Check/Register POL sale on-chain...');
+  if (existingProfile) {
+    testUserId = existingProfile.id;
+    console.log(`✅ Using existing profile for wallet. ID: ${existingProfile.id}, Role: ${existingProfile.role}`);
+  } else {
+    const { data: newProfile, error: profErr } = await supabaseAdmin
+      .from('profiles')
+      .upsert({
+        id: testUserId,
+        full_name: 'Verified On-Chain Investor',
+        email: `investor_${wallet.address.slice(2, 10).toLowerCase()}@assetchain.io`,
+        wallet_address: wallet.address.toLowerCase(),
+        role: 'investor',
+        kyc_status: 'approved',
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' })
+      .select()
+      .single();
+
+    if (profErr) {
+      console.error('❌ Profile setup error:', profErr.message);
+      process.exit(1);
+    }
+    testUserId = newProfile.id;
+    console.log(`✅ Investor profile created. ID: ${newProfile.id}, Wallet: ${newProfile.wallet_address}`);
+  }
+
+  // 3. Get or create a test asset
+  console.log('\nStep 3: Get/create approved asset in Supabase...');
+  let assetId = '7e5ae166-34d7-45fe-83f7-35df785e97d1'; // Manhattan Commercial Plaza
+  const { data: asset } = await supabaseAdmin
+    .from('assets')
+    .select('*')
+    .eq('id', assetId)
+    .maybeSingle();
+
+  let assetTitle = 'Manhattan Commercial Plaza';
+  if (!asset) {
+    const { data: createdAsset, error: insErr } = await supabaseAdmin.from('assets').insert({
+      id: assetId,
+      owner_id: testUserId,
+      title: assetTitle,
+      description: 'Prime Commercial Property in Manhattan',
+      asset_type: 'commercial_property',
+      valuation: 1000000,
+      token_supply: 10000,
+      verification_status: 'approved',
+      location: 'New York, USA',
+    }).select().single();
+    if (insErr) {
+      console.error('❌ Failed creating asset:', insErr.message);
+      process.exit(1);
+    }
+  }
+  console.log(`✅ Asset ready: ${assetTitle} (${assetId})`);
+
+  // 4. Check/Register POL sale on-chain
+  console.log('\nStep 4: Check/Register POL sale on-chain...');
+  const contract = new ethers.Contract(MARKETPLACE_ADDRESS, MARKETPLACE_ABI, wallet);
   try {
     const saleConfig = await contract.getPOLSaleConfig(assetId);
     if (saleConfig.createdAt === 0n) {
-      console.log('   Asset not registered on-chain. Registering now...');
-      const registerTx = await contract.createPOLSale(
-        assetId,
-        ethers.parseEther('0.0001'), // 0.0001 POL per token
-        10000n
-      );
-      await registerTx.wait(1);
+      console.log('   Registering POL sale on-chain...');
+      const regTx = await contract.createPOLSale(assetId, ethers.parseEther('0.0001'), 10000n);
+      await regTx.wait(1);
       console.log('✅ Registered POL sale on-chain successfully.');
     } else {
       console.log(`✅ POL sale already registered. Price: ${ethers.formatEther(saleConfig.pricePerTokenWei)} POL`);
@@ -98,85 +122,56 @@ async function main() {
     console.warn('⚠️ Warning checking/registering POL sale:', err.message);
   }
 
-  // 4. Execute buyTokensWithPOL transaction
-  console.log('\nStep 4: Execute buyTokensWithPOL on-chain...');
-  const quantity = 2n;
-  const valueToSend = ethers.parseEther('0.0002'); // 2 tokens * 0.0001 POL
+  // 5. Execute real on-chain buyTokensWithPOL transaction
+  console.log('\nStep 5: Execute real on-chain buyTokensWithPOL...');
+  const quantity = 1n;
+  const valueToSend = ethers.parseEther('0.0001'); // 1 token * 0.0001 POL
 
-  try {
-    const tx = await contract.buyTokensWithPOL(assetId, quantity, {
-      value: valueToSend,
-    });
-    console.log(`🚀 Transaction broadcasted: ${tx.hash}`);
-    console.log('⏳ Waiting for confirmation...');
-    const receipt = await tx.wait(1);
-    console.log('✅ Transaction Mined successfully!');
-    console.log(`   Block Number : #${receipt.blockNumber}`);
-    console.log(`   Gas Used     : ${receipt.gasUsed.toString()}`);
+  const tx = await contract.buyTokensWithPOL(assetId, quantity, {
+    value: valueToSend,
+  });
+  console.log(`🚀 Transaction Broadcasted: ${tx.hash}`);
+  console.log(`🔗 PolygonScan Explorer   : https://amoy.polygonscan.com/tx/${tx.hash}`);
+  console.log('⏳ Waiting for Polygon block confirmation...');
+  const receipt = await tx.wait(1);
+  console.log('✅ Transaction Mined in Block #' + receipt.blockNumber);
+  console.log(`   Gas Used: ${receipt.gasUsed.toString()}`);
 
-    // 5. Submit to backend confirmation endpoint
-    console.log('\nStep 5: Submit transaction to backend /confirm endpoint...');
-    const port = process.env.PORT || '3001';
-    const confirmRes = await fetch(`http://127.0.0.1:${port}/api/v1/investments/confirm`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        transactionHash: tx.hash,
-        walletAddress: wallet.address,
-        assetId: assetId,
-        quantity: Number(quantity),
-        amountWei: valueToSend.toString(),
-        blockNumber: receipt.blockNumber,
-        gasUsed: receipt.gasUsed.toString(),
-      }),
-    });
+  // 6. Backend independent verification & Supabase persistence
+  console.log('\nStep 6: Backend verification & Supabase persistence...');
+  const result = await investmentService.confirmOnChainInvestment({
+    transactionHash: tx.hash,
+    walletAddress: wallet.address,
+    assetId: assetId,
+    quantity: Number(quantity),
+    amountWei: valueToSend.toString(),
+    userId: testUserId,
+    blockNumber: receipt.blockNumber,
+    gasUsed: receipt.gasUsed.toString(),
+  });
 
-    const confirmData: any = await confirmRes.json();
-    if (confirmRes.status === 200 || confirmRes.status === 201) {
-      console.log('✅ Backend successfully verified and persisted the transaction!');
-      console.log(JSON.stringify(confirmData, null, 2));
-    } else {
-      console.error(`❌ Backend verification failed (HTTP ${confirmRes.status}):`, confirmData.error || confirmData);
-      process.exit(1);
-    }
+  console.log('✅ Backend successfully verified on-chain event and updated Supabase!');
+  console.log(`   Investment ID : ${result.investmentId}`);
+  console.log(`   Tokens Owned  : ${result.tokensOwned}`);
+  console.log(`   Total Invested: $${result.totalInvested}`);
+  console.log(`   PolygonScan   : ${result.polygonscanUrl}`);
 
-    // 6. Verify Supabase tables are updated
-    console.log('\nStep 6: Verifying database records...');
-    const { data: dbTx, error: dbTxErr } = await supabaseAdmin
-      .from('blockchain_transactions')
-      .select('*')
-      .eq('transaction_hash', tx.hash)
-      .single();
-
-    if (dbTxErr || !dbTx) {
-      console.error('❌ Failed to find record in blockchain_transactions table:', dbTxErr?.message);
-    } else {
-      console.log('✅ Verified: Record found in public.blockchain_transactions table!');
-      console.log(`   Tx Hash: ${dbTx.transaction_hash}`);
-      console.log(`   Wallet : ${dbTx.wallet_address}`);
-      console.log(`   Asset  : ${dbTx.asset_id}`);
-    }
-
-    const { data: dbInv, error: dbInvErr } = await supabaseAdmin
-      .from('investments')
-      .select('*')
-      .eq('asset_id', assetId)
-      .limit(1);
-
-    if (dbInvErr || !dbInv || dbInv.length === 0) {
-      console.error('❌ Failed to find record in investments table:', dbInvErr?.message);
-    } else {
-      console.log('✅ Verified: Record found in public.investments table!');
-    }
-
-    console.log('\n═══════════════════════════════════════════════════════════');
-    console.log('🎉 PIPELINE VERIFICATION SUCCESSFUL!');
-    console.log('═══════════════════════════════════════════════════════════');
-
-  } catch (err: any) {
-    console.error('💥 Execution failed:', err.message);
-    process.exit(1);
+  // 7. Portfolio Reconstruction Verification
+  console.log('\nStep 7: Reconstructing user portfolio from Supabase...');
+  const portfolio = await portfolioService.getPortfolio(testUserId, wallet.address);
+  console.log('✅ Portfolio reconstructed successfully:');
+  console.log(`   Total Invested: $${portfolio.summary.total_invested}`);
+  console.log(`   Active Holdings: ${portfolio.holdings.length} assets`);
+  for (const h of portfolio.holdings) {
+    console.log(`   - Asset: ${h.asset.title}, Tokens: ${h.tokens_owned}, Value: $${h.current_value}`);
   }
+
+  console.log('\n═══════════════════════════════════════════════════════════');
+  console.log('🎉 REAL END-TO-END INVESTMENT ON POLYGON AMOY COMPLETE!');
+  console.log('═══════════════════════════════════════════════════════════');
 }
 
-main();
+main().catch((err) => {
+  console.error('💥 Execution failed:', err);
+  process.exit(1);
+});

@@ -17,7 +17,7 @@ export type AuditEventType =
   | 'admin_action' | 'kyc_submitted' | 'kyc_approved' | 'kyc_rejected'
   | 'asset_approved' | 'asset_rejected' | 'asset_tokenized'
   | 'contract_event' | 'fraud_detected' | 'security_alert'
-  | 'payment_verified' | 'dividend_distributed';
+  | 'payment_verified' | 'dividend_distributed' | 'notification_sent';
 
 export interface AuditEvent {
   id: string;
@@ -113,6 +113,7 @@ export class AuditService {
       security_alert: 'security_alert',
       payment_verified: 'payment_verified',
       dividend_distributed: 'dividend_distributed',
+      notification_sent: 'notification_sent',
     };
 
     const entityTypeMap: Record<AuditEventType, string> = {
@@ -128,6 +129,7 @@ export class AuditService {
       security_alert: 'system',
       payment_verified: 'payment',
       dividend_distributed: 'asset',
+      notification_sent: 'user',
     };
 
     Promise.resolve(

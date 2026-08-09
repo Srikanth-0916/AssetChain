@@ -41,6 +41,13 @@ export interface CreateAssetData {
   location?: string;
   valuation: number;
   token_supply: number;
+  documents?: Array<{
+    document_type: string;
+    file_name: string;
+    mime_type: string;
+    file_size_bytes: number;
+    encrypted_data: string;
+  }>;
 }
 
 export const ASSET_TYPE_LABELS: Record<AssetType, string> = {

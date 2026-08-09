@@ -38,6 +38,8 @@ const nomineeStore: Map<string, Nominee> = new Map();
 
 const claimsStore: Map<string, InheritanceClaim> = new Map();
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export class NomineeService {
   /** Get nominee profile (Database with Memory Fallback) */
   async getNominee(userId: string): Promise<Nominee | null> {
@@ -91,7 +93,6 @@ export class NomineeService {
     nomineeStore.set(userId, updated);
 
     // Skip Supabase write if IDs are not valid UUIDs (test fixture IDs like "nominee-841a0792")
-    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (UUID_REGEX.test(updated.id) && UUID_REGEX.test(updated.userId)) {
       try {
         // 1. Ensure user profile exists for FK user_id -> profiles(id)

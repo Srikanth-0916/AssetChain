@@ -38,7 +38,7 @@ export async function confirmInvestment(
     }
 
     // ─── 2. Extract authenticated user ─────────────────────────────────────
-    const userId = (req as any).user?.id;
+    const userId = req.user?.userId || (req.user as any)?.id;
     if (!userId) {
       res.status(401).json({
         success: false,
@@ -86,7 +86,7 @@ export async function getMyInvestments(
   next: NextFunction
 ): Promise<void> {
   try {
-    const userId = (req as any).user?.id;
+    const userId = req.user?.userId || (req.user as any)?.id;
     if (!userId) {
       res.status(401).json({
         success: false,

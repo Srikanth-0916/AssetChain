@@ -12,9 +12,27 @@ describe('Asset Document AES-256-GCM Encryption & Authorization Tests', () => {
 
   beforeAll(async () => {
     // Fetch or create a test owner profile
-    const { data: owner } = await supabaseAdmin.from('profiles').select('id').limit(1).single();
-    if (!owner) throw new Error('No owner profile available for test');
-    ownerId = owner.id;
+    const { data: owner } = await supabaseAdmin.from('profiles').select('id').limit(1).maybeSingle();
+    if (owner) {
+      ownerId = owner.id;
+    } else {
+      const testUserId = uuidv4();
+      const { data: newProfile, error } = await supabaseAdmin
+        .from('profiles')
+        .insert([
+          {
+            id: testUserId,
+            full_name: 'Test Asset Owner',
+            email: `testowner_${Date.now()}@example.com`,
+            role: 'asset_owner',
+            created_at: new Date().toISOString(),
+          },
+        ])
+        .select('id')
+        .single();
+
+      ownerId = newProfile?.id || testUserId;
+    }
   });
 
   test('1. Document Upload Path ALWAYS Encrypts Payload with AES-256-GCM', async () => {
