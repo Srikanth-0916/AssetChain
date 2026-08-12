@@ -15,12 +15,20 @@ globalThis.fetch = async function (url: any, options: any) {
       });
     }
     return res;
-  } catch (err: any) {
+  } catch (_err: any) {
     // Provide PostgREST-compliant fallback for Supabase REST endpoint queries
     if (urlStr.includes('/rest/v1/') || urlStr.includes('mock.supabase.co')) {
-      const isSingleObject = options?.headers?.Accept?.includes('application/vnd.pgrst.object+json');
-      const body = isSingleObject ? JSON.stringify({}) : JSON.stringify([]);
-      return new Response(body, {
+      const accept = (options?.headers?.Accept as string) || '';
+      const isSingleObject = accept.includes('application/vnd.pgrst.object+json');
+      if (isSingleObject) {
+        // Return PGRST 406 "no rows" error so supabase-js yields { data: null, error: {...} }
+        return new Response(
+          JSON.stringify({ code: 'PGRST116', details: 'The result contains 0 rows', hint: '', message: 'JSON object requested, multiple (or no) rows returned' }),
+          { status: 406, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      // List query: return empty array with proper PostgREST headers
+      return new Response(JSON.stringify([]), {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
