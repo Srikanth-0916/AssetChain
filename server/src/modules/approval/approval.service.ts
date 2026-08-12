@@ -198,13 +198,15 @@ export class ApprovalService {
           return;
         }
 
-        for (const r of (dbRequests || [])) {
+        const requests = Array.isArray(dbRequests) ? dbRequests : [];
+        for (const r of requests) {
           const { data: dbVotes } = await supabaseAdmin
             .from('approval_votes')
             .select('verifier_id, role, decision, comments, voted_at')
             .eq('request_id', r.id);
 
-          const votes: ApprovalVote[] = (dbVotes || []).map((v: any) => ({
+          const votesList = Array.isArray(dbVotes) ? dbVotes : [];
+          const votes: ApprovalVote[] = votesList.map((v: any) => ({
             role: v.role as ApprovalRole,
             userId: v.verifier_id,
             decision: v.decision === 'approve' ? 'approved' : 'rejected',

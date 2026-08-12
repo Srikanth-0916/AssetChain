@@ -16,7 +16,7 @@ describe('Investor Role Complete Panel & Financials E2E Test Suite', () => {
   let authToken: string;
 
   beforeAll(async () => {
-    investorEmail = `investor_e2e_${Date.now()}@assetchain.io`;
+    investorEmail = `investor_e2e_${Date.now()}_${Math.random().toString(36).slice(2, 7)}@assetchain.io`;
     const regResult = await authService.register({
       full_name: 'E2E Investor Alex',
       email: investorEmail,

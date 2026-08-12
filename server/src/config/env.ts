@@ -3,6 +3,7 @@ import path from 'path';
 import { z } from 'zod';
 
 // Resolve .env relative to server/.env and root .env
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
