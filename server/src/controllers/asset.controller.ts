@@ -14,8 +14,9 @@ export class AssetController {
 
   async getMarketplaceAssets(req: Request, res: Response, next: NextFunction) {
     try {
-      const { assets, meta } = await assetService.getMarketplaceAssets(req.query as any);
-      sendPaginated(res, assets, meta);
+      const result = await assetService.getMarketplaceAssets(req.query as any);
+      const assets = Array.isArray(result?.assets) ? result.assets : [];
+      sendPaginated(res, assets, result?.meta || { page: 1, limit: 10, total: assets.length, totalPages: 1 });
     } catch (error) {
       next(error);
     }

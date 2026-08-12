@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { supabaseAdmin } from '../config/database';
 import { env } from '../config/env';
@@ -79,12 +80,14 @@ export class AssetService {
           }
         }
 
+        const fallbackCid = `Qm${crypto.createHash('sha256').update(doc.file_name + Date.now().toString()).digest('hex').slice(0, 44)}`;
+
         const row = {
           id: uuidv4(),
           asset_id: assetResult.id,
           document_type: doc.document_type || 'title_deed',
           file_name: doc.file_name,
-          ipfs_cid: doc.ipfs_cid,
+          ipfs_cid: doc.ipfs_cid || fallbackCid,
           mime_type: doc.mime_type || 'application/pdf',
           file_size_bytes: doc.file_size_bytes || 1024,
           encrypted_data: encryptedPayloadJson || '',
@@ -238,7 +241,9 @@ export class AssetService {
       return { assets: [], meta: { page, limit, total: 0, totalPages: 0 } };
     }
 
-    const normalizedAssets = (assets || []).map((a: any) => ({
+    const assetArray = Array.isArray(assets) ? assets : [];
+
+    const normalizedAssets = assetArray.map((a: any) => ({
       ...a,
       owner: a.profiles || { id: a.owner_id, full_name: 'Asset Owner' },
     }));

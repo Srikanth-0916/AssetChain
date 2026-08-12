@@ -168,7 +168,8 @@ export class UserService {
     }
 
     // Get all tokenized asset contract addresses
-    const { assets } = await assetService.getMarketplaceAssets({ status: 'tokenized', limit: '100' });
+    const res = await assetService.getMarketplaceAssets({ status: 'tokenized', limit: '100' });
+    const assets = Array.isArray(res?.assets) ? res.assets : [];
     const contractAddresses = assets
       .map((a: any) => a.contract_address)
       .filter((addr: any) => addr && addr.startsWith('0x'));

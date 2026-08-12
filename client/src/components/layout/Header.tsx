@@ -34,7 +34,7 @@ export function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [walletModalOpen, setWalletModalOpen] = useState(false);
 
-  const controlCenterPath = getRoleDashboardPath(user?.role);
+  const controlCenterPath = isAuthenticated ? getRoleDashboardPath(user?.role) : '/login';
   const controlCenterTitle = getRoleWorkspaceTitle(user?.role);
 
   // Ctrl+K / Cmd+K keyboard shortcut listener for global search
@@ -51,8 +51,10 @@ export function Header() {
 
 
 
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/forgot-password';
+
   const NAV_ITEMS: NavItem[] = [
-    { label: 'Control Center', to: controlCenterPath, icon: <LayoutDashboard className="w-4 h-4 text-emerald-400" /> },
+    ...(isAuthenticated ? [{ label: 'Control Center', to: controlCenterPath, icon: <LayoutDashboard className="w-4 h-4 text-emerald-400" /> }] : []),
     { label: 'Marketplace',    to: '/marketplace',   icon: <Store className="w-4 h-4" /> },
     { label: 'Portfolio',      to: '/portfolio',     icon: <PieChart className="w-4 h-4 text-indigo-400" />, roles: ['investor', 'asset_owner', 'admin'] },
     { label: 'AI Advisor',     to: '/ai-copilot',    icon: <Sparkles className="w-4 h-4 text-purple-400" />, badge: 'AI' },
@@ -107,8 +109,8 @@ const MORE_ITEMS: NavItem[] = [
             </span>
           </Link>
 
-          {/* Desktop Nav */}
-          {isAuthenticated && (
+          {/* Desktop Nav — hidden on login / auth pages */}
+          {!isAuthPage && (
             <nav className="hidden lg:flex items-center gap-1 flex-1 justify-center">
               {visibleNav.map(item => (
                 <Link
@@ -226,16 +228,18 @@ const MORE_ITEMS: NavItem[] = [
             )}
 
 
-            {/* Global Search Button */}
-            <button
-              onClick={() => setSearchOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-white/[0.1] text-slate-400 hover:text-white hover:border-indigo-500/30 text-xs transition-all"
-              title="Global Search (Ctrl+K)"
-            >
-              <Search className="w-3.5 h-3.5 text-indigo-400" />
-              <span className="hidden md:inline font-medium">Search...</span>
-              <kbd className="hidden md:inline px-1 py-0.5 rounded bg-slate-800 text-[10px] text-slate-500 font-mono">⌘K</kbd>
-            </button>
+            {/* Global Search Button — hidden on login / auth pages */}
+            {!isAuthPage && (
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-white/[0.1] text-slate-400 hover:text-white hover:border-indigo-500/30 text-xs transition-all"
+                title="Global Search (Ctrl+K)"
+              >
+                <Search className="w-3.5 h-3.5 text-indigo-400" />
+                <span className="hidden md:inline font-medium">Search...</span>
+                <kbd className="hidden md:inline px-1 py-0.5 rounded bg-slate-800 text-[10px] text-slate-500 font-mono">⌘K</kbd>
+              </button>
+            )}
 
             {/* Notification Bell */}
             <NotificationBell />
@@ -270,8 +274,8 @@ const MORE_ITEMS: NavItem[] = [
               </div>
             )}
 
-            {/* Mobile hamburger */}
-            {isAuthenticated && (
+            {/* Mobile hamburger — hidden on login / auth pages */}
+            {!isAuthPage && (
               <button
                 className="lg:hidden p-1.5 text-slate-400 hover:text-white transition-colors ml-1"
                 onClick={() => setMobileOpen(v => !v)}
@@ -284,7 +288,7 @@ const MORE_ITEMS: NavItem[] = [
       </header>
 
       {/* ── Mobile Nav Drawer ── */}
-      {mobileOpen && isAuthenticated && (
+      {mobileOpen && !isAuthPage && (
         <div
           className="lg:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
           onClick={() => setMobileOpen(false)}

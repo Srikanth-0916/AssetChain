@@ -197,23 +197,22 @@ class Web3InvestmentService {
       const config = await (contract as any).getPOLSaleConfig(assetId);
 
       if (!config || config.createdAt === 0n) {
-        // Asset not yet registered on-chain — fallback conversion (1 USD ≈ 0.5 POL)
-        const polPerUsd = 0.5;
-        const priceInPOL = fallbackTokenPriceUSD * polPerUsd;
-        pricePerTokenWei = ethers.parseEther(priceInPOL.toFixed(6));
-      } else if (!config.active) {
-        throw new Error('POL sale is not active: This asset sale is paused.');
-      } else if (config.availableSupply < BigInt(quantity)) {
-        throw new Error(`Insufficient token supply: Only ${config.availableSupply} tokens remain.`);
-      } else {
-        pricePerTokenWei = config.pricePerTokenWei;
-        availableSupply = config.availableSupply;
+        throw new Error('No POL sale registered for this asset. Please choose a registered asset.');
       }
+      if (!config.active) {
+        throw new Error('POL sale is not active: This asset sale is paused.');
+      }
+      if (config.availableSupply < BigInt(quantity)) {
+        throw new Error(`Insufficient token supply: Only ${config.availableSupply} tokens remain.`);
+      }
+
+      pricePerTokenWei = config.pricePerTokenWei;
+      availableSupply = config.availableSupply;
     } catch (err: any) {
-      if (err.message.includes('paused') || err.message.includes('supply')) throw err;
-      const polPerUsd = 0.5;
-      const priceInPOL = fallbackTokenPriceUSD * polPerUsd;
-      pricePerTokenWei = ethers.parseEther(priceInPOL.toFixed(6));
+      if (err?.message?.includes('POL sale is not active') || err?.message?.includes('No POL sale registered') || err?.message?.includes('Insufficient token supply')) {
+        throw err;
+      }
+      throw new Error(`Failed to validate on-chain sale: ${parseWeb3Error(err)}`);
     }
 
     const totalCostWei = pricePerTokenWei * BigInt(quantity);
@@ -345,6 +344,48 @@ class Web3InvestmentService {
       return { priceWei, pricePOL: ethers.formatEther(priceWei), isOnChain: true };
     } catch {
       return { priceWei: 0n, pricePOL: '0', isOnChain: false };
+    }
+  }
+
+  async checkPOLSaleAvailability(assetId: string): Promise<{ available: boolean; message: string; pricePOL?: string }> {
+    if (!isContractConfigured()) {
+      return { available: false, message: 'Marketplace contract is not configured.' };
+    }
+
+    try {
+      const provider = new ethers.JsonRpcProvider(POLYGON_AMOY_RPC_URL, {
+        chainId: POLYGON_AMOY_CHAIN_ID,
+        name: 'polygon-amoy',
+      });
+      const contract = new ethers.Contract(MARKETPLACE_ADDRESS, MARKETPLACE_ABI, provider);
+      const available: boolean = await (contract as any).isPOLSaleAvailable(assetId);
+
+      if (available) {
+        const config = await (contract as any).getPOLSaleConfig(assetId);
+        return {
+          available: true,
+          message: 'Asset is registered and available for POL purchase on-chain.',
+          pricePOL: ethers.formatEther(config.pricePerTokenWei),
+        };
+      }
+
+      const config = await (contract as any).getPOLSaleConfig(assetId);
+      if (!config || config.createdAt === 0n) {
+        return { available: false, message: 'This asset is not yet registered for POL sale on-chain.' };
+      }
+      if (!config.active) {
+        return { available: false, message: 'This asset has a POL sale, but it is currently paused.' };
+      }
+      if (config.availableSupply === 0n) {
+        return { available: false, message: 'This asset is sold out on-chain.' };
+      }
+
+      return { available: false, message: 'The asset is not currently available for POL purchase.' };
+    } catch (err: any) {
+      return {
+        available: false,
+        message: `Could not verify on-chain sale availability: ${parseWeb3Error(err)}`,
+      };
     }
   }
 }

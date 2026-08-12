@@ -27,10 +27,11 @@ async function executeTool(
 ): Promise<any> {
   switch (toolName) {
     case 'searchAssets': {
-      const { assets } = await assetService.getMarketplaceAssets({
+      const res = await assetService.getMarketplaceAssets({
         status: 'tokenized',
         limit: String(args.limit || 5),
       });
+      const assets = Array.isArray(res?.assets) ? res.assets : [];
       const filtered = args.query
         ? assets.filter((a: any) =>
             a.title.toLowerCase().includes(args.query.toLowerCase()) ||
@@ -120,7 +121,8 @@ async function executeTool(
     }
 
     case 'getMarketStatistics': {
-      const { assets } = await assetService.getMarketplaceAssets({ limit: '20' });
+      const res = await assetService.getMarketplaceAssets({ limit: '20' });
+      const assets = Array.isArray(res?.assets) ? res.assets : [];
       const tvl = assets.reduce((s: number, a: any) => s + Number(a.valuation), 0);
       const byType = assets.reduce((acc: Record<string, number>, a: any) => {
         acc[a.asset_type] = (acc[a.asset_type] || 0) + 1;

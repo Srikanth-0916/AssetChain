@@ -52,7 +52,8 @@ export async function indexPlatformKnowledge(): Promise<{ documents: number; sta
 
     // Index assets from marketplace
     try {
-      const { assets } = await assetService.getMarketplaceAssets({ limit: '50' });
+      const res = await assetService.getMarketplaceAssets({ limit: '50' });
+      const assets = Array.isArray(res?.assets) ? res.assets : [];
       const assetDocs = assets.map((a: any) => ({
         id: `asset:${a.id}`,
         text: `Asset: ${a.title}. Type: ${a.asset_type}. Location: ${a.location || 'Global'}. Valuation: $${a.valuation?.toLocaleString()}. Token price: $${a.token_price}. Token supply: ${a.token_supply}. Status: ${a.verification_status}. Description: ${a.description || ''}`,

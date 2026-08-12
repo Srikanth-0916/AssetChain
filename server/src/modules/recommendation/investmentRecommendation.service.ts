@@ -23,7 +23,7 @@ export class InvestmentRecommendationService {
     // ── 1. Retrieve Live Platform Data ──────────────────────────────────────
     const [userMemoryPrefs, marketplace, userPortfolio, analyticsOverview] = await Promise.all([
       memoryService.getPreferences(userId).catch(() => null),
-      assetService.getMarketplaceAssets({ status: 'tokenized' }),
+      assetService.getMarketplaceAssets({ status: 'tokenized' }).catch(() => ({ assets: [], meta: {} })),
       portfolioService.getPortfolio(userId).catch(() => ({ summary: { total_invested: 0 }, holdings: [] })),
       analyticsService.getOverview().catch(() => null),
     ]);
@@ -42,9 +42,11 @@ export class InvestmentRecommendationService {
       existingHoldingsCount: userPortfolio.holdings?.length || 0,
     };
 
+    const rawAssets = Array.isArray(marketplace?.assets) ? marketplace.assets : [];
+
     // ── 2. Build Asset Metrics from Live Services ───────────────────────────
     const assetsWithLiveFeeds: AssetMetrics[] = await Promise.all(
-      marketplace.assets.map(async (a: any) => {
+      rawAssets.map(async (a: any) => {
         const [spv, oracle] = await Promise.all([
           spvService.getByAssetId(a.id).catch(() => null),
           oracleService.getFeed(a.id),

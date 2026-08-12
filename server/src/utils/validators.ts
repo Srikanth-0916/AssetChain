@@ -54,6 +54,7 @@ export const walletVerifySchema = z.object({
     .string()
     .regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum wallet address'),
   signature: z.string().min(1, 'Signature is required'),
+  role: z.enum(['asset_owner', 'investor']).optional(),
 });
 
 // ─── User Schemas ───
@@ -109,6 +110,18 @@ export const createAssetSchema = z.object({
     .int()
     .min(100, 'Minimum token supply is 100')
     .max(10_000_000, 'Maximum token supply is 10,000,000'),
+  documents: z
+    .array(
+      z.object({
+        document_type: z.string().min(1),
+        file_name: z.string().min(1),
+        mime_type: z.string().min(1),
+        file_size_bytes: z.number().int().nonnegative(),
+        encrypted_data: z.string().min(1),
+        ipfs_cid: z.string().min(1).optional(),
+      }),
+    )
+    .optional(),
 });
 
 export const assetStatusSchema = z.object({

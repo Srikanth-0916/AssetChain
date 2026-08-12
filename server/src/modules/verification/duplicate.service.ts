@@ -11,7 +11,8 @@ export interface DuplicateResult {
  */
 export class DuplicateService {
   async checkForDuplicates(title: string, location: string, valuation: number): Promise<DuplicateResult> {
-    const { assets } = await assetService.getMarketplaceAssets({ limit: '50' });
+    const res = await assetService.getMarketplaceAssets({ limit: '50' });
+    const assets = Array.isArray(res?.assets) ? res.assets : [];
 
     const matches: DuplicateResult['matches'] = [];
 

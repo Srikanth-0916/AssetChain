@@ -1,44 +1,49 @@
-import React, { useState, useEffect } from 'react';
-import { assetService } from '../services/assetService';
-import { marketplaceService } from '../services/marketplaceService';
-import type { Asset } from '../types/asset';
-import { ASSET_TYPE_LABELS } from '../types/asset';
+import React, { useState, useEffect } from "react";
+import { assetService } from "../services/assetService";
+import type { Asset } from "../types/asset";
+import { ASSET_TYPE_LABELS } from "../types/asset";
 import {
-  Search, CheckCircle2, ShoppingBag, Zap,
-  MapPin, TrendingUp, Shield, Sparkles,
-} from 'lucide-react';
-import { formatCurrency } from '../lib/utils';
-import { useAuth } from '../contexts/AuthContext';
-import { useWallet } from '../contexts/WalletContext';
-import { PaymentModal } from '../components/payment/PaymentModal';
-import { TrustScoreBadges } from '../components/trust/TrustScoreBadges';
-import { ContextualAITip } from '../components/trust/ContextualAITip';
-import { SkeletonGrid } from '../components/ui/SkeletonCard';
-import { EmptyState } from '../components/ui/EmptyState';
-import { TrustScorePanel } from '../components/explainability/TrustScorePanel';
-import { ROIBreakdownPanel } from '../components/explainability/ROIBreakdownPanel';
-import { RiskBreakdownPanel } from '../components/explainability/RiskBreakdownPanel';
-import { AssetComparisonModal } from '../components/trust/AssetComparisonModal';
-import { ExitSimulatorModal } from '../components/trust/ExitSimulatorModal';
-import { DigitalDataRoom } from '../components/trust/DigitalDataRoom';
-import { DueDiligenceReportModal } from '../components/trust/DueDiligenceReportModal';
-import { Star, Scale, Calculator, FileText, Lock } from 'lucide-react';
+  Search,
+  CheckCircle2,
+  ShoppingBag,
+  Zap,
+  MapPin,
+  TrendingUp,
+  Shield,
+  Sparkles,
+} from "lucide-react";
+import { formatCurrency } from "../lib/utils";
+import { useAuth } from "../contexts/AuthContext";
+import { useWallet } from "../contexts/WalletContext";
+import { PaymentModal } from "../components/payment/PaymentModal";
+import { TrustScoreBadges } from "../components/trust/TrustScoreBadges";
+import { ContextualAITip } from "../components/trust/ContextualAITip";
+import { SkeletonGrid } from "../components/ui/SkeletonCard";
+import { EmptyState } from "../components/ui/EmptyState";
+import { TrustScorePanel } from "../components/explainability/TrustScorePanel";
+import { ROIBreakdownPanel } from "../components/explainability/ROIBreakdownPanel";
+import { RiskBreakdownPanel } from "../components/explainability/RiskBreakdownPanel";
+import { AssetComparisonModal } from "../components/trust/AssetComparisonModal";
+import { ExitSimulatorModal } from "../components/trust/ExitSimulatorModal";
+import { DigitalDataRoom } from "../components/trust/DigitalDataRoom";
+import { DueDiligenceReportModal } from "../components/trust/DueDiligenceReportModal";
+import { Star, Scale, Calculator, FileText, Lock } from "lucide-react";
 
 // ─── Category filter config ───────────────────────────────────────────────────
 const CATEGORY_COLORS: Record<string, string> = {
-  real_estate:  'text-indigo-400',
-  agriculture:  'text-emerald-400',
-  energy:       'text-amber-400',
-  infrastructure: 'text-cyan-400',
-  commercial:   'text-violet-400',
+  real_estate: "text-indigo-400",
+  agriculture: "text-emerald-400",
+  energy: "text-amber-400",
+  infrastructure: "text-cyan-400",
+  commercial: "text-violet-400",
 };
 
 const BG_GRADIENTS: Record<string, string> = {
-  real_estate:  'from-indigo-900/70 via-slate-900 to-slate-950',
-  agriculture:  'from-emerald-900/60 via-slate-900 to-slate-950',
-  energy:       'from-amber-900/60 via-slate-900 to-slate-950',
-  infrastructure:'from-cyan-900/60 via-slate-900 to-slate-950',
-  commercial:   'from-violet-900/60 via-slate-900 to-slate-950',
+  real_estate: "from-indigo-900/70 via-slate-900 to-slate-950",
+  agriculture: "from-emerald-900/60 via-slate-900 to-slate-950",
+  energy: "from-amber-900/60 via-slate-900 to-slate-950",
+  infrastructure: "from-cyan-900/60 via-slate-900 to-slate-950",
+  commercial: "from-violet-900/60 via-slate-900 to-slate-950",
 };
 
 // ─── Asset Card ───────────────────────────────────────────────────────────────
@@ -50,21 +55,38 @@ function AssetCard({
   item: Asset;
   onBuy: (asset: Asset) => void;
 }) {
-  const gradientClass = BG_GRADIENTS[item.asset_type] ?? 'from-indigo-900/60 via-slate-900 to-slate-950';
-  const colorClass    = CATEGORY_COLORS[item.asset_type] ?? 'text-indigo-400';
-  const typeLabel     = ASSET_TYPE_LABELS[item.asset_type] ?? item.asset_type;
+  const gradientClass =
+    BG_GRADIENTS[item.asset_type] ??
+    "from-indigo-900/60 via-slate-900 to-slate-950";
+  const colorClass = CATEGORY_COLORS[item.asset_type] ?? "text-indigo-400";
+  const typeLabel = ASSET_TYPE_LABELS[item.asset_type] ?? item.asset_type;
 
-  const totalTokens = Number(item.token_supply ?? (item as any).total_tokens ?? 1000);
-  const availTokens = Number(item.tokens_available ?? (item as any).available_tokens ?? 1000);
-  const percentFunded = Math.min(100, Math.round(((totalTokens - availTokens) / totalTokens) * 100));
+  const totalTokens = Number(
+    item.token_supply ?? (item as any).total_tokens ?? 1000,
+  );
+  const availTokens = Number(
+    item.tokens_available ?? (item as any).available_tokens ?? 1000,
+  );
+  const percentFunded = Math.min(
+    100,
+    Math.round(((totalTokens - availTokens) / totalTokens) * 100),
+  );
 
   return (
     <div className="asset-card group">
       {/* Card Image / Hero */}
-      <div className={`relative h-44 bg-gradient-to-br ${gradientClass} flex flex-col justify-between p-4 overflow-hidden`}>
+      <div
+        className={`relative h-44 bg-gradient-to-br ${gradientClass} flex flex-col justify-between p-4 overflow-hidden`}
+      >
         {/* Subtle grid pattern */}
-        <div className="absolute inset-0 opacity-10 pointer-events-none"
-          style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.15) 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+        <div
+          className="absolute inset-0 opacity-10 pointer-events-none"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle, rgba(255,255,255,0.15) 1px, transparent 1px)",
+            backgroundSize: "24px 24px",
+          }}
+        />
 
         {/* Glow orb */}
         <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full blur-3xl opacity-20 bg-indigo-500 pointer-events-none" />
@@ -80,7 +102,7 @@ function AssetCard({
         {/* Bottom Hero Info */}
         <div className="z-10 flex items-center justify-between">
           <span className="min-invest-badge">
-            Min. ₹{Number(item.token_price).toLocaleString('en-IN')}
+            Min. ₹{Number(item.token_price).toLocaleString("en-IN")}
           </span>
           <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-semibold">
             <Shield className="w-3 h-3" /> AI Verified
@@ -98,14 +120,17 @@ function AssetCard({
             </h3>
             {item.location && (
               <p className="flex items-center gap-1 text-[11px] text-slate-500 mt-0.5">
-                <MapPin className="w-3 h-3" />{item.location}
+                <MapPin className="w-3 h-3" />
+                {item.location}
               </p>
             )}
           </div>
         </div>
 
         {/* Trust badges */}
-        <TrustScoreBadges activeBadges={['legal', 'spv', 'multisig', 'blockchain']} />
+        <TrustScoreBadges
+          activeBadges={["legal", "spv", "multisig", "blockchain"]}
+        />
 
         {/* Explainability row — Why? buttons for Trust, ROI and Risk */}
         <div className="flex flex-wrap items-center gap-2">
@@ -126,19 +151,29 @@ function AssetCard({
         {/* Stats grid */}
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="bg-slate-900/70 rounded-xl px-3 py-2.5 border border-white/[0.05]">
-            <span className="text-slate-500 block text-[10px] mb-0.5">Total Asset Valuation</span>
-            <span className="font-bold text-white">{formatCurrency(Number(item.valuation))}</span>
+            <span className="text-slate-500 block text-[10px] mb-0.5">
+              Total Asset Valuation
+            </span>
+            <span className="font-bold text-white">
+              {formatCurrency(Number(item.valuation))}
+            </span>
           </div>
           <div className="bg-slate-900/70 rounded-xl px-3 py-2.5 border border-white/[0.05]">
-            <span className="text-slate-500 block text-[10px] mb-0.5">Token Price</span>
-            <span className={`font-bold ${colorClass}`}>₹{Number(item.token_price).toLocaleString('en-IN')}</span>
+            <span className="text-slate-500 block text-[10px] mb-0.5">
+              Token Price
+            </span>
+            <span className={`font-bold ${colorClass}`}>
+              ₹{Number(item.token_price).toLocaleString("en-IN")}
+            </span>
           </div>
         </div>
 
         {/* Available tokens progress */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-[10px]">
-            <span className="text-slate-500 font-medium">Subscription Progress</span>
+            <span className="text-slate-500 font-medium">
+              Subscription Progress
+            </span>
             <span className="text-indigo-300 font-semibold font-mono">
               {percentFunded}% Funded ({availTokens.toLocaleString()} Left)
             </span>
@@ -158,7 +193,7 @@ function AssetCard({
           aria-label={`Invest in ${item.title}`}
         >
           <Zap className="w-4 h-4" />
-          Invest via UPI / Card
+          Invest on-chain with MetaMask
         </button>
       </div>
     </div>
@@ -167,25 +202,25 @@ function AssetCard({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-import { PageHeaderExplainer } from '../components/ui/PageHeaderExplainer';
+import { PageHeaderExplainer } from "../components/ui/PageHeaderExplainer";
 
 export function Marketplace() {
-  const { user }          = useAuth();
-  const { isConnected }   = useWallet();
-  const [assets, setAssets]               = useState<Asset[]>([]);
-  const [isLoading, setIsLoading]         = useState(true);
-  const [searchTerm, setSearchTerm]       = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const { user } = useAuth();
+  const { isConnected } = useWallet();
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   // Modals state
-  const [isCompareOpen, setIsCompareOpen]   = useState(false);
+  const [isCompareOpen, setIsCompareOpen] = useState(false);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
   const [isDueDiligenceOpen, setIsDueDiligenceOpen] = useState(false);
-  
-  const [quantity, setQuantity]           = useState<number>(10);
-  const [paymentSuccess, setPaymentSuccess]     = useState<string | null>(null);
+
+  const [quantity, setQuantity] = useState<number>(10);
+  const [paymentSuccess, setPaymentSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadAssets() {
@@ -193,7 +228,7 @@ export function Marketplace() {
         const data = await assetService.getMarketplaceAssets();
         setAssets(data);
       } catch (err) {
-        console.error('Failed to load marketplace assets:', err);
+        console.error("Failed to load marketplace assets:", err);
       } finally {
         setIsLoading(false);
       }
@@ -205,12 +240,17 @@ export function Marketplace() {
     const matchesSearch =
       item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.location && item.location.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesCat = selectedCategory === 'all' || item.asset_type === selectedCategory;
+      (item.location &&
+        item.location.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesCat =
+      selectedCategory === "all" || item.asset_type === selectedCategory;
     return matchesSearch && matchesCat;
   });
 
-  const categories = ['all', ...Array.from(new Set(assets.map(a => a.asset_type)))];
+  const categories = [
+    "all",
+    ...Array.from(new Set(assets.map((a) => a.asset_type))),
+  ];
 
   function handleBuy(asset: Asset) {
     setSelectedAsset(asset);
@@ -274,13 +314,12 @@ export function Marketplace() {
         title="Top AI Asset Match"
         message="Based on your profile, Solar Farm Alpha 1 matches 81% confidence with low risk rating (15/100) and verified SPV title."
         actionText="View Details"
-        onAction={() => setSearchTerm('Solar Farm')}
+        onAction={() => setSearchTerm("Solar Farm")}
       />
 
       {/* ── Search + Filter Bar ── */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        {/* Search */}
-        <div className="relative flex-1">
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_280px]">
+        <div className="relative">
           <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
@@ -292,30 +331,55 @@ export function Marketplace() {
           />
         </div>
 
-        {/* Category select */}
-        <select
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-          className="input-field sm:w-56 select"
-          id="marketplace-category"
-        >
-          <option value="all">All Categories</option>
-          {Object.entries(ASSET_TYPE_LABELS).map(([key, label]) => (
-            <option key={key} value={key}>{label}</option>
-          ))}
-        </select>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="input-field w-full select"
+            id="marketplace-category"
+          >
+            <option value="all">All Categories</option>
+            {Object.entries(ASSET_TYPE_LABELS).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
+
+          <label
+            htmlFor="marketplace-quantity"
+            className="input-field flex items-center justify-between gap-2 w-full"
+          >
+            <span className="text-[11px] text-slate-400">Quantity</span>
+            <input
+              id="marketplace-quantity"
+              type="number"
+              value={quantity}
+              min={1}
+              step={1}
+              onChange={(e) =>
+                setQuantity(Math.max(1, Number(e.target.value) || 1))
+              }
+              className="w-24 bg-slate-950/70 border border-slate-800 text-xs text-white rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </label>
+        </div>
       </div>
 
       {/* ── Category Chips (quick filter) ── */}
       {!isLoading && assets.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {categories.map(cat => (
+          {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`filter-chip ${selectedCategory === cat ? 'active' : ''}`}
+              className={`filter-chip ${
+                selectedCategory === cat ? "active" : ""
+              }`}
             >
-              {cat === 'all' ? 'All Assets' : ((ASSET_TYPE_LABELS as any)[cat] ?? cat)}
+              {cat === "all"
+                ? "All Assets"
+                : (ASSET_TYPE_LABELS as any)[cat] ?? cat}
             </button>
           ))}
         </div>
@@ -331,7 +395,10 @@ export function Marketplace() {
           description="Try adjusting your search term or category filter."
           action={
             <button
-              onClick={() => { setSearchTerm(''); setSelectedCategory('all'); }}
+              onClick={() => {
+                setSearchTerm("");
+                setSelectedCategory("all");
+              }}
               className="btn-ghost text-xs"
             >
               Clear filters
@@ -364,7 +431,11 @@ export function Marketplace() {
           onSuccess={(txHash) => {
             setShowPaymentModal(false);
             setSelectedAsset(null);
-            setPaymentSuccess(`✅ ${quantity} tokens of ${selectedAsset?.title} minted! Tx: ${txHash?.slice(0, 12)}…`);
+            setPaymentSuccess(
+              `✅ ${quantity} tokens of ${
+                selectedAsset?.title
+              } minted! Tx: ${txHash?.slice(0, 12)}…`,
+            );
             setTimeout(() => setPaymentSuccess(null), 5000);
           }}
           onClose={() => {
@@ -375,9 +446,18 @@ export function Marketplace() {
       )}
 
       {/* Institutional Modals */}
-      <AssetComparisonModal isOpen={isCompareOpen} onClose={() => setIsCompareOpen(false)} />
-      <ExitSimulatorModal isOpen={isSimulatorOpen} onClose={() => setIsSimulatorOpen(false)} />
-      <DueDiligenceReportModal isOpen={isDueDiligenceOpen} onClose={() => setIsDueDiligenceOpen(false)} />
+      <AssetComparisonModal
+        isOpen={isCompareOpen}
+        onClose={() => setIsCompareOpen(false)}
+      />
+      <ExitSimulatorModal
+        isOpen={isSimulatorOpen}
+        onClose={() => setIsSimulatorOpen(false)}
+      />
+      <DueDiligenceReportModal
+        isOpen={isDueDiligenceOpen}
+        onClose={() => setIsDueDiligenceOpen(false)}
+      />
     </div>
   );
 }

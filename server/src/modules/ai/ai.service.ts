@@ -216,7 +216,8 @@ Return JSON format with fields:
     await memoryService.setPreferences(userId, { budget, riskPreference });
     await memoryService.addTurn(userId, 'user', `Get investment advice for $${budget} budget with ${riskPreference} risk`);
 
-    const { assets } = await assetService.getMarketplaceAssets({ status: 'tokenized' });
+    const res = await assetService.getMarketplaceAssets({ status: 'tokenized' });
+    const assets = Array.isArray(res?.assets) ? res.assets : [];
     const portfolioData = await portfolioService.getPortfolio(userId);
 
     const existingPortfolio = portfolioData.holdings.map((h: any) => ({
@@ -353,7 +354,8 @@ Return JSON format with fields:
    */
   async compareProperties(userId: string, assetIds: string[]) {
     await memoryService.addTurn(userId, 'user', `Compare properties: ${assetIds.join(', ')}`);
-    const { assets } = await assetService.getMarketplaceAssets({ status: 'tokenized' });
+    const res = await assetService.getMarketplaceAssets({ status: 'tokenized' });
+    const assets = Array.isArray(res?.assets) ? res.assets : [];
     const selected = assets.filter((a: any) => assetIds.includes(a.id));
 
     const basePrompt = buildPropertyComparisonPrompt(
@@ -390,7 +392,8 @@ Return JSON format with fields:
    */
   async analyzeRisk(userId: string, assetId: string) {
     await memoryService.addTurn(userId, 'user', `Analyze risk for asset: ${assetId}`);
-    const { assets } = await assetService.getMarketplaceAssets({});
+    const res = await assetService.getMarketplaceAssets({});
+    const assets = Array.isArray(res?.assets) ? res.assets : [];
     const asset = assets.find((a: any) => a.id === assetId) || assets[0];
 
     const basePrompt = buildRiskAnalysisPrompt({
@@ -429,7 +432,8 @@ Return JSON format with fields:
    */
   async getMarketInsights(userId: string) {
     await memoryService.addTurn(userId, 'user', 'Get macro real estate & RWA market insights');
-    const { assets } = await assetService.getMarketplaceAssets({ status: 'tokenized' });
+    const res = await assetService.getMarketplaceAssets({ status: 'tokenized' });
+    const assets = Array.isArray(res?.assets) ? res.assets : [];
     const tvlForPrompt = assets.reduce((s: number, a: any) => s + Number(a.valuation ?? 0), 0);
 
     const basePrompt = buildMarketInsightsPrompt({

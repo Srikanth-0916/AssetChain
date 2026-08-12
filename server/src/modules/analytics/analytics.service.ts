@@ -8,7 +8,9 @@ import { supabaseAdmin } from '../../config/database';
  */
 export class AnalyticsService {
   async getOverview() {
-    const { assets, meta } = await assetService.getMarketplaceAssets({ limit: '50' });
+    const res = await assetService.getMarketplaceAssets({ limit: '50' });
+    const assets = Array.isArray(res?.assets) ? res.assets : [];
+    const meta = res?.meta || { total: assets.length };
     const proposals = await daoService.getProposals();
 
     const totalValue = assets.reduce((sum: number, a: any) => sum + Number(a.valuation), 0);

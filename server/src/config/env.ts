@@ -69,7 +69,7 @@ const envSchema = z.object({
   APP_VERSION: z.string().default('2.1.0'),
 
   // FractionalMarketplace contract (set after running: npx hardhat run scripts/deploy.ts --network amoy)
-  MARKETPLACE_CONTRACT_ADDRESS: z.string().optional().default(''),
+  MARKETPLACE_CONTRACT_ADDRESS: z.string().optional().default('0x835aaF7DAF1A323b42bF7367d037e55659EB3BcB'),
   POLYGONSCAN_API_KEY: z.string().optional().default(''),
 });
 

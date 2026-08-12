@@ -20,7 +20,9 @@ export const POLYGONSCAN_BASE_URL = 'https://amoy.polygonscan.com';
  * Set VITE_MARKETPLACE_CONTRACT_ADDRESS in client/.env
  */
 export const MARKETPLACE_ADDRESS =
-  import.meta.env.VITE_MARKETPLACE_CONTRACT_ADDRESS || '';
+  import.meta.env.VITE_MARKETPLACE_CONTRACT_ADDRESS ||
+  import.meta.env.VITE_MARKETPLACE_ADDRESS ||
+  '0x835aaF7DAF1A323b42bF7367d037e55659EB3BcB';
 
 // Alias for backward compatibility
 export const FRACTIONAL_MARKETPLACE_ADDRESS = MARKETPLACE_ADDRESS;
