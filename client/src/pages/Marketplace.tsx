@@ -76,7 +76,7 @@ function AssetCard({
     <div className="asset-card group">
       {/* Card Image / Hero */}
       <div
-        className={`relative h-44 bg-gradient-to-br ${gradientClass} flex flex-col justify-between p-4 overflow-hidden`}
+        className={`relative h-44 bg-linear-to-br ${gradientClass} flex flex-col justify-between p-4 overflow-hidden`}
       >
         {/* Subtle grid pattern */}
         <div
@@ -150,7 +150,7 @@ function AssetCard({
 
         {/* Stats grid */}
         <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="bg-slate-900/70 rounded-xl px-3 py-2.5 border border-white/[0.05]">
+          <div className="bg-slate-900/70 rounded-xl px-3 py-2.5 border border-white/5">
             <span className="text-slate-500 block text-[10px] mb-0.5">
               Total Asset Valuation
             </span>
@@ -158,7 +158,7 @@ function AssetCard({
               {formatCurrency(Number(item.valuation))}
             </span>
           </div>
-          <div className="bg-slate-900/70 rounded-xl px-3 py-2.5 border border-white/[0.05]">
+          <div className="bg-slate-900/70 rounded-xl px-3 py-2.5 border border-white/5">
             <span className="text-slate-500 block text-[10px] mb-0.5">
               Token Price
             </span>
@@ -180,7 +180,7 @@ function AssetCard({
           </div>
           <div className="progress-bar-track">
             <div
-              className="progress-bar-fill bg-gradient-to-r from-indigo-500 to-emerald-400"
+              className="progress-bar-fill bg-linear-to-r from-indigo-500 to-emerald-400"
               style={{ width: `${percentFunded}%` }}
             />
           </div>
@@ -258,7 +258,7 @@ export function Marketplace() {
   }
 
   return (
-    <div className="max-w-[1320px] mx-auto px-4 lg:px-8 py-8 space-y-6 animate-fade-in">
+    <div className="max-w-330 mx-auto px-4 lg:px-8 py-8 space-y-6 animate-fade-in">
       <PageHeaderExplainer
         category="RWA Marketplace"
         title="Tokenized Real Estate Marketplace"
@@ -290,13 +290,13 @@ export function Marketplace() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsCompareOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-slate-900 border border-white/[0.1] text-slate-300 hover:text-white hover:border-indigo-500/30 text-xs font-semibold transition-all flex items-center gap-1.5"
+            className="px-3.5 py-2 rounded-xl bg-slate-900 border border-white/10 text-slate-300 hover:text-white hover:border-indigo-500/30 text-xs font-semibold transition-all flex items-center gap-1.5"
           >
             <Scale className="w-4 h-4 text-indigo-400" /> Compare Assets
           </button>
           <button
             onClick={() => setIsSimulatorOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-slate-900 border border-white/[0.1] text-slate-300 hover:text-white hover:border-indigo-500/30 text-xs font-semibold transition-all flex items-center gap-1.5"
+            className="px-3.5 py-2 rounded-xl bg-slate-900 border border-white/10 text-slate-300 hover:text-white hover:border-indigo-500/30 text-xs font-semibold transition-all flex items-center gap-1.5"
           >
             <Calculator className="w-4 h-4 text-emerald-400" /> Exit Simulator
           </button>
@@ -416,7 +416,7 @@ export function Marketplace() {
       {/* ── Payment Success Toast ── */}
       {paymentSuccess && (
         <div className="fixed bottom-6 right-6 z-50 max-w-sm p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2.5 shadow-2xl animate-fade-in">
-          <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
           {paymentSuccess}
         </div>
       )}

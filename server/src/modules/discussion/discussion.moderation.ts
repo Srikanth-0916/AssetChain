@@ -62,7 +62,7 @@ export class DiscussionModerationEngine {
     // 3. Gemini AI Detailed Inspection (if key available)
     if (this.ai) {
       try {
-        const model = this.ai.getGenerativeModel({ model: 'gemini-2.0-flash' });
+        const model = this.ai.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-1.5-flash' });
         const prompt = `Analyze this user discussion comment for an investor community platform.
 Determine if it contains financial manipulation, pump-and-dump claims, misleading investment advice, or abusive text.
 Respond strictly in JSON format:

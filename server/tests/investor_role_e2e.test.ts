@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll } from 'vitest';
+import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 import { authService } from '../src/services/auth.service';
 import { portfolioService } from '../src/services/portfolio.service';
 import { portfolioIntelligenceService } from '../src/modules/analytics/portfolio.intelligence.service';
@@ -138,5 +138,12 @@ describe('Investor Role Complete Panel & Financials E2E Test Suite', () => {
     expect(comparison).toBeDefined();
     expect(Array.isArray(comparison.metrics)).toBe(true);
     expect(comparison.metrics.length).toBeGreaterThan(0);
+  });
+
+  afterAll(async () => {
+    if (investorUserId) {
+      await supabaseAdmin.from('compliance_profiles').delete().eq('user_id', investorUserId);
+      await supabaseAdmin.from('profiles').delete().eq('id', investorUserId);
+    }
   });
 });

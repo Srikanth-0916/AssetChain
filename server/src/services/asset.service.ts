@@ -97,10 +97,10 @@ export class AssetService {
         return row;
       });
 
-      try {
-        await supabaseAdmin.from('asset_documents').insert(docRows);
-      } catch (docErr: any) {
-        console.warn('[AssetService] ⚠️ asset_documents insert warning:', docErr.message);
+      const { error: docError } = await supabaseAdmin.from('asset_documents').insert(docRows);
+      if (docError) {
+        console.error('[AssetService] ❌ asset_documents insert error:', docError.message);
+        throw new Error(`Failed to insert asset documents: ${docError.message}`);
       }
     }
 

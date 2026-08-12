@@ -46,7 +46,7 @@ export class DiscussionSummaryEngine {
     // Try Gemini AI Summarization
     if (this.ai) {
       try {
-        const model = this.ai.getGenerativeModel({ model: 'gemini-2.0-flash' });
+        const model = this.ai.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-1.5-flash' });
         const commentsText = comments.slice(0, 30).map((c) => `[ID:${c.commentId}] [${c.authorBadge}] ${c.authorName}: ${c.content}`).join('\n');
 
         const prompt = `Analyze these investor comments for property asset "${assetId}".
