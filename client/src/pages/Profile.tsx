@@ -120,7 +120,7 @@ export function Profile() {
               {user?.wallet_address && (
                 <span className="pill-badge pill-neutral font-mono">{truncateAddress(user.wallet_address)}</span>
               )}
-              <span className="pill-badge pill-neutral">Member since Nov 2024</span>
+              <span className="pill-badge pill-neutral">Member since {user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—'}</span>
             </div>
           </div>
 
@@ -178,8 +178,8 @@ export function Profile() {
                 { label: 'Full Name',   value: user?.full_name },
                 { label: 'Email',       value: user?.email },
                 { label: 'Role',        value: user?.role?.replace('_', ' '), capitalize: true },
-                { label: 'Member Since',value: 'November 2024' },
-                { label: 'Web3 Wallet EOA', value: user?.wallet_address || address || '0x71C7656EC8ab88F190278148b1110098487A3E21' },
+                { label: 'Member Since', value: user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '—' },
+                { label: 'Web3 Wallet EOA', value: user?.wallet_address || address || 'Not connected' },
                 { label: 'Wallet Type', value: user?.wallet_type || 'MetaMask / WalletConnect v2' },
                 { label: 'Active Network', value: 'Polygon Amoy Testnet (Chain 80002)' },
               ].map(f => (

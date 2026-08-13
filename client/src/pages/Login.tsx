@@ -43,12 +43,8 @@ export function Login() {
   const [isWalletAuth, setIsWalletAuth] = useState(false);
   const [isEmailAuth, setIsEmailAuth] = useState(false);
   const [isGoogleAuth, setIsGoogleAuth] = useState(false);
-  const [showDemo, setShowDemo] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<'investor' | 'asset_owner'>('investor');
 
-  const DEMO_ACCOUNTS = [
-    { label: 'Investor Demo', email: 'investor@assetchain.io', password: 'Investor123!', role: 'investor', color: 'indigo' },
-    { label: 'Asset Owner Demo', email: 'issuer@assetchain.io', password: 'Issuer123!', role: 'asset_owner', color: 'emerald' },
-  ];
 
   const isExpired = searchParams.get('expired') === 'true';
 
@@ -89,6 +85,9 @@ export function Login() {
     }
     if (msg.includes('expired')) {
       return "Your login request expired. Please try again.";
+    }
+    if (msg.includes('Unable to connect') || msg.includes('NETWORK_ERROR') || msg.includes('Network Error')) {
+      return "Unable to reach AssetChain backend server. Please verify backend server is running on port 3001.";
     }
     if (msg.includes('associated') || msg.includes('linked to another')) {
       return "This wallet is already associated with another account.";
@@ -193,7 +192,7 @@ export function Login() {
       // 6. Verify Signature on Backend & Login
       setWalletAuthStage('verifying');
       setWalletAuthStage('signingIn');
-      const loggedUser = await loginWithWallet(targetAddress, signature, 'investor');
+      const loggedUser = await loginWithWallet(targetAddress, signature, selectedRole);
 
       setWalletAuthStage('success');
       navigate(getRoleDashboardPath(loggedUser.role));
@@ -260,13 +259,6 @@ export function Login() {
     }
   };
 
-  // ─── Demo Credential Fill ───────────────────────────────────────────────────
-  const fillDemo = (demoEmail: string, demoPassword: string) => {
-    setEmail(demoEmail);
-    setPassword(demoPassword);
-    setError(null);
-    setShowDemo(false);
-  };
 
   const walletStageLabels: Record<string, string> = {
     connecting: 'Connecting...',
@@ -282,7 +274,7 @@ export function Login() {
     <div className="min-h-screen flex items-stretch bg-[#030712]">
 
       {/* ── LEFT SIDE / HERO SECTION ── */}
-      <div className="hidden lg:flex lg:w-[44%] xl:w-[42%] flex-col justify-between p-12 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-[44%] xl:w-[42%] flex-col justify-start pt-16 lg:pt-20 xl:pt-24 px-12 lg:px-16 pb-16 relative overflow-hidden">
         {/* Gradient background */}
         <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-indigo-950/50 to-slate-950" />
         {/* Glow nodes */}
@@ -294,34 +286,24 @@ export function Login() {
           style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '28px 28px' }}
         />
 
-        {/* AssetChain Branding Logo */}
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-violet-600 to-emerald-400 flex items-center justify-center shadow-xl shadow-indigo-500/30">
-            <Coins className="w-5 h-5 text-white" />
-          </div>
-          <span className="text-xl font-bold text-white tracking-tight">
-            Asset<span className="text-indigo-400">Chain</span>
-          </span>
-        </div>
-
         {/* Hero Content */}
-        <div className="relative z-10 space-y-8">
-          <div className="space-y-4">
+        <div className="relative z-10 space-y-6 max-w-md">
+          <div className="space-y-3">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[11px] font-semibold uppercase tracking-wider">
               <TrendingUp className="w-3 h-3" /> Real-World Asset (RWA) Tokenization
             </div>
-            <h2 className="text-4xl font-black text-white leading-[1.15] tracking-tight">
+            <h2 className="text-3xl xl:text-4xl font-black text-white leading-[1.15] tracking-tight">
               Invest in Real-World Assets, <span className="gradient-text">On-Chain.</span>
             </h2>
-            <p className="text-slate-300 text-sm leading-relaxed max-w-sm">
+            <p className="text-slate-300 text-xs xl:text-sm leading-relaxed">
               Securely access tokenized real-world assets and manage your investments with blockchain-powered ownership.
             </p>
           </div>
 
           {/* 3 Short Benefits */}
-          <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 gap-2.5">
             {BENEFITS.map((b, i) => (
-              <div key={i} className="flex items-center gap-3 p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.05] hover:border-white/[0.1] transition-all">
+              <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.05] hover:border-white/[0.1] transition-all">
                 <span className={`w-8 h-8 rounded-xl flex items-center justify-center ${b.bg} border shrink-0`}>
                   {b.icon}
                 </span>
@@ -342,7 +324,9 @@ export function Login() {
           </div>
         </div>
 
-        <div className="relative z-10 text-[11px] text-slate-600">© 2025 AssetChain · Secured by Polygon Blockchain</div>
+        <div className="absolute bottom-6 left-12 right-12 z-10 text-[11px] text-slate-600">
+          © 2025 AssetChain · Secured by Polygon Blockchain
+        </div>
       </div>
 
       {/* ── RIGHT LOGIN CARD PANEL ── */}
@@ -359,36 +343,40 @@ export function Login() {
             </div>
             <h1 className="text-2xl font-black text-white tracking-tight">Welcome Back</h1>
             <p className="text-xs text-slate-400">
-              Sign in securely to access your AssetChain dashboard or <button onClick={() => setShowDemo(v => !v)} className="text-indigo-400 hover:text-indigo-300 font-semibold underline underline-offset-2 transition-colors">try a demo</button>
+              Sign in securely to access your AssetChain dashboard.
             </p>
           </div>
 
-          {/* DEMO CREDENTIALS QUICK-FILL */}
-          {showDemo && (
-            <div className="p-4 rounded-2xl border border-amber-500/25 bg-amber-500/5 space-y-3 animate-fade-in">
-              <div className="text-[11px] font-bold text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
-                <Zap className="w-3 h-3" /> Quick Demo Access — Click to Auto-Fill
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {DEMO_ACCOUNTS.map(d => (
-                  <button
-                    key={d.role}
-                    type="button"
-                    onClick={() => fillDemo(d.email, d.password)}
-                    className={`p-3 rounded-xl text-left border transition-all hover:scale-[1.02] ${
-                      d.color === 'indigo'
-                        ? 'bg-indigo-500/10 border-indigo-500/25 hover:border-indigo-400/50'
-                        : 'bg-emerald-500/10 border-emerald-500/25 hover:border-emerald-400/50'
-                    }`}
-                  >
-                    <div className={`text-xs font-bold mb-0.5 ${d.color === 'indigo' ? 'text-indigo-300' : 'text-emerald-300'}`}>{d.label}</div>
-                    <div className="text-[10px] text-slate-400 font-mono truncate">{d.email}</div>
-                  </button>
-                ))}
-              </div>
-              <p className="text-[10px] text-slate-500">Demo accounts provide pre-seeded data for testing all platform features.</p>
+          {/* Account Type / Role Selector Tabs */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Account Type / Target Dashboard</label>
+            <div className="grid grid-cols-2 gap-2.5 p-1 rounded-xl bg-slate-900/90 border border-slate-800">
+              <button
+                type="button"
+                onClick={() => setSelectedRole('investor')}
+                className={`flex items-center justify-center gap-2 p-2.5 rounded-lg text-xs font-bold transition-all ${
+                  selectedRole === 'investor'
+                    ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md shadow-indigo-600/30 border border-indigo-500/50'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                }`}
+              >
+                <TrendingUp className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Investor</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedRole('asset_owner')}
+                className={`flex items-center justify-center gap-2 p-2.5 rounded-lg text-xs font-bold transition-all ${
+                  selectedRole === 'asset_owner'
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/30 border border-emerald-500/50'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                }`}
+              >
+                <Building2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Asset Owner</span>
+              </button>
             </div>
-          )}
+          </div>
 
           {/* Alerts */}
           {isExpired && (

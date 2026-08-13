@@ -72,24 +72,11 @@ export class WalletService {
       else if (v === '01') cleanSig = cleanSig.slice(0, -2) + '1c';
     }
 
-    // Verify signature off-chain (EIP-191 ECDSA or Sandbox Demo in non-prod)
+    // Verify signature off-chain (EIP-191 ECDSA — cryptographic proof only)
     try {
-      const isSandboxSig =
-        process.env.NODE_ENV !== 'production' &&
-        (cleanSig.includes('sandbox') ||
-          cleanSig.startsWith('0xdemo') ||
-          cleanSig.startsWith('demo_') ||
-          cleanSig === 'demo_signature' ||
-          normalizedAddress === '0x71c7656ec8ab88f190278148b1110098487a3e21');
-
-      if (isSandboxSig) {
-        // Sandbox / Demo mode signature validated in test/dev
-        console.log(`[WalletService] ✅ Sandbox/Demo signature validated for address: ${normalizedAddress}`);
-      } else {
-        const recoveredAddress = ethers.verifyMessage(storedNonce.nonce, cleanSig);
-        if (recoveredAddress.toLowerCase() !== normalizedAddress) {
-          throw new UnauthorizedError(`Wallet verification failed: Recovered address (${recoveredAddress.slice(0, 6)}...${recoveredAddress.slice(-4)}) does not match submitted wallet address.`);
-        }
+      const recoveredAddress = ethers.verifyMessage(storedNonce.nonce, cleanSig);
+      if (recoveredAddress.toLowerCase() !== normalizedAddress) {
+        throw new UnauthorizedError(`Wallet verification failed: Recovered address (${recoveredAddress.slice(0, 6)}...${recoveredAddress.slice(-4)}) does not match submitted wallet address.`);
       }
     } catch (error: any) {
       console.error('[WalletService] ❌ Signature verification error:', error.message);
@@ -156,16 +143,12 @@ export class WalletService {
       throw new UnauthorizedError('Nonce was generated for a different user');
     }
 
-    // Recover address from signature
+    // Recover address from signature — cryptographic proof only
     try {
-      if (signature.startsWith('demo_sig_') || signature.startsWith('0xdemo') || signature === 'demo_signature') {
-        // Demo sandbox signature validation — nonce validated & consumed
-      } else {
-        const recoveredAddress = ethers.verifyMessage(storedNonce.nonce, signature);
+      const recoveredAddress = ethers.verifyMessage(storedNonce.nonce, signature);
 
-        if (recoveredAddress.toLowerCase() !== normalizedAddress) {
-          throw new UnauthorizedError('Wallet signature verification failed');
-        }
+      if (recoveredAddress.toLowerCase() !== normalizedAddress) {
+        throw new UnauthorizedError('Wallet signature verification failed');
       }
     } catch (error) {
       if (error instanceof UnauthorizedError) throw error;

@@ -114,28 +114,25 @@ export function WalletConnectModal({ isOpen, onClose, onSuccess }: WalletConnect
         await switchToPolygonAmoy();
       }
 
-      // 2. EIP-191 Cryptographic Authentication Sequence
-      if (walletId !== 'demo' && typeof (window as any).ethereum !== 'undefined') {
-        setAuthStep('nonce');
-        // Fetch server single-use nonce
-        const { nonce } = await authService.requestPublicWalletNonce(userAddress);
-
-        setAuthStep('signing');
-        // Trigger MetaMask personal_sign popup window
-        const signature = await (window as any).ethereum.request({
-          method: 'personal_sign',
-          params: [nonce, userAddress],
-        });
-
-        setAuthStep('verifying');
-        // Verify signature on backend via ethers.verifyMessage(), store JWT, and update profile
-        await loginWithWallet(userAddress, signature, 'investor');
-      } else {
-        // Fallback for Sandbox Quick Demo / Extension-absent connection
-        setAuthStep('verifying');
-        const demoSignature = `demo_sig_${Date.now()}_${userAddress.substring(0, 8)}`;
-        await loginWithWallet(userAddress, demoSignature, 'investor');
+      // 2. EIP-191 Cryptographic Authentication Sequence — REAL signatures only
+      if (typeof (window as any).ethereum === 'undefined') {
+        throw new Error('MetaMask is not installed. Install MetaMask to continue.');
       }
+
+      setAuthStep('nonce');
+      // Fetch server single-use nonce
+      const { nonce } = await authService.requestPublicWalletNonce(userAddress);
+
+      setAuthStep('signing');
+      // Trigger MetaMask personal_sign popup window
+      const signature = await (window as any).ethereum.request({
+        method: 'personal_sign',
+        params: [nonce, userAddress],
+      });
+
+      setAuthStep('verifying');
+      // Verify signature on backend via ethers.verifyMessage(), store JWT, and update profile
+      await loginWithWallet(userAddress, signature, 'investor');
 
       setAuthStep('success');
       if (onSuccess) onSuccess();

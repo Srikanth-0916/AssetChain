@@ -189,7 +189,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       } else if (!(window as any).ethereum) {
         // If no Web3 wallet extension is present, clear stale cached session wallet
         const storedWallet = localStorage.getItem('assetchain_connected_wallet');
-        if (storedWallet && !storedWallet.includes('0x71C7656EC8ab88F190278148b1110098487A3E21')) {
+        if (storedWallet) {
           localStorage.removeItem('assetchain_connected_wallet');
           setAddress(null);
           setProvider(null);
@@ -211,26 +211,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setWalletType(selectedType);
 
     try {
-      // Demo / Sandbox fallback requested
-      if (selectedType === 'demo' || selectedType === 'sandbox') {
-        const demoAddress = '0x71C7656EC8ab88F190278148b1110098487A3E21';
-        setAddress(demoAddress);
-        setChainId(POLYGON_AMOY_CHAIN_ID);
-        setBalance('0.2500');
-        const sessionPayload: WalletSessionPayload = {
-          userId: localStorage.getItem('assetchain_user_id') || undefined,
-          wallet: demoAddress.toLowerCase(),
-          chainId: POLYGON_AMOY_CHAIN_ID,
-          sessionVersion: 1,
-          timestamp: Date.now(),
-        };
-        localStorage.setItem('assetchain_connected_wallet', JSON.stringify(sessionPayload));
-        return demoAddress;
-      }
-
       // 1. Detect MetaMask — inline, handles Firefox async injection
-      //    If MetaMask extension is not present in browser, fall back seamlessly
-      //    to Whitelisted Polygon Amoy Sandbox Account (0x71C7656E...).
+      //    If MetaMask extension is not present, throw error (no silent fallback).
       const eth: any = await new Promise<any>((resolve) => {
         const provider = (window as any).ethereum;
         if (provider) { resolve(provider); return; }
@@ -251,23 +233,6 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (!eth) {
-        // If explicit demo/sandbox wallet is requested in dev environment
-        if (selectedType === 'demo' || selectedType === 'sandbox') {
-          const demoAddress = '0x71C7656EC8ab88F190278148b1110098487A3E21';
-          setAddress(demoAddress);
-          setChainId(POLYGON_AMOY_CHAIN_ID);
-          setBalance('0.2500');
-          const sessionPayload: WalletSessionPayload = {
-            userId: localStorage.getItem('assetchain_user_id') || undefined,
-            wallet: demoAddress.toLowerCase(),
-            chainId: POLYGON_AMOY_CHAIN_ID,
-            sessionVersion: 1,
-            timestamp: Date.now(),
-          };
-          localStorage.setItem('assetchain_connected_wallet', JSON.stringify(sessionPayload));
-          return demoAddress;
-        }
-
         // Extension absent — throw clean error so UI can display Install MetaMask button
         throw new Error('MetaMask is not installed. Install MetaMask to continue.');
       }
