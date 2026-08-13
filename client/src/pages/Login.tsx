@@ -310,13 +310,24 @@ export function Login() {
               </span>
             </div>
 
-            <div className="p-3 rounded-xl bg-slate-950/80 border border-indigo-500/15 space-y-1">
+            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-indigo-500/20 space-y-2">
               <div className="text-[11px] font-bold text-indigo-300 flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-indigo-400 shrink-0" /> How Web3 Authentication Works
+                <ShieldCheck className="w-3.5 h-3.5 text-indigo-400 shrink-0" /> How to Connect with MetaMask
               </div>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                We use EIP-191 cryptographic signatures. <strong>No transaction will occur. No gas fee will be charged.</strong> Your wallet ownership is verified via an off-chain challenge.
-              </p>
+              <ol className="space-y-1 text-[11px] text-slate-300">
+                <li className="flex items-start gap-1.5">
+                  <span className="font-bold text-indigo-400">1.</span>
+                  <span><strong>Click Connect Wallet</strong> — Select <strong>MetaMask</strong> from the provider prompt.</span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span className="font-bold text-indigo-400">2.</span>
+                  <span><strong>Approve Account</strong> — Choose your Web3 address in the MetaMask popup.</span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span className="font-bold text-indigo-400">3.</span>
+                  <span><strong>Sign & Authenticate</strong> — Confirm the free EIP-191 signature prompt to sign in.</span>
+                </li>
+              </ol>
             </div>
 
             {isWalletAuth && (
