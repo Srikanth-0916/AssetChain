@@ -107,7 +107,7 @@ export class AuthService {
         console.warn('[AuthService] ⚠️ Supabase Auth admin.createUser error:', authErr.message);
       }
 
-      if (authData?.user) {
+      if (authData?.user?.id) {
         authUserId = authData.user.id;
       }
     } catch (e: any) {
@@ -497,7 +497,7 @@ export class AuthService {
             role: role,
           },
         });
-        if (authData?.user) {
+        if (authData?.user?.id) {
           authUserId = authData.user.id;
         }
       } catch (e: any) {

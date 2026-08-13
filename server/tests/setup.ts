@@ -75,13 +75,27 @@ globalThis.fetch = async function (url: any, options: any) {
 
   // Non-REST Supabase calls (auth, storage, functions) — pass through
   try {
-    return await originalFetch(url, options);
+    const res = await originalFetch(url, options);
+    if (res.ok) return res;
   } catch {
-    return new Response(JSON.stringify({ status: 'success', mock: true }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    // Network error — fall through to mock
   }
+
+  if (urlStr.includes('/auth/v1/')) {
+    return new Response(
+      JSON.stringify({
+        id: 'mock-auth-id-12345',
+        user: { id: 'mock-auth-id-12345', email: 'mock@assetchain.io' },
+        data: { user: { id: 'mock-auth-id-12345', email: 'mock@assetchain.io' } },
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  return new Response(JSON.stringify({ status: 'success', mock: true }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
 };
 
 beforeAll(() => {
