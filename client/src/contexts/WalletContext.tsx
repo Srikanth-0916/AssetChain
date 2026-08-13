@@ -251,20 +251,25 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (!eth) {
-        // Extension absent — fall back seamlessly to Whitelisted Sandbox Account
-        const demoAddress = '0x71C7656EC8ab88F190278148b1110098487A3E21';
-        setAddress(demoAddress);
-        setChainId(POLYGON_AMOY_CHAIN_ID);
-        setBalance('0.2500');
-        const sessionPayload: WalletSessionPayload = {
-          userId: localStorage.getItem('assetchain_user_id') || undefined,
-          wallet: demoAddress.toLowerCase(),
-          chainId: POLYGON_AMOY_CHAIN_ID,
-          sessionVersion: 1,
-          timestamp: Date.now(),
-        };
-        localStorage.setItem('assetchain_connected_wallet', JSON.stringify(sessionPayload));
-        return demoAddress;
+        // If explicit demo/sandbox wallet is requested in dev environment
+        if (selectedType === 'demo' || selectedType === 'sandbox') {
+          const demoAddress = '0x71C7656EC8ab88F190278148b1110098487A3E21';
+          setAddress(demoAddress);
+          setChainId(POLYGON_AMOY_CHAIN_ID);
+          setBalance('0.2500');
+          const sessionPayload: WalletSessionPayload = {
+            userId: localStorage.getItem('assetchain_user_id') || undefined,
+            wallet: demoAddress.toLowerCase(),
+            chainId: POLYGON_AMOY_CHAIN_ID,
+            sessionVersion: 1,
+            timestamp: Date.now(),
+          };
+          localStorage.setItem('assetchain_connected_wallet', JSON.stringify(sessionPayload));
+          return demoAddress;
+        }
+
+        // Extension absent — throw clean error so UI can display Install MetaMask button
+        throw new Error('MetaMask is not installed. Install MetaMask to continue.');
       }
 
       // 2. Trigger real MetaMask extension popup for account request

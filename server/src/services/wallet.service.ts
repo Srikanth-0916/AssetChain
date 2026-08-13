@@ -29,7 +29,7 @@ export class WalletService {
     const normalizedAddress = walletAddress.toLowerCase();
     const nonce = uuidv4();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-    const message = `Login to TrustChain AI\n\nSign this message to verify your wallet ownership.\n\nNonce: ${nonce}\nAddress: ${normalizedAddress}\nTimestamp: ${new Date().toISOString()}`;
+    const message = `Sign this message to securely authenticate with AssetChain.\n\nThis signature does not authorize a blockchain transaction and does not cost gas.\n\nDomain: AssetChain\nWallet: ${normalizedAddress}\nNonce: ${nonce}\nIssued At: ${new Date().toISOString()}`;
 
     nonceStore.set(normalizedAddress, { nonce: message, expiresAt, userId: '' });
 
@@ -51,9 +51,11 @@ export class WalletService {
       throw new UnprocessableError('No verification request found for this wallet. Please request a new nonce.');
     }
 
+    // Single-use nonce: delete from store immediately upon verification attempt to prevent replay attacks
+    nonceStore.delete(normalizedAddress);
+
     // Check expiry
     if (storedNonce.expiresAt < new Date()) {
-      nonceStore.delete(normalizedAddress);
       throw new UnprocessableError('Nonce has expired. Please request a new one.');
     }
 
@@ -70,22 +72,23 @@ export class WalletService {
       else if (v === '01') cleanSig = cleanSig.slice(0, -2) + '1c';
     }
 
-    // Verify signature off-chain (EIP-191 ECDSA or Sandbox Demo)
+    // Verify signature off-chain (EIP-191 ECDSA or Sandbox Demo in non-prod)
     try {
       const isSandboxSig =
-        cleanSig.includes('sandbox') ||
-        cleanSig.startsWith('0xdemo') ||
-        cleanSig.startsWith('demo_') ||
-        cleanSig === 'demo_signature' ||
-        normalizedAddress === '0x71c7656ec8ab88f190278148b1110098487a3e21';
+        process.env.NODE_ENV !== 'production' &&
+        (cleanSig.includes('sandbox') ||
+          cleanSig.startsWith('0xdemo') ||
+          cleanSig.startsWith('demo_') ||
+          cleanSig === 'demo_signature' ||
+          normalizedAddress === '0x71c7656ec8ab88f190278148b1110098487a3e21');
 
       if (isSandboxSig) {
-        // Sandbox / Demo mode signature validated — consume nonce
+        // Sandbox / Demo mode signature validated in test/dev
         console.log(`[WalletService] ✅ Sandbox/Demo signature validated for address: ${normalizedAddress}`);
       } else {
         const recoveredAddress = ethers.verifyMessage(storedNonce.nonce, cleanSig);
         if (recoveredAddress.toLowerCase() !== normalizedAddress) {
-          throw new UnauthorizedError(`Signature mismatch: Signature recovered address (${recoveredAddress}) does not match wallet (${normalizedAddress}).`);
+          throw new UnauthorizedError(`Wallet verification failed: Recovered address (${recoveredAddress.slice(0, 6)}...${recoveredAddress.slice(-4)}) does not match submitted wallet address.`);
         }
       }
     } catch (error: any) {
@@ -93,9 +96,6 @@ export class WalletService {
       if (error instanceof UnauthorizedError) throw error;
       throw new UnprocessableError(`Invalid signature format: ${error.message || 'Malformed hex signature'}`);
     }
-
-    // Clean up nonce
-    nonceStore.delete(normalizedAddress);
 
     // Login or auto-register user with wallet_address & user_id primary key
     return authService.loginOrCreateWithWallet(normalizedAddress, role);
@@ -116,13 +116,13 @@ export class WalletService {
       .single();
 
     if (existing) {
-      throw new ConflictError('This wallet address is already linked to another account');
+      throw new ConflictError('This wallet address is already associated with another account.');
     }
 
     // Generate nonce
     const nonce = uuidv4();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-    const message = `Login to TrustChain AI\n\nSign this message to verify your wallet ownership.\n\nNonce: ${nonce}\nAddress: ${normalizedAddress}\nTimestamp: ${new Date().toISOString()}`;
+    const message = `Sign this message to securely authenticate with AssetChain.\n\nThis signature does not authorize a blockchain transaction and does not cost gas.\n\nDomain: AssetChain\nWallet: ${normalizedAddress}\nNonce: ${nonce}\nIssued At: ${new Date().toISOString()}`;
 
     nonceStore.set(normalizedAddress, { nonce: message, expiresAt, userId });
 
