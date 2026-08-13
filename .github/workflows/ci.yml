@@ -52,16 +52,6 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Show commit and prompt builder diagnostics
-        run: |
-          echo "=== CI DIAGNOSTIC INFO ==="
-          git rev-parse HEAD
-          git log --oneline -1
-          echo "--- prompt.builder.ts lines containing totalInvested ---"
-          grep -n "totalInvested" server/src/modules/ai/prompt.builder.ts
-          echo "--- ai.service.ts analyzePortfolio ---"
-          grep -n "totalInvested\|portfolioTotal\|try {" server/src/modules/ai/ai.service.ts | head -20
-
       - name: Run Vitest Test Suite
         env:
           PORT: 3001
